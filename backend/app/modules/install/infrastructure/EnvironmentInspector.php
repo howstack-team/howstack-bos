@@ -82,14 +82,17 @@ final class EnvironmentInspector implements EnvironmentInspectorInterface
 
         $assetPaths = [
             public_path() . '/install-assets/app/index.html',
-            public_path() . '/install-assets/vendor/antd.css',
         ];
         $applicationScripts = glob(public_path() . '/install-assets/app/assets/*.js') ?: [];
+        $applicationStyles = glob(public_path() . '/install-assets/app/assets/*.css') ?: [];
         $assetsReadable = array_all(
             $assetPaths,
             static fn (string $path): bool => is_file($path) && is_readable($path),
         ) && array_any(
             $applicationScripts,
+            static fn (string $path): bool => is_file($path) && is_readable($path),
+        ) && array_any(
+            $applicationStyles,
             static fn (string $path): bool => is_file($path) && is_readable($path),
         );
         $items[] = $this->item(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace app\modules\install\infrastructure;
 
+use app\modules\admin\access\domain\SystemAccessDefaults;
 use app\modules\install\contract\InstallationDatabaseInterface;
 use app\modules\install\domain\InstallationConfiguration;
 use app\modules\install\exception\InstallationException;
@@ -75,18 +76,35 @@ final readonly class PdoInstallationDatabase implements InstallationDatabaseInte
 
         $pdo->beginTransaction();
         try {
+            $rootStatement = $pdo->prepare("SELECT id FROM `{$prefix}admin_departments` WHERE system_key = :system_key");
+            $rootStatement->execute(['system_key' => SystemAccessDefaults::ROOT_DEPARTMENT_KEY]);
+            $rootId = $rootStatement->fetchColumn();
+            $superRoleStatement = $pdo->prepare("SELECT id FROM `{$prefix}admin_roles` WHERE code = :code AND is_system = 1");
+            $superRoleStatement->execute(['code' => SystemAccessDefaults::SUPER_ADMIN_ROLE_CODE]);
+            $superRoleId = $superRoleStatement->fetchColumn();
+            if ($rootId === false || $superRoleId === false) {
+                throw new InstallationException('系统默认角色或部门初始化失败，请重新执行安装', 500);
+            }
+
+            $baseCategoryStatement = $pdo->prepare("SELECT id FROM `{$prefix}system_setting_categories` WHERE code = :code");
+            $baseCategoryStatement->execute(['code' => 'base']);
+            $baseCategoryId = $baseCategoryStatement->fetchColumn();
+            if ($baseCategoryId === false) {
+                throw new InstallationException('系统设置分类初始化失败，请重新执行安装', 500);
+            }
+
             $settingStatement = $pdo->prepare(
                 "INSERT INTO `{$prefix}system_settings`
-                    (`setting_key`, `setting_value`, `is_public`, `created_at`, `updated_at`)
-                 VALUES (:setting_key, :setting_value, :is_public, :created_at, :updated_at)
+                    (`category_id`, `setting_key`, `setting_value`, `is_public`, `created_at`, `updated_at`)
+                 VALUES (:category_id, :setting_key, :setting_value, :is_public, :created_at, :updated_at)
                  ON DUPLICATE KEY UPDATE
+                    `category_id` = VALUES(`category_id`),
                     `setting_value` = VALUES(`setting_value`),
                     `is_public` = VALUES(`is_public`),
                     `updated_at` = VALUES(`updated_at`)",
             );
 
             foreach ([
-                ['site.name', $configuration->siteName, 1],
                 ['site.title', $configuration->siteTitle, 1],
                 ['site.description', $configuration->siteDescription, 1],
                 ['site.url', $configuration->siteUrl, 1],
@@ -94,6 +112,9 @@ final readonly class PdoInstallationDatabase implements InstallationDatabaseInte
                 ['legal.software_agreement_version', InstallationConfiguration::AGREEMENT_VERSION, 0],
             ] as [$key, $value, $public]) {
                 $settingStatement->execute([
+                    'category_id' => in_array($key, ['site.title', 'site.description', 'site.url'], true)
+                        ? (int) $baseCategoryId
+                        : null,
                     'setting_key' => $key,
                     'setting_value' => $value,
                     'is_public' => $public,
@@ -104,21 +125,33 @@ final readonly class PdoInstallationDatabase implements InstallationDatabaseInte
 
             $adminStatement = $pdo->prepare(
                 "INSERT INTO `{$prefix}admin_users`
-                    (`username`, `nickname`, `password_hash`, `status`, `created_at`, `updated_at`)
-                 VALUES (:username, :nickname, :password_hash, 1, :created_at, :updated_at)
+                    (`username`, `nickname`, `department_id`, `password_hash`, `status`, `is_founder`, `created_at`, `updated_at`)
+                 VALUES (:username, :nickname, :department_id, :password_hash, 1, 1, :created_at, :updated_at)
                  ON DUPLICATE KEY UPDATE
                     `nickname` = VALUES(`nickname`),
+                    `department_id` = VALUES(`department_id`),
                     `password_hash` = VALUES(`password_hash`),
                     `status` = 1,
+                    `is_founder` = 1,
                     `updated_at` = VALUES(`updated_at`)",
             );
             $adminStatement->execute([
                 'username' => $configuration->adminUsername,
                 'nickname' => $configuration->adminNickname,
+                'department_id' => (int) $rootId,
                 'password_hash' => $passwordHash,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+
+            // 迁移已创建默认角色；安装器只关联当前创始账号，不另建一套权限结构。
+            $roleStatement = $pdo->prepare(
+                "INSERT INTO `{$prefix}admin_user_roles` (`admin_user_id`, `role_id`)
+                 SELECT u.id, :role_id FROM `{$prefix}admin_users` AS u
+                 WHERE u.username = :username
+                 ON DUPLICATE KEY UPDATE `role_id` = VALUES(`role_id`)",
+            );
+            $roleStatement->execute(['username' => $configuration->adminUsername, 'role_id' => (int) $superRoleId]);
 
             $installStatement = $pdo->prepare(
                 "INSERT INTO `{$prefix}installation`

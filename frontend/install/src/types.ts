@@ -50,7 +50,7 @@ export interface InstallationConfiguration {
     database: number
   }
   system: {
-    site_name: string
+    site_title: string
     site_url: string
     admin_path: string
   }

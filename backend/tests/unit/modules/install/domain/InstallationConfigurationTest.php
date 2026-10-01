@@ -25,7 +25,7 @@ final class InstallationConfigurationTest extends TestCase
         self::assertSame('https://example.com', $configuration->siteUrl);
         self::assertSame('hlyq_', $configuration->database->tablePrefix);
         self::assertSame('', $configuration->database->redisUsername);
-        self::assertSame($configuration->siteName, $configuration->siteTitle);
+        self::assertSame('皓量云擎云业务运营系统', $configuration->siteTitle);
         self::assertSame('', $configuration->siteDescription);
         self::assertSame('超级管理员', $configuration->adminNickname);
         $environment = $configuration->environment('app-key', 'jwt-secret', false);
@@ -149,7 +149,7 @@ final class InstallationConfigurationTest extends TestCase
                 'database' => 0,
             ],
             'system' => [
-                'site_name' => '皓量云擎业务管理系统',
+                'site_title' => '皓量云擎云业务运营系统',
                 'site_url' => 'https://example.com/',
                 'admin_path' => '/Manage-Center/',
             ],

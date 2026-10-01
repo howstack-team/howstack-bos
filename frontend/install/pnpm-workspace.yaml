@@ -1,2 +1,1 @@
-minimumReleaseAgeExclude:
-  - antd@6.6.5
+minimumReleaseAgeExclude: []

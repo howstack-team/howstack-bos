@@ -3,6 +3,9 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  --border-radius-small: 2px;
+  --border-radius-medium: 2px;
+  --border-radius-large: 2px;
   --install-primary: #165dff;
   --install-bg: #f4f7fb;
   --install-surface: #ffffff;
@@ -168,6 +171,18 @@ textarea {
   width: 100%;
 }
 
+.compact-step {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.compact-step-title {
+  font-size: 12px;
+  line-height: 20px;
+}
+
 .step-title-short {
   display: none;
 }
@@ -245,6 +260,10 @@ textarea {
 .environment-current-mobile {
   display: none;
 }
+
+.environment-result-success { color: rgb(var(--success-6)); }
+.environment-result-error { color: rgb(var(--danger-6)); }
+.environment-result-warning { color: rgb(var(--warning-6)); }
 
 .environment-summary {
   margin-top: 14px;
