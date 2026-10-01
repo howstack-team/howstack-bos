@@ -88,6 +88,7 @@ export async function request<T>(config: AxiosRequestConfig): Promise<T> {
     if (error instanceof AxiosError) {
       const responseData = error.response?.data
       if (isApiEnvelope(responseData)) {
+        if (error.response?.status === 403) window.dispatchEvent(new Event('admin:access-changed'))
         throw new ApiRequestError(
           responseData.message || '请求失败，请稍后重试',
           error.response?.status ?? 0,

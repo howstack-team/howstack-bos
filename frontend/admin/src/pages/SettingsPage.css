@@ -1,0 +1,3 @@
+.settings-page { min-width: 0; }
+.settings-loading { display: grid; min-height: 240px; place-items: center; }
+.settings-form-panel { width: 100%; max-width: 640px; padding-top: 16px; }

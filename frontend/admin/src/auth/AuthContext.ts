@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { AdminLoginInput, AdminUser } from '../api/authApi.ts'
+import type { AdminLoginInput, AdminUser } from './authApi.ts'
 
 export type AuthenticationStatus = 'loading' | 'authenticated' | 'anonymous'
 
@@ -9,9 +9,11 @@ export type AuthenticationStatus = 'loading' | 'authenticated' | 'anonymous'
 export interface AuthContextValue {
   status: AuthenticationStatus
   user: AdminUser | null
+  permissions: string[]
   bootstrapError: string
   login: (input: AdminLoginInput) => Promise<void>
   logout: () => Promise<void>
+  refreshAccess: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

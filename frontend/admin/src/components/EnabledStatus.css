@@ -1,0 +1,2 @@
+.enabled-status__success { color: rgb(var(--success-6)); }
+.enabled-status__warning { color: rgb(var(--warning-6)); }
