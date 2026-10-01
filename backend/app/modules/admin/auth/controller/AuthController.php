@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace app\modules\admin\auth\controller;
 
 use app\modules\admin\auth\application\AdminAuthenticationContext;
+use app\modules\admin\access\application\AdminAccessControlService;
 use app\modules\admin\auth\application\LoginAdminService;
 use app\modules\admin\auth\domain\AdminLoginCredentials;
 use app\modules\admin\auth\exception\AdminAuthenticationException;
 use app\modules\admin\auth\middleware\AdminAuthMiddleware;
+use app\modules\admin\auth\middleware\AdminLoginRateLimitMiddleware;
 use app\modules\admin\auth\validation\AdminLoginValidator;
 use app\shared\http\ApiResponse;
+use app\shared\contract\ClientIpResolverInterface;
 use JsonException;
 use Random\RandomException;
 use support\annotation\Middleware;
@@ -18,7 +21,6 @@ use support\annotation\route\DisableDefaultRoute;
 use support\annotation\route\Get;
 use support\annotation\route\Post;
 use support\annotation\route\RouteGroup;
-use support\limiter\annotation\Limit;
 use support\Request;
 use support\Response;
 
@@ -34,11 +36,14 @@ final readonly class AuthController
      * @param LoginAdminService          $login       管理员登录服务
      * @param ApiResponse                $apiResponse 统一 API 响应生成器
      * @param AdminAuthenticationContext $context     请求级管理员上下文
+     * @param AdminAccessControlService  $access      后台权限服务
      */
     public function __construct(
         private LoginAdminService $login,
         private ApiResponse $apiResponse,
         private AdminAuthenticationContext $context,
+        private AdminAccessControlService $access,
+        private ClientIpResolverInterface $clientIps,
     ) {
     }
 
@@ -51,7 +56,7 @@ final readonly class AuthController
      * @throws RandomException 请求追踪标识或 JWT 标识无法生成时抛出
      */
     #[Post(path: '/login', name: 'admin.auth.login')]
-    #[Limit(limit: 10, ttl: 60, key: Limit::IP, message: '登录尝试过于频繁，请稍后重试')]
+    #[Middleware(AdminLoginRateLimitMiddleware::class)]
     public function login(Request $request): Response
     {
         $input = AdminLoginValidator::make([
@@ -64,9 +69,14 @@ final readonly class AuthController
             $input['password'],
             $input['remember'],
         );
-        $result = $this->login->execute($credentials, $request->getRemoteIp());
+        $result = $this->login->execute(
+            $credentials,
+            $this->clientIps->resolve($request),
+            (string) $request->header('user-agent', ''),
+        );
         $response = $this->apiResponse->success($request, [
             'user' => $result->account->profile(),
+            'permissions' => $this->access->permissions($result->account),
             'expires_at' => $result->token->expiresAt,
         ], '登录成功');
 
@@ -95,6 +105,7 @@ final readonly class AuthController
     {
         return $this->withNoStore($this->apiResponse->success($request, [
             'user' => $this->context->account($request)->profile(),
+            'permissions' => $this->access->permissions($this->context->account($request)),
         ]));
     }
 

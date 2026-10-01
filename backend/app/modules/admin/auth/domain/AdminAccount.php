@@ -17,6 +17,8 @@ final readonly class AdminAccount
      * @param string      $passwordHash 密码哈希
      * @param int         $status       状态，1 表示启用
      * @param string|null $lastLoginAt  最近登录时间
+     * @param bool        $isFounder    是否为安装时创建的创始管理员
+     * @param int|null    $departmentId 所属部门标识
      */
     public function __construct(
         public int $id,
@@ -25,6 +27,8 @@ final readonly class AdminAccount
         public string $passwordHash,
         public int $status,
         public ?string $lastLoginAt,
+        public bool $isFounder = false,
+        public ?int $departmentId = null,
     ) {
     }
 
@@ -39,7 +43,7 @@ final readonly class AdminAccount
 
     /**
      * 生成可安全返回给前端的管理员资料。
-     * @return array{id: int, username: string, nickname: string, last_login_at: string|null} 管理员公开资料
+     * @return array{id: int, username: string, nickname: string, last_login_at: string|null, is_founder: bool, department_id: int|null} 管理员公开资料
      */
     public function profile(): array
     {
@@ -48,6 +52,8 @@ final readonly class AdminAccount
             'username' => $this->username,
             'nickname' => $this->nickname,
             'last_login_at' => $this->lastLoginAt,
+            'is_founder' => $this->isFounder,
+            'department_id' => $this->departmentId,
         ];
     }
 }

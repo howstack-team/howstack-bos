@@ -1,0 +1,44 @@
+openapi: 3.0.3
+info:
+  title: 运营后台订单只读查询
+  version: 1.0.0
+  description: 订单和订单项当前仅供查询。创建、支付、退款将在报价及账务闭环实现后开放。
+paths:
+  /api/admin/v1/orders:
+    get:
+      summary: 分页查询订单
+      description: 需要 admin.page.order-list.view 权限。
+      parameters:
+        - { name: keyword, in: query, schema: { type: string, maxLength: 64 } }
+        - { name: status, in: query, schema: { type: string, enum: [pending_payment, paid, fulfilling, completed, cancelled, failed, refunding, refunded] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+      responses:
+        '200':
+          description: 统一响应 data 包含 data 和 total
+  /api/admin/v1/orders/{id}:
+    get:
+      summary: 查询订单及订单项快照
+      description: 需要 admin.page.order-list.view 权限；不返回含敏感配置的 configuration_snapshot。
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: 统一响应 data 包含订单字段和 items 数组
+        '404':
+          description: 订单不存在
+components:
+  schemas:
+    OrderItem:
+      type: object
+      required: [id, line_no, product_type, product_type_version, sales_version, product_name, quantity, unit_price_minor, total_minor]
+      properties:
+        id: { type: integer }
+        line_no: { type: integer }
+        product_type: { type: string }
+        product_type_version: { type: string }
+        sales_version: { type: string }
+        product_name: { type: string }
+        quantity: { type: integer }
+        unit_price_minor: { type: integer, format: int64 }
+        total_minor: { type: integer, format: int64 }

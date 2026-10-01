@@ -43,8 +43,8 @@ final class InstallRequestValidator extends Validator
         'configuration.redis.port' => 'required|integer|between:1,65535',
         'configuration.redis.password' => 'present|string|max:512',
         'configuration.redis.database' => 'required|integer|between:0,255',
-        'configuration.system' => 'required|array:site_name,site_url,admin_path',
-        'configuration.system.site_name' => 'required|string|min:2|max:80',
+        'configuration.system' => 'required|array:site_title,site_url,admin_path',
+        'configuration.system.site_title' => 'required|string|min:2|max:120',
         'configuration.system.site_url' => 'required|string|max:255|url:http,https',
         'configuration.system.admin_path' => [
             'required',
@@ -71,9 +71,9 @@ final class InstallRequestValidator extends Validator
         'phase.required' => '请选择安装阶段',
         'phase.string' => '安装阶段格式不正确',
         'phase.in' => '未知的安装阶段',
-        'configuration.agreement_agreed.required' => '请先阅读并同意皓量云擎业务管理系统软件使用协议',
+        'configuration.agreement_agreed.required' => '请先阅读并同意皓量云擎云业务运营系统软件使用协议',
         'configuration.agreement_agreed.boolean' => '软件使用协议确认状态格式不正确',
-        'configuration.agreement_agreed.accepted' => '请先阅读并同意皓量云擎业务管理系统软件使用协议',
+        'configuration.agreement_agreed.accepted' => '请先阅读并同意皓量云擎云业务运营系统软件使用协议',
         'configuration.mysql.required' => '请填写 MySQL 配置',
         'configuration.mysql.array' => 'MySQL 配置格式不正确',
         'configuration.mysql.host.required' => '请输入 MySQL 主机地址',
@@ -110,10 +110,10 @@ final class InstallRequestValidator extends Validator
         'configuration.redis.database.between' => 'Redis 数据库编号必须在 0 至 255 之间',
         'configuration.system.required' => '请填写系统配置',
         'configuration.system.array' => '系统配置格式不正确',
-        'configuration.system.site_name.required' => '请输入网站名称',
-        'configuration.system.site_name.string' => '网站名称格式不正确',
-        'configuration.system.site_name.min' => '网站名称长度必须在 2 至 80 个字符之间',
-        'configuration.system.site_name.max' => '网站名称长度必须在 2 至 80 个字符之间',
+        'configuration.system.site_title.required' => '请输入网站标题',
+        'configuration.system.site_title.string' => '网站标题格式不正确',
+        'configuration.system.site_title.min' => '网站标题长度必须在 2 至 120 个字符之间',
+        'configuration.system.site_title.max' => '网站标题长度必须在 2 至 120 个字符之间',
         'configuration.system.site_url.required' => '请输入网站地址',
         'configuration.system.site_url.string' => '网站地址格式不正确',
         'configuration.system.site_url.url' => '请输入有效的网站地址，例如 https://example.com',
@@ -148,7 +148,7 @@ final class InstallRequestValidator extends Validator
             'configuration.agreement_agreed',
             ...self::CONNECTION_FIELDS,
             'configuration.system',
-            'configuration.system.site_name',
+            'configuration.system.site_title',
             'configuration.system.site_url',
             'configuration.system.admin_path',
             'configuration.admin',
@@ -204,7 +204,7 @@ final class InstallRequestValidator extends Validator
         $this->trimField($configuration, 'mysql', 'database');
         $this->trimField($configuration, 'mysql', 'username');
         $this->trimField($configuration, 'redis', 'host');
-        $this->trimField($configuration, 'system', 'site_name');
+        $this->trimField($configuration, 'system', 'site_title');
         $this->trimField($configuration, 'system', 'site_url', true);
         $this->normalizeAdminPath($configuration);
         $this->trimField($configuration, 'admin', 'username');

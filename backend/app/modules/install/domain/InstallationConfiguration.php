@@ -28,7 +28,6 @@ final readonly class InstallationConfiguration
     /**
      * 创建系统安装配置值对象。
      * @param DatabaseConfiguration $database        数据库与缓存配置
-     * @param string                $siteName        网站名称
      * @param string                $siteTitle       网站标题
      * @param string                $siteDescription 网站描述
      * @param string                $siteUrl         网站地址
@@ -39,7 +38,6 @@ final readonly class InstallationConfiguration
      */
     public function __construct(
         public DatabaseConfiguration $database,
-        public string $siteName,
         public string $siteTitle,
         public string $siteDescription,
         public string $siteUrl,
@@ -59,14 +57,13 @@ final readonly class InstallationConfiguration
     public static function fromArray(array $input): self
     {
         if (($input['agreement_agreed'] ?? false) !== true) {
-            throw new InstallationException('请先阅读并同意皓量云擎业务管理系统软件使用协议');
+            throw new InstallationException('请先阅读并同意皓量云擎云业务运营系统软件使用协议');
         }
 
         $system = is_array($input['system'] ?? null) ? $input['system'] : [];
         $admin = is_array($input['admin'] ?? null) ? $input['admin'] : [];
 
-        $siteName = trim((string) ($system['site_name'] ?? ''));
-        $siteTitle = $siteName;
+        $siteTitle = trim((string) ($system['site_title'] ?? ''));
         $siteDescription = '';
         $siteUrl = rtrim(trim((string) ($system['site_url'] ?? '')), '/');
         $adminPath = strtolower(trim((string) ($system['admin_path'] ?? ''), " /\t\n\r\0\x0B"));
@@ -74,8 +71,8 @@ final readonly class InstallationConfiguration
         $adminNickname = trim((string) ($admin['nickname'] ?? ''));
         $adminPassword = (string) ($admin['password'] ?? '');
 
-        if (mb_strlen($siteName) < 2 || mb_strlen($siteName) > 80) {
-            throw new InstallationException('网站名称长度必须在 2 至 80 个字符之间');
+        if (mb_strlen($siteTitle) < 2 || mb_strlen($siteTitle) > 120) {
+            throw new InstallationException('网站标题长度必须在 2 至 120 个字符之间');
         }
         if (strlen($siteUrl) > 255 || !filter_var($siteUrl, FILTER_VALIDATE_URL)) {
             throw new InstallationException('请输入有效的网站地址，例如 https://example.com');
@@ -108,7 +105,6 @@ final readonly class InstallationConfiguration
 
         return new self(
             DatabaseConfiguration::fromArray($input),
-            $siteName,
             $siteTitle,
             $siteDescription,
             $siteUrl,
@@ -129,7 +125,7 @@ final readonly class InstallationConfiguration
     public function environment(string $appKey, string $jwtSecret, bool $installed): array
     {
         return [
-            'APP_NAME' => $this->siteName,
+            'APP_NAME' => $this->siteTitle,
             'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
             'APP_KEY' => $appKey,
@@ -161,7 +157,6 @@ final readonly class InstallationConfiguration
     {
         return hash('sha256', implode("\0", [
             $this->databaseFingerprint(),
-            $this->siteName,
             $this->siteTitle,
             $this->siteDescription,
             $this->siteUrl,

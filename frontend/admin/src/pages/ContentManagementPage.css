@@ -1,0 +1,93 @@
+.content-markdown-modal .bytemd {
+  height: min(54dvh, 500px);
+  min-height: 300px;
+}
+
+.content-markdown-modal .bytemd-fullscreen.bytemd {
+  z-index: 1100;
+}
+
+.content-markdown-modal .bytemd-toolbar {
+  max-width: 100%;
+}
+
+.content-markdown-viewer {
+  margin-top: 24px;
+  overflow-wrap: anywhere;
+  color: var(--color-text-1);
+}
+
+.content-markdown-viewer .markdown-body {
+  line-height: 1.7;
+}
+
+.content-markdown-viewer .markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.content-markdown-viewer .markdown-body h1,
+.content-markdown-viewer .markdown-body h2,
+.content-markdown-viewer .markdown-body h3,
+.content-markdown-viewer .markdown-body h4 {
+  margin: 1.5em 0 0.65em;
+  line-height: 1.35;
+}
+
+.content-markdown-viewer .markdown-body p,
+.content-markdown-viewer .markdown-body ul,
+.content-markdown-viewer .markdown-body ol,
+.content-markdown-viewer .markdown-body pre,
+.content-markdown-viewer .markdown-body blockquote,
+.content-markdown-viewer .markdown-body table {
+  margin: 0 0 1em;
+}
+
+.content-markdown-viewer .markdown-body ul,
+.content-markdown-viewer .markdown-body ol {
+  padding-left: 1.75em;
+}
+
+.content-markdown-viewer .markdown-body pre,
+.content-markdown-viewer .markdown-body code {
+  background: var(--color-fill-2);
+}
+
+.content-markdown-viewer .markdown-body pre {
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.content-markdown-viewer .markdown-body blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--color-border-2);
+  color: var(--color-text-3);
+}
+
+.content-markdown-viewer .markdown-body a {
+  color: rgb(var(--primary-6));
+}
+
+.content-markdown-viewer .markdown-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.content-markdown-viewer .markdown-body table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.content-markdown-viewer .markdown-body th,
+.content-markdown-viewer .markdown-body td {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-2);
+}
+
+@media (max-width: 768px) {
+  .content-markdown-modal .bytemd {
+    height: 42dvh;
+    min-height: 260px;
+  }
+}

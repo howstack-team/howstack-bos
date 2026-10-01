@@ -1,0 +1,10 @@
+.operation-log-detail-value {
+  max-height: 160px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.operation-log-parameters {
+  margin-top: 24px;
+}

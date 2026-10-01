@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info:
+  title: 运营后台财务记录查询
+  version: 1.0.0
+  description: 当前仅开放财务记录查询。充值、在线支付、退款审核、开票与提现操作尚未开放。
+paths:
+  /api/admin/v1/finance/{resource}:
+    get:
+      summary: 分页查询指定财务记录
+      parameters:
+        - $ref: '#/components/parameters/resource'
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+        - { name: status, in: query, schema: { type: string, maxLength: 24 } }
+      responses:
+        '200': { description: 统一响应 data 包含 data 数组与 total 数量 }
+        '401': { description: 未登录 }
+        '403': { description: 缺少对应记录的查看权限 }
+  /api/admin/v1/finance/{resource}/{id}:
+    get:
+      summary: 查询指定财务记录详情
+      parameters:
+        - $ref: '#/components/parameters/resource'
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: 统一响应 data 为详情对象，不包含支付原始报文和收款人资料 }
+        '401': { description: 未登录 }
+        '403': { description: 缺少对应记录的查看权限 }
+        '404': { description: 财务记录不存在 }
+components:
+  parameters:
+    resource:
+      name: resource
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [recharges, payments, transactions, refunds, invoices, withdrawals]

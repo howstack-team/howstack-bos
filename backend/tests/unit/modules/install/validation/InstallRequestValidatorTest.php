@@ -96,7 +96,7 @@ final class InstallRequestValidatorTest extends TestCase
 
             self::assertSame(['未知的安装阶段'], $errors['phase']);
             self::assertSame(
-                ['请先阅读并同意皓量云擎业务管理系统软件使用协议'],
+                ['请先阅读并同意皓量云擎云业务运营系统软件使用协议'],
                 $errors['configuration.agreement_agreed'],
             );
         }
@@ -124,7 +124,7 @@ final class InstallRequestValidatorTest extends TestCase
                 'database' => '0',
             ],
             'system' => [
-                'site_name' => '皓量云擎业务管理系统',
+                'site_title' => '皓量云擎云业务运营系统',
                 'site_url' => 'https://example.com',
                 'admin_path' => 'manage-center',
             ],

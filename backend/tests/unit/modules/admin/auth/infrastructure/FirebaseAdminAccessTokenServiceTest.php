@@ -7,6 +7,8 @@ namespace tests\unit\modules\admin\auth\infrastructure;
 use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\admin\auth\exception\AdminAuthenticationException;
 use app\modules\admin\auth\infrastructure\FirebaseAdminAccessTokenService;
+use app\modules\system_settings\application\GetSystemSettingsService;
+use app\modules\system_settings\contract\SystemSettingsRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -55,6 +57,35 @@ final class FirebaseAdminAccessTokenServiceTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $service->issue($this->account());
+    }
+
+    /**
+     * 验证安全设置实时影响新令牌，且不改变已经签发的令牌有效期。
+     * @return void
+     */
+    public function testUpdatedSecuritySettingsOnlyAffectNewTokens(): void
+    {
+        $repository = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $repository->expects(self::exactly(2))->method('values')->with('security')->willReturnOnConsecutiveCalls(
+            ['security.session_expire' => '30', 'security.login_attempts' => '10', 'security.login_window' => '60'],
+            ['security.session_expire' => '15', 'security.login_attempts' => '10', 'security.login_window' => '60'],
+        );
+        $service = new FirebaseAdminAccessTokenService(
+            str_repeat('a', 96),
+            'https://example.com',
+            'hlyq-admin',
+            7200,
+            new GetSystemSettingsService($repository),
+        );
+
+        $oldToken = $service->issue($this->account());
+        $newToken = $service->issue($this->account());
+        $oldClaims = $service->parse($oldToken->value);
+        $newClaims = $service->parse($newToken->value);
+
+        self::assertSame(1800, $oldClaims->expiresAt - $oldClaims->issuedAt);
+        self::assertSame(900, $newClaims->expiresAt - $newClaims->issuedAt);
+        self::assertSame($oldToken->expiresAt, $oldClaims->expiresAt);
     }
 
     /**

@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: 会员身份与资金账户基础接口
+  version: 1.0.0
+  description: 当前只提供会员登录、本人余额查询以及满足订单实例金额归属条件的余额支付。充值申请、在线支付、退款及续费接口尚未开放。
+paths:
+  /api/console/v1/auth/login:
+    post:
+      summary: 会员手机号密码登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, password]
+              properties:
+                mobile: { type: string, pattern: '^\+?[0-9]{6,20}$' }
+                password: { type: string, minLength: 1, maxLength: 1024 }
+      responses:
+        '200': { description: 返回会员资料并设置 HttpOnly 会话 Cookie }
+        '401': { description: 账号或密码错误 }
+        '429': { description: 登录尝试超过限额 }
+  /api/console/v1/auth/me:
+    get:
+      summary: 查询当前会员资料
+      responses:
+        '200': { description: 统一响应 data.user 为会员资料 }
+        '401': { description: 未登录或会话失效 }
+  /api/console/v1/auth/logout:
+    post:
+      summary: 清除会员会话 Cookie
+      responses:
+        '200': { description: 已清除当前浏览器的会员会话 Cookie }
+  /api/console/v1/wallet:
+    get:
+      summary: 查询本人资金账户余额
+      responses:
+        '200': { description: 统一响应 data 包含 currency、available_minor 和 frozen_minor，金额单位为分 }
+        '401': { description: 未登录 }
+  /api/console/v1/orders/{id}/pay-wallet:
+    post:
+      summary: 使用余额支付本人待付款订单
+      description: 仅接受已经完成实例级实付金额分摊的订单；当前没有公开的订单创建接口。由订单模块编排，同一默认连接事务内扣减来源批次、记录钱包支付、确认订单并显式写入 order.paid Outbox。重复成功请求核对支付并返回当前可用余额，不重复扣款；后续履约仍需 Outbox 消费者。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: 返回扣款后的 available_minor }
+        '401': { description: 未登录 }
+        '404': { description: 订单不存在或不属于当前会员 }
+        '409': { description: 订单状态、分摊数据或余额不满足支付条件 }

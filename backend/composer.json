@@ -5,12 +5,12 @@
     "high performance",
     "http service"
   ],
-  "homepage": "https://github.com/haoliangyunqing/HLYQ-IDCBM",
+  "homepage": "https://github.com/howstack-team/howstack-bos",
   "license": "AGPL-3.0-or-later",
-  "description": "皓量云擎业务管理系统后端",
+  "description": "皓量云擎云业务运营系统后端",
   "support": {
-    "issues": "https://github.com/haoliangyunqing/HLYQ-IDCBM/issues",
-    "source": "https://github.com/haoliangyunqing/HLYQ-IDCBM"
+    "issues": "https://github.com/howstack-team/howstack-bos/issues",
+    "source": "https://github.com/howstack-team/howstack-bos"
   },
   "require": {
     "php": ">=8.4",

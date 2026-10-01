@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use app\modules\install\middleware\InstallGuardMiddleware;
+use app\modules\admin\operation\middleware\AdminOperationLogMiddleware;
 /**
  * This file is part of webman.
  *
@@ -19,5 +20,6 @@ use app\modules\install\middleware\InstallGuardMiddleware;
 return [
     '' => [
         InstallGuardMiddleware::class,
+        AdminOperationLogMiddleware::class,
     ],
 ];

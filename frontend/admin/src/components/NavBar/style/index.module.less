@@ -1,0 +1,135 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+  box-sizing: border-box;
+  background-color: var(--color-bg-2);
+  height: 100%;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.mobile-menu-toggle {
+  display: none;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  width: 200px;
+  padding-left: 20px;
+  box-sizing: border-box;
+}
+
+.logo-name {
+  color: var(--color-text-1);
+  font-weight: 500;
+  font-size: 20px;
+  margin-left: 10px;
+  font-family: 'PingFang SC';
+  white-space: nowrap;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding-right: 20px;
+
+  li {
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  a {
+    text-decoration: none;
+    color: var(--color-text-1);
+  }
+}
+
+.username {
+  cursor: pointer;
+}
+
+.round {
+  :global(.arco-input-inner-wrapper) {
+    border-radius: 16px;
+  }
+
+  svg {
+    font-size: 16px;
+  }
+}
+
+.dropdown-icon {
+  margin-right: 8px;
+  font-size: 16px;
+  vertical-align: text-bottom;
+}
+
+.fixed-settings {
+  position: fixed;
+  top: 280px;
+  right: 0px;
+
+  svg {
+    font-size: 18px;
+    vertical-align: -4px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    margin-left: 8px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  .logo {
+    width: auto;
+    padding-left: 6px;
+  }
+
+  .logo-name {
+    font-size: 16px;
+    margin-left: 6px;
+  }
+
+  .right {
+    padding-right: 8px;
+
+    li {
+      padding: 0 4px;
+    }
+  }
+
+  .right .search-item {
+    display: none;
+  }
+
+  .fixed-settings {
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+  }
+}

@@ -16,7 +16,8 @@ use app\modules\admin\auth\exception\AdminAuthenticationException;
  */
 final readonly class LoginAdminService
 {
-    private const string DUMMY_PASSWORD_HASH = '$2y$10$W4JQHLPLRvGV8cYqHjrwROE/1bM2YOFKJnrrUp6TAiMYqgCTgWEjW';
+    // 假哈希不是密钥；保持与 PHP 8.4 的 PASSWORD_DEFAULT 算法和成本一致。
+    private const string DUMMY_PASSWORD_HASH = '$2y$12$yQV9LRqZiZ713M/aLmGQtulk/tMe2T2A5496vpdz/AUUeijRMjlX6';
 
     /**
      * 初始化管理员登录服务。
@@ -28,6 +29,7 @@ final readonly class LoginAdminService
         private AdminAccountRepositoryInterface $accounts,
         private AdminAccessTokenServiceInterface $tokens,
         private AuthenticationAuditLoggerInterface $auditLogger,
+        private RecordAdminLoginService $loginLogs,
     ) {
     }
 
@@ -39,7 +41,7 @@ final readonly class LoginAdminService
      * @return AdminLoginResult 登录成功结果
      * @throws AdminAuthenticationException 账号密码错误或账号停用时抛出
      */
-    public function execute(AdminLoginCredentials $credentials, string $clientAddress): AdminLoginResult
+    public function execute(AdminLoginCredentials $credentials, string $clientAddress, string $userAgent = ''): AdminLoginResult
     {
         $account = $this->accounts->findByUsername($credentials->username);
         $passwordHash = $account?->passwordHash ?? self::DUMMY_PASSWORD_HASH;
@@ -47,17 +49,20 @@ final readonly class LoginAdminService
 
         if ($account === null || !$passwordMatches) {
             $this->auditLogger->loginFailed($credentials->username, $clientAddress, 'invalid_credentials');
+            $this->loginLogs->record($account, $credentials->username, false, $clientAddress, $userAgent, 'invalid_credentials');
             throw AdminAuthenticationException::invalidCredentials();
         }
 
         if (!$account->isActive()) {
             $this->auditLogger->loginFailed($account->username, $clientAddress, 'account_disabled');
+            $this->loginLogs->record($account, $account->username, false, $clientAddress, $userAgent, 'account_disabled');
             throw AdminAuthenticationException::accountDisabled();
         }
 
         $token = $this->tokens->issue($account);
         $this->accounts->recordSuccessfulLogin($account->id, date('Y-m-d H:i:s'));
         $this->auditLogger->loginSucceeded($account, $clientAddress);
+        $this->loginLogs->record($account, $account->username, true, $clientAddress, $userAgent);
 
         return new AdminLoginResult($account, $token);
     }

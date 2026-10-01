@@ -98,7 +98,7 @@ final readonly class InstallController
             'environment' => $this->installer->environment(),
             'defaults' => $this->installer->randomDefaults(),
             'agreement' => [
-                'title' => '皓量云擎业务管理系统软件使用协议',
+                'title' => '皓量云擎云业务运营系统软件使用协议',
                 'version' => InstallationConfiguration::AGREEMENT_VERSION,
                 'content' => $agreementContent,
             ],
