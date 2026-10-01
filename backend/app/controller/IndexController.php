@@ -23,7 +23,7 @@ final class IndexController
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>皓量云擎业务管理系统</title>
+    <title>皓量云擎云业务运营系统</title>
     <style>
         body { margin: 0; color: #1f1f1f; font-family: system-ui, sans-serif; background: #f5f7fa; }
         main { display: grid; min-height: 100vh; place-items: center; padding: 24px; box-sizing: border-box; }
@@ -33,7 +33,7 @@ final class IndexController
     </style>
 </head>
 <body>
-<main><section><h1>皓量云擎业务管理系统</h1><p>系统已安装。官网主题与产品展示功能将在后续开发中接入。</p></section></main>
+<main><section><h1>皓量云擎云业务运营系统</h1><p>系统已安装。官网主题与产品展示功能将在后续开发中接入。</p></section></main>
 </body>
 </html>
 HTML, 200, ['Content-Type' => 'text/html; charset=utf-8']);

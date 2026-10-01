@@ -1,4 +1,4 @@
-# 皓量云擎业务管理系统通用协作规范
+# 皓量云擎云业务运营系统通用协作规范
 
 ## 适用范围
 
@@ -12,10 +12,12 @@
 
 ## 项目概况
 
-- 正式名称：皓量云擎业务管理系统。
-- 仓库标识：`HLYQ-IDCBM`，用于仓库地址、目录名和技术标识，不替代用户可见的正式名称。
+- 正式名称：皓量云擎云业务运营系统。
+- 仓库名称：`howstack-bos`，地址为 `https://github.com/howstack-team/howstack-bos`，不替代用户可见的正式名称。
 - 后端：PHP 8.4、Webman、MySQL 8.0、Redis。
-- 运营后台与会员控制台：React 19、TypeScript、Vite、Ant Design 6。
+- 运营后台：React 18、TypeScript、Vite、Arco Design React，采用 Arco Design Pro 的后台布局。
+- 会员控制台：React 19、TypeScript、Vite、Ant Design 6。
+- 在线安装器：React 19、TypeScript、Vite、Arco Design React。
 - 官网：由 Webman 渲染并支持主题切换。
 - 开源协议：AGPL-3.0；第三方依赖继续遵循各自许可证。
 
@@ -25,7 +27,7 @@
 - `frontend/admin/`：运营后台独立 Vite 应用。
 - `frontend/console/`：会员控制台独立 Vite 应用。
 - `frontend/install/`：在线安装器独立 Vite 应用，构建产物随后端发行包交付。
-- `frontend/packages/`：两个前端共享的 API、类型、Schema 渲染器和通用组件。
+- `frontend/packages/`：各前端共享的 API、类型、Schema 渲染器和通用组件。
 - `contracts/`：OpenAPI、JSON Schema、插件清单、产品配置和跨端公共契约。
 - `docs/`：架构、开发、插件、主题和部署文档。
 - `deploy/`：Docker、Nginx、安装和发布配置。
@@ -38,6 +40,7 @@
 - 修改前先确认现有实现、目录边界和未提交改动，只处理本次任务范围。
 - 保留用户已有和与本次任务无关的改动，不擅自格式化、重构或删除无关内容。
 - 跨端数据结构以 `contracts/` 中的版本化契约为准；契约变更必须同步评估生产者、消费者及兼容策略。
+- 每新增一个后台页面，必须同时在后端权限目录注册对应的页面访问权限，并为新增、修改、删除等实际操作定义操作权限；同步接入路由、菜单、页面操作入口和服务端接口校验，确保角色分配权限时可选择。不得以菜单隐藏代替服务端授权，交付前验证无权限不能访问或执行操作。
 - 可配置产品和插件能力使用契约、能力声明及映射规则表达，不把供应商专属字段固化到核心领域。
 - 不提交真实 `.env`、访问令牌、私钥、数据库密码、生产地址、日志或用户数据。
 - 新增依赖前确认必要性、许可证、维护状态和影响范围，锁文件必须随依赖变更一并提交。

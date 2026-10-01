@@ -1,4 +1,4 @@
-# 皓量云擎业务管理系统前端开发规范
+# 皓量云擎云业务运营系统前端开发规范
 
 ## 适用范围
 
@@ -6,7 +6,7 @@
 
 ## 技术栈与应用边界
 
-- 使用 React 19、TypeScript、Vite 和 Ant Design 6。
+- 三个应用使用 TypeScript 和 Vite；运营后台使用 React 18 与 Arco Design React，会员控制台使用 React 19 与 Ant Design 6，在线安装器使用 React 19 与 Arco Design React。
 - `admin/` 是运营后台，`console/` 是会员控制台，`install/` 是在线安装器；三者必须保持独立构建和独立路由。
 - 三个应用的生产构建统一输出到 `backend/public/` 的受控目录，随后端发行包交付；客户服务器不得依赖 Node.js 或现场构建。
 - 禁止从一个应用直接引用另一个应用的 `src/`；需要复用的 API、类型、Schema 渲染器和通用组件应进入 `packages/`，并通过明确的包入口导入。
@@ -45,15 +45,19 @@
 
 ## ProComponents 组件选型规范
 
-- 运营后台和会员控制台的业务页面默认优先使用 `@ant-design/pro-components` 已封装的组件能力，不重复组合 Ant Design 原子组件实现 ProComponents 已覆盖的查询、表格、表单、详情、列表、卡片和指标场景。
+本节适用于会员控制台。运营后台遵循 `frontend/admin/AGENTS.md`；在线安装器使用轻量的 Arco Design React 原生组件，遵循 `frontend/install/AGENTS.md`。
+
+- 会员控制台的业务页面默认优先使用 `@ant-design/pro-components` 已封装的组件能力，不重复组合 Ant Design 原子组件实现 ProComponents 已覆盖的查询、表格、表单、详情、列表、卡片和指标场景。
 - 数据展示表格默认使用 `ProTable`，并优先通过 `columns`、`request`、`valueType`、`valueEnum`、`search`、`pagination`、`toolBarRender`、`tableAlertRender` 和 `actionRef` 等公开能力完成查询、展示、分页、批量操作和刷新。仅当表格是无查询、无分页、无工具栏、数据量很小的局部静态展示，或 `ProTable` 明显不适合该交互时，才使用 Ant Design `Table`，并在实现或审查说明中写明原因。
 - 录入和配置页面优先使用 `ProForm` 体系；基础字段使用 `ProFormText`、`ProFormSelect` 等对应组件，复杂筛选优先 `QueryFilter`，多步骤流程优先 `StepsForm`。不得手写状态编排、提交栏和字段联动来重复实现 ProForm 已提供的能力。
 - 只读详情优先使用 `ProDescriptions`，业务列表优先使用 `ProList`，业务内容容器优先使用 `ProCard`，核心指标优先使用 `StatisticCard`；组件选型必须匹配真实业务语义，不得仅为使用 ProComponents 而增加多余容器或嵌套层级。
 - 页面框架在符合现有路由和布局方案时优先复用 `ProLayout`、`PageContainer` 等能力；已有自定义 Layout 能稳定满足需求时不得重复套入第二套页面框架、标题或面包屑。
 - 使用 ProComponents 时必须遵循项目实际安装版本的公开 API 和类型定义，优先配置组件能力，不依赖私有 DOM、内部类名或样式覆盖；缺失能力先评估组合公开 Props、插槽和受控状态，再决定是否封装项目组件。
-- Ant Design 原子组件仍用于按钮、提示、弹窗、抽屉、标签、排版及 ProComponents 内部自定义渲染。在线安装器等强调依赖精简、流程固定的独立应用，以及极轻量的局部静态展示，可以继续使用 Ant Design 原生组件，不得仅为形式统一引入不必要的 ProComponents 依赖。
+- Ant Design 原子组件仍用于按钮、提示、弹窗、抽屉、标签、排版及 ProComponents 内部自定义渲染。极轻量的局部静态展示可以使用 Ant Design 原生组件，不得仅为形式统一引入不必要的 ProComponents 依赖。
 
 ## Ant Design 与视觉规范
+
+本节中的 Ant Design 组件、Token、图表及 `ant-design-skill` 规则适用于会员控制台；在线安装器对应规则见 `frontend/install/AGENTS.md`，运营后台对应规则见 `frontend/admin/AGENTS.md`。移动端与安全要求适用于所有应用。
 
 - 优先使用 Ant Design 6、ProComponents 和项目已有组件，不重复实现已有基础组件。
 - 全局主题色固定为 `#165DFF`，矩形组件全局圆角固定为 `2px`；头像、状态点和其他具有圆形语义的元素可以保持圆形。
@@ -74,10 +78,15 @@
 ## 插件前端边界
 
 - 插件前端必须以预构建、版本化资源交付，客户服务器不执行 `npm install` 或运行时编译。
-- 产品参数、配置表单和普通数据列表优先使用 Schema UI，由主应用控制组件白名单、校验、权限和主题。
+- 产品类型必须拥有与其业务语义匹配的专属管理页面和购买配置器。云服务器的地域、可用区、线路、规格、镜像、系统盘、数据盘、带宽、IP、防护和初始化信息等关键结构、联动与价格交互使用类型明确的组件和 DTO，不得用通用键值表单或一套万能 Schema 页面替代。
+- 普通配置表单、附加字段和适合通用渲染的插件界面优先使用 Schema UI，由主应用控制组件白名单、运行时校验、权限和主题。Schema UI 不负责复杂产品的核心组合校验、敏感凭证输入处理或最终计价，服务端仍须完整校验。
+- 前端调用产品类型提供的可选项解析、配置校验和报价接口；选择条件变化后清理失效值并展示不可选原因。前端计算只能用于即时预览，订单金额、供应绑定和购买资格以服务端报价为准。
+- 报价、订单和服务页面必须显示其创建时的产品类型及销售版本语义，不能以当前商品配置重新解释历史快照。密码、私钥等敏感值使用专用输入和一次性提交，不进入浏览器持久存储、普通表格、日志或可回显 DTO。
 - 小型页面扩展使用受控 Slot，明确可传入的数据、可触发的动作及生命周期。
-- 复杂独立页面使用沙箱化 iframe 和稳定 SDK/`postMessage` 协议，不直接共享主应用 Token、Router、React Context、CSS 或内部 API 客户端。
+- 插件界面统一使用受信的预构建扩展、公开 SDK 和受控页面/Slot 扩展点，不要求 iframe。SDK 明确可用数据、路由、权限、动作和主题接口，不依赖主应用私有 Context 或内部 API；同域 JavaScript 按受信代码审核，运行时加载另列后续建设。
 - 插件资源加载必须校验清单、版本、权限、来源和完整性，并支持禁用、失败回退及缓存失效。
+
+- 展示服务实例的 `status=active` 使用“已开通”，不解释为资源运行中；开关机状态由未来的生产能力单独提供。来源订单固定为首次交付订单，续费、升级等后续交易分别关联订单单位。
 
 ## 前端安全
 

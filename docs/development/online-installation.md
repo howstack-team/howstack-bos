@@ -14,12 +14,12 @@
 
 ## 安装流程
 
-1. 阅读宁波皓量云擎网络科技有限公司《皓量云擎业务管理系统软件使用协议》并明确勾选同意；社区版代码的许可权利仍以仓库 AGPL-3.0 为准。
+1. 阅读宁波皓量云擎网络科技有限公司《皓量云擎云业务运营系统软件使用协议》并明确勾选同意；社区版代码的许可权利仍以仓库 AGPL-3.0 为准。
 2. 检测 PHP 8.4、必需扩展、`.env` 与 `runtime/` 写权限及安装器静态资源。
 3. 配置并实际测试 MySQL 8.0 与 Redis 连接；只有连接测试成功后才允许进入下一步。数据表前缀固定为 `hlyq_`，Redis 安装配置只使用密码认证，不展示 ACL 用户名。
-4. 配置网站名称与地址、自定义或随机后台路径，以及管理员昵称、账号和密码；初始网站标题自动与网站名称保持一致，网站描述留空，管理员账号与密码可分别随机生成。
+4. 配置网站标题与地址、自定义或随机后台路径，以及管理员昵称、账号和密码；网站描述留空，管理员账号与密码可分别随机生成。
 5. 分阶段执行核心数据库迁移、写入系统初始数据、原子生成 `.env`、写入安装标记，并返回实时阶段进度。
-6. 使用 Ant Design `Result` 展示成功或失败结果；成功时提供首页、后台、管理员信息及单项/全部复制。
+6. 使用 Arco Design React `Result` 展示成功或失败结果；成功时提供首页、后台、管理员信息及单项/全部复制。
 
 管理员账号为 6 至 32 位，必须以英文字母开头，且只能包含英文字母、数字和下划线。管理员密码至少 8 位，并同时包含大写字母、小写字母、数字和特殊字符。密码只以哈希形式进入数据库；明文密码仅存在于当前安装页面的表单状态中，不写入 `.env`、安装摘要或服务端响应。安装记录会保存用户同意的软件使用协议版本和同意时间，便于后续审计。
 
@@ -38,13 +38,15 @@
 
 ## 本地依赖与构建产物
 
-安装器离线使用固定版本 Ant Design 6.6.4。Ant Design JavaScript 与 React 一起由 Vite 打入安装器应用产物，避免外置 UMD 与 React 运行时不一致；浏览器运行期间不会访问 CDN。样式文件使用预先下载的本地发行文件：
+安装器使用 React 19、TypeScript、Vite 和固定版本 Arco Design React 2.66.16。按照 [Arco Design React 快速开始](https://arco.design/react/docs/start) 引入组件与 `@arco-design/web-react/dist/css/arco.css`，中文配置由 `ConfigProvider` 提供。入口加载官方 `react-19-adapter`，保证 React 19 下的消息提示与浮层兼容。
 
-```text
-backend/public/install-assets/vendor/antd.css
-```
+React、Arco 组件及 CSS 均由 Vite 本地打包到 `backend/public/install-assets/app/`，浏览器运行期间不会访问 CDN，也不再使用独立的 Ant Design 样式文件。环境检测同时检查入口 HTML、JavaScript 和 CSS。Arco 的 MIT 许可证保留在 `frontend/install/public/ARCO_DESIGN_LICENSE`，构建时一并复制到发行包的 `backend/public/install-assets/app/ARCO_DESIGN_LICENSE`。
 
-安装器自身仍使用 React 19 和 Vite 开发，构建后的 JavaScript/CSS 位于 `backend/public/install-assets/app/`。另外两个应用分别构建到 `backend/public/app/admin/` 与 `backend/public/app/console/`。
+安装流程保持六步：协议、检测、数据库、系统、安装、结果。使用 Arco `Steps`、`Form`、`Table`、`Progress`、`Result` 和 `Descriptions`；步骤条从 1 开始计数。表单使用点号字段路径，并通过公开的 `getFields()` 收集完整配置，保留前面步骤已卸载的字段。连接参数发生变化后必须重新测试。密码仅在当前页面内存中暂存，不写入浏览器持久存储。
+
+安装器保留 `#165DFF` 品牌色和 `2px` 矩形圆角，通过官方 CSS 变量设置圆角；窄屏隐藏品牌侧栏、精简检测列并将结果描述列表降为一列。运营后台和会员控制台分别构建到 `backend/public/app/admin/` 与 `backend/public/app/console/`。
+
+已安装的系统继续阻止安装接口。UI 验收应在独立安装测试环境或隔离模拟接口进行，不得为预览界面清除现有安装标记。
 
 数据库结构和系统版本的后续更新流程见 [数据库迁移与系统版本更新规范](database-migrations.md)。
 

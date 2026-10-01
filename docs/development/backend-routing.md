@@ -2,7 +2,7 @@
 
 ## 目标与适用范围
 
-本规范适用于皓量云擎业务管理系统 Core、运营后台 API、会员 API、公开 API 与应用插件。项目使用 Webman Framework 2.2，并采用“集中式系统路由 + Attribute 业务路由”的混合方案。
+本规范适用于皓量云擎云业务运营系统 Core、运营后台 API、会员 API、公开 API 与应用插件。项目使用 Webman Framework 2.2，并采用“集中式系统路由 + Attribute 业务路由”的混合方案。
 
 这里的“注解路由”指 PHP 8 原生 Attribute，不是 PHPDoc 注释。路由 Attribute 在 Worker 启动时被扫描并注册，请求期间复用已生成的 FastRoute 分发器。
 
@@ -11,6 +11,7 @@
 | 场景 | 路由方式 | 原因 |
 | --- | --- | --- |
 | 运营后台、会员、公开业务 API | Attribute 路由 | 路径、方法、中间件和控制器入口保持在同一模块内 |
+| 上下游机器 API | Attribute 路由 | 独立认证、签名、幂等和合作方授权边界 |
 | 官网、主题和页面入口 | `config/route.php` | 属于系统级页面分发，不是普通业务 API |
 | `/install` 与 `/api/install` | `config/route.php` | 安装期必须在核心业务模块可用前保持显式、稳定 |
 | `/console`、自定义后台路径和 SPA catch-all | `config/route.php` | 需要全局 fallback 与动态后台路径协作 |
@@ -45,6 +46,7 @@ Core API 使用以下固定前缀：
 | 运营后台 | `/api/admin/v1` | 管理员身份、后台权限与审计 |
 | 会员控制台 | `/api/console/v1` | 会员身份、对象归属与风控 |
 | 官网公开接口 | `/api/public/v1` | 匿名或受限公开访问、限流 |
+| 上下游机器接口 | `/api/partner/v1` | 合作方身份、请求签名、重放防护、幂等与商品授权 |
 | 在线安装器 | `/api/install` | 安装会话与同源令牌，安装期特例 |
 
 插件在入口前缀下增加 `plugins/<plugin_id>`：
@@ -53,9 +55,12 @@ Core API 使用以下固定前缀：
 /api/admin/v1/plugins/example_plugin/...
 /api/console/v1/plugins/example_plugin/...
 /api/public/v1/plugins/example_plugin/...
+/api/partner/v1/plugins/example_plugin/...
 ```
 
 `plugin_id` 只能使用小写字母、数字和下划线，并与插件清单中的唯一 ID 完全一致。
+
+`partner` 入口仅用于独立部署实例之间的机器调用，不接受运营后台或会员会话 Cookie 作为认证。每个写请求必须同时校验合作方身份、权限范围、时间戳、随机数、请求签名和业务幂等键；相同幂等键对应不同请求内容时返回冲突。具体交易状态、余额和资源归属仍由对应 Application 用例校验，不能由路由中间件直接修改业务数据。
 
 ## URL 与 HTTP 方法
 
