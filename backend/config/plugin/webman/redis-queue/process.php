@@ -1,5 +1,5 @@
 <?php
-return [
+return getenv('WEBMAN_DISABLE_REDIS_QUEUE') === '1' ? [] : [
     'consumer'  => [
         'handler'     => Webman\RedisQueue\Process\Consumer::class,
         'count'       => 8, // 可以设置多进程同时消费

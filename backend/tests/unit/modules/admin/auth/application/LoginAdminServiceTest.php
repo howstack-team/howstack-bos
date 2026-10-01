@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace tests\unit\modules\admin\auth\application;
 
 use app\modules\admin\auth\application\LoginAdminService;
+use app\modules\admin\auth\application\RecordAdminLoginService;
 use app\modules\admin\auth\contract\AdminAccessTokenServiceInterface;
 use app\modules\admin\auth\contract\AdminAccountRepositoryInterface;
 use app\modules\admin\auth\contract\AuthenticationAuditLoggerInterface;
+use app\modules\admin\auth\contract\LoginLogRepositoryInterface;
 use app\modules\admin\auth\domain\AccessTokenClaims;
 use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\admin\auth\domain\AdminLoginCredentials;
 use app\modules\admin\auth\domain\IssuedAccessToken;
 use app\modules\admin\auth\exception\AdminAuthenticationErrorCode;
 use app\modules\admin\auth\exception\AdminAuthenticationException;
+use app\shared\contract\IpLocationResolverInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -31,7 +34,8 @@ final class LoginAdminServiceTest extends TestCase
         $repository = new FakeAdminAccountRepository($account);
         $tokens = new FakeAdminAccessTokenService();
         $audit = new FakeAuthenticationAuditLogger();
-        $service = new LoginAdminService($repository, $tokens, $audit);
+        $logs = new FakeLoginLogRepository();
+        $service = new LoginAdminService($repository, $tokens, $audit, $this->recorder($logs));
 
         $result = $service->execute($this->credentials(), '127.0.0.1');
 
@@ -40,6 +44,8 @@ final class LoginAdminServiceTest extends TestCase
         self::assertSame(1, $repository->recordedAdminId);
         self::assertSame(1, $audit->succeededCount);
         self::assertSame(0, $audit->failedCount);
+        self::assertCount(1, $logs->records);
+        self::assertSame(1, $logs->records[0]['status']);
     }
 
     /**
@@ -51,7 +57,8 @@ final class LoginAdminServiceTest extends TestCase
         $repository = new FakeAdminAccountRepository($this->account(status: 1));
         $tokens = new FakeAdminAccessTokenService();
         $audit = new FakeAuthenticationAuditLogger();
-        $service = new LoginAdminService($repository, $tokens, $audit);
+        $logs = new FakeLoginLogRepository();
+        $service = new LoginAdminService($repository, $tokens, $audit, $this->recorder($logs));
 
         try {
             $service->execute(
@@ -66,6 +73,41 @@ final class LoginAdminServiceTest extends TestCase
 
         self::assertSame(0, $tokens->issuedCount);
         self::assertSame(1, $audit->failedCount);
+        self::assertCount(1, $logs->records);
+        self::assertSame(0, $logs->records[0]['status']);
+    }
+
+    /**
+     * 验证不存在的账号走统一失败分支，且假哈希与当前密码哈希策略一致。
+     * @return void
+     */
+    public function testUnknownAccountUsesCurrentPasswordHashSettings(): void
+    {
+        $tokens = new FakeAdminAccessTokenService();
+        $audit = new FakeAuthenticationAuditLogger();
+        $logs = new FakeLoginLogRepository();
+        $service = new LoginAdminService(
+            new FakeAdminAccountRepository(null),
+            $tokens,
+            $audit,
+            $this->recorder($logs),
+        );
+
+        try {
+            $service->execute($this->credentials(), '127.0.0.1');
+            self::fail('不存在的账号应拒绝登录');
+        } catch (AdminAuthenticationException $exception) {
+            self::assertSame(AdminAuthenticationErrorCode::INVALID_CREDENTIALS, $exception->errorCode());
+        }
+
+        self::assertSame(0, $tokens->issuedCount);
+        self::assertSame(1, $audit->failedCount);
+        self::assertCount(1, $logs->records);
+        self::assertSame(0, $logs->records[0]['status']);
+
+        $dummyHash = (new \ReflectionClass(LoginAdminService::class))->getConstant('DUMMY_PASSWORD_HASH');
+        self::assertIsString($dummyHash);
+        self::assertSame(password_get_info(password_hash('hash-settings-probe', PASSWORD_DEFAULT)), password_get_info($dummyHash));
     }
 
     /**
@@ -79,6 +121,7 @@ final class LoginAdminServiceTest extends TestCase
             $repository,
             new FakeAdminAccessTokenService(),
             new FakeAuthenticationAuditLogger(),
+            $this->recorder(),
         );
 
         $this->expectException(AdminAuthenticationException::class);
@@ -111,6 +154,45 @@ final class LoginAdminServiceTest extends TestCase
     private function credentials(): AdminLoginCredentials
     {
         return AdminLoginCredentials::fromValidatedInput('admin_user', 'Secure123!');
+    }
+
+    private function recorder(?FakeLoginLogRepository $logs = null): RecordAdminLoginService
+    {
+        return new RecordAdminLoginService($logs ?? new FakeLoginLogRepository(), new FakeIpLocationResolver());
+    }
+}
+
+/** 为认证单元测试提供不访问数据库的日志仓储。 */
+final class FakeLoginLogRepository implements LoginLogRepositoryInterface
+{
+    public array $records = [];
+
+    public function append(array $record): void
+    {
+        $this->records[] = $record;
+    }
+
+    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array
+    {
+        return ['data' => $this->records, 'total' => count($this->records)];
+    }
+
+    public function countBefore(string $cutoff): int
+    {
+        return 0;
+    }
+
+    public function deleteBatchBefore(string $cutoff, int $limit): int
+    {
+        return 0;
+    }
+}
+
+final class FakeIpLocationResolver implements IpLocationResolverInterface
+{
+    public function resolve(string $ip): string
+    {
+        return '本机';
     }
 }
 

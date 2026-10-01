@@ -15,6 +15,7 @@ declare(strict_types=1);
  */
 
 use app\controller\FrontendController;
+use app\controller\FrontendAssetController;
 use app\controller\IndexController;
 use app\modules\install\controller\InstallController;
 use app\modules\install\middleware\InstallGuardMiddleware;
@@ -34,6 +35,8 @@ Route::post('/api/install/test-connections', [InstallController::class, 'testCon
 Route::post('/api/install/execute', [InstallController::class, 'execute']);
 
 Route::get('/console[/{path:.+}]', [FrontendController::class, 'console']);
+// Webman 会把 /app/<name> 当作应用插件目录；构建资源需从受控 public/app 目录显式提供。
+Route::get('/app/{app:admin|console}/{path:.+}', [FrontendAssetController::class, 'show']);
 Route::fallback(static function (Request $request): Response {
     return Container::get(FrontendController::class)->admin(ltrim($request->path(), '/'));
 })->middleware([InstallGuardMiddleware::class]);

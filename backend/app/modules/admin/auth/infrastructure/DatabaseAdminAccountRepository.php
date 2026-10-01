@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace app\modules\admin\auth\infrastructure;
 
+use app\modules\admin\access\infrastructure\model\AdminUserModel;
+use support\Model;
 use app\modules\admin\auth\contract\AdminAccountRepositoryInterface;
 use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\admin\auth\exception\AdminAccountStorageException;
-use stdClass;
-use support\Db;
 use Throwable;
 
 /**
@@ -25,12 +25,12 @@ final class DatabaseAdminAccountRepository implements AdminAccountRepositoryInte
     public function findByUsername(string $username): ?AdminAccount
     {
         try {
-            $record = Db::table('admin_users')->where('username', $username)->first();
+            $record = AdminUserModel::query()->where('username', $username)->first();
         } catch (Throwable $exception) {
             throw new AdminAccountStorageException($exception);
         }
 
-        return $record instanceof stdClass ? $this->map($record) : null;
+        return $record instanceof Model ? $this->map($record) : null;
     }
 
     /**
@@ -42,12 +42,12 @@ final class DatabaseAdminAccountRepository implements AdminAccountRepositoryInte
     public function findById(int $adminId): ?AdminAccount
     {
         try {
-            $record = Db::table('admin_users')->where('id', $adminId)->first();
+            $record = AdminUserModel::query()->where('id', $adminId)->first();
         } catch (Throwable $exception) {
             throw new AdminAccountStorageException($exception);
         }
 
-        return $record instanceof stdClass ? $this->map($record) : null;
+        return $record instanceof Model ? $this->map($record) : null;
     }
 
     /**
@@ -60,7 +60,7 @@ final class DatabaseAdminAccountRepository implements AdminAccountRepositoryInte
     public function recordSuccessfulLogin(int $adminId, string $loggedAt): void
     {
         try {
-            Db::table('admin_users')->where('id', $adminId)->update([
+            AdminUserModel::query()->where('id', $adminId)->update([
                 'last_login_at' => $loggedAt,
                 'updated_at' => $loggedAt,
             ]);
@@ -71,10 +71,10 @@ final class DatabaseAdminAccountRepository implements AdminAccountRepositoryInte
 
     /**
      * 将数据库记录映射为管理员账号实体。
-     * @param stdClass $record 管理员数据库记录
+     * @param Model $record 管理员数据库记录
      * @return AdminAccount 管理员账号实体
      */
-    private function map(stdClass $record): AdminAccount
+    private function map(Model $record): AdminAccount
     {
         return new AdminAccount(
             (int) $record->id,
@@ -83,6 +83,8 @@ final class DatabaseAdminAccountRepository implements AdminAccountRepositoryInte
             (string) $record->password_hash,
             (int) $record->status,
             isset($record->last_login_at) ? (string) $record->last_login_at : null,
+            (bool) ($record->is_founder ?? false),
+            isset($record->department_id) ? (int) $record->department_id : null,
         );
     }
 }

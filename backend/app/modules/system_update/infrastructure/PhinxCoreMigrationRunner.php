@@ -66,8 +66,10 @@ final readonly class PhinxCoreMigrationRunner implements CoreMigrationRunnerInte
      */
     public function migrate(MigrationDatabaseConfiguration $configuration): MigrationResult
     {
+        $connection = null;
         try {
             [$manager, $output] = $this->manager($configuration);
+            $connection = $manager->getEnvironment(self::ENVIRONMENT)->getAdapter()->getConnection();
             $before = $this->statusFromManager(
                 $manager,
                 $this->schema->hasTable(
@@ -86,8 +88,11 @@ final readonly class PhinxCoreMigrationRunner implements CoreMigrationRunnerInte
 
             return new MigrationResult($executed, $after, trim($output->fetch()));
         } catch (SystemUpdateException $exception) {
+            if ($connection instanceof \PDO && $connection->inTransaction()) $connection->rollBack();
             throw $exception;
         } catch (Throwable $exception) {
+            // Phinx 迁移异常时不一定结束事务；释放失败连接的锁，允许受控重试。
+            if ($connection instanceof \PDO && $connection->inTransaction()) $connection->rollBack();
             throw new SystemUpdateException('数据库迁移执行失败，请检查表结构、权限和迁移日志', 500, $exception);
         }
     }

@@ -1,0 +1,357 @@
+openapi: 3.0.3
+info:
+  title: 皓量云擎后台系统设置 API
+  version: 1.0.0
+  description: >-
+    分类为 base 和 security，表单结构由代码固定定义。PUT 提交完整分类，
+    不允许任意设置键或额外字段。基础设置当前仅持久化，未承诺驱动全站品牌展示。
+servers:
+  - url: /api/admin/v1
+security:
+  - AdminCookie: []
+  - AdminBearer: []
+tags:
+  - name: 系统设置
+paths:
+  /settings/categories:
+    get:
+      tags: [系统设置]
+      operationId: admin.settings.categories
+      summary: 读取已实现的设置分类
+      description: 需要 admin.page.settings.view；按 sort_order、id 排序。
+      responses:
+        '200':
+          description: 分类列表
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /settings/base:
+    get:
+      tags: [系统设置]
+      operationId: getBaseSettings
+      summary: 读取基础设置
+      description: 需要 admin.page.settings.view。
+      responses:
+        '200':
+          $ref: '#/components/responses/BaseSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [系统设置]
+      operationId: updateBaseSettings
+      summary: 保存完整基础设置
+      description: >-
+        同时需要 admin.page.settings.view 和 admin.page.settings.update。
+        去除字符串首尾空白，事务内保存完整分类，返回已保存的值。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaseSettingsInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/BaseSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /settings/security:
+    get:
+      tags: [系统设置]
+      operationId: getSecuritySettings
+      summary: 读取安全设置
+      description: 需要 admin.page.settings.view；返回原生整数。
+      responses:
+        '200':
+          $ref: '#/components/responses/SecuritySuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [系统设置]
+      operationId: updateSecuritySettings
+      summary: 保存完整安全设置
+      description: >-
+        同时需要 admin.page.settings.view 和 admin.page.settings.update。
+        仅接受 JSON 原生整数，数字字符串、布尔值和浮点数均被拒绝。
+        JWT 有效期仅影响新签发令牌；已有令牌保留自身 exp。
+        登录频率实时使用 Redis 固定窗口，所有登录尝试均计数。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecuritySettings'
+      responses:
+        '200':
+          $ref: '#/components/responses/SecuritySuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    AdminCookie:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+      description: 后台登录签发的 HttpOnly JWT Cookie，Cookie 名称可由部署配置调整。
+    AdminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  headers:
+    RequestId:
+      description: 与响应体 request_id 相同的请求标识。
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    BaseSuccess:
+      description: 基础设置
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BaseResponse'
+    SecuritySuccess:
+      description: 安全设置
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SecurityResponse'
+    Unauthorized:
+      description: 未登录或登录已失效。
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: 账号状态或权限不允许操作。
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: 字段缺失、值或类型错误，或包含额外字段；data.errors 提供字段错误数组。
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 42200
+            message: 参数校验失败
+            data:
+              errors:
+                session_expire: [登录有效期必须为范围内的整数]
+            request_id: example-request-id
+    InternalError:
+      description: 设置读取或保存失败、安全配置损坏等服务端异常；不暴露 SQL 或堆栈。
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    Category:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, sort_order]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        code:
+          type: string
+          enum: [base, security]
+        name:
+          type: string
+          maxLength: 64
+        sort_order:
+          type: integer
+          minimum: 0
+    BaseSettings:
+      type: object
+      additionalProperties: false
+      required: [site_title, site_subtitle, site_keywords, site_description, site_url, copyright, icp_record, public_security_record, business_license]
+      description: 读取旧安装时缺失的基础值可能为空字符串，保存时使用 BaseSettingsInput 规则。
+      properties:
+        site_title:
+          type: string
+        site_subtitle:
+          type: string
+        site_keywords:
+          type: string
+        site_description:
+          type: string
+        site_url:
+          type: string
+        copyright:
+          type: string
+        icp_record:
+          type: string
+        public_security_record:
+          type: string
+        business_license:
+          type: string
+    BaseSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [site_title, site_subtitle, site_keywords, site_description, site_url, copyright, icp_record, public_security_record, business_license]
+      description: 所有键必传；可选文本传空字符串，禁止 null。字符串先去除首尾空白再校验长度。
+      properties:
+        site_title:
+          type: string
+          minLength: 2
+          maxLength: 120
+        site_subtitle:
+          type: string
+          maxLength: 120
+        site_keywords:
+          type: string
+          maxLength: 255
+        site_description:
+          type: string
+          maxLength: 500
+        site_url:
+          type: string
+          format: uri
+          pattern: '^https?://'
+          maxLength: 255
+        copyright:
+          type: string
+          maxLength: 200
+        icp_record:
+          type: string
+          maxLength: 100
+        public_security_record:
+          type: string
+          maxLength: 100
+        business_license:
+          type: string
+          maxLength: 100
+    SecuritySettings:
+      type: object
+      additionalProperties: false
+      required: [session_expire, login_attempts, login_window]
+      description: 必须序列化为 JSON 整数，禁止数字字符串、布尔值以及 10.0 这样的浮点数。
+      properties:
+        session_expire:
+          type: integer
+          minimum: 5
+          maximum: 1440
+          description: 新签发后台 JWT 的有效分钟数。
+          example: 120
+        login_attempts:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: 固定窗口内每个 IP 允许的登录尝试次数，包含成功、失败和非法输入。
+          example: 10
+        login_window:
+          type: integer
+          minimum: 10
+          maximum: 3600
+          description: Redis 登录频率计数的固定窗口秒数。
+          example: 60
+    SuccessEnvelope:
+      type: object
+      required: [code, message, data, request_id]
+      properties:
+        code:
+          type: integer
+          enum: [0]
+        message:
+          type: string
+          example: ok
+        request_id:
+          type: string
+          minLength: 1
+    CategoriesResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Category'
+    BaseResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/BaseSettings'
+    SecurityResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/SecuritySettings'
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, request_id]
+      properties:
+        code:
+          type: integer
+          minimum: 1
+        message:
+          type: string
+        data:
+          type: object
+          nullable: true
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+        request_id:
+          type: string
+          minLength: 1

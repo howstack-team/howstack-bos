@@ -9,6 +9,7 @@ use app\modules\admin\auth\domain\AccessTokenClaims;
 use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\admin\auth\domain\IssuedAccessToken;
 use app\modules\admin\auth\exception\AdminAuthenticationException;
+use app\modules\system_settings\application\GetSystemSettingsService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use LogicException;
@@ -26,16 +27,18 @@ final readonly class FirebaseAdminAccessTokenService implements AdminAccessToken
 
     /**
      * 初始化管理员 JWT 服务。
-     * @param string $secret   JWT 签名密钥
-     * @param string $issuer   令牌签发者
-     * @param string $audience 令牌受众
-     * @param int    $ttl      令牌有效秒数
+     * @param string                        $secret   JWT 签名密钥
+     * @param string                        $issuer   令牌签发者
+     * @param string                        $audience 令牌受众
+     * @param int                           $ttl      未注入系统设置时的令牌有效秒数
+     * @param GetSystemSettingsService|null $settings 实时安全设置门面
      */
     public function __construct(
         private string $secret,
         private string $issuer,
         private string $audience,
         private int $ttl,
+        private ?GetSystemSettingsService $settings = null,
     ) {
     }
 
@@ -50,7 +53,9 @@ final readonly class FirebaseAdminAccessTokenService implements AdminAccessToken
     {
         $this->assertConfigured();
         $issuedAt = time();
-        $expiresAt = $issuedAt + $this->ttl;
+        // 修改有效期只影响新签发的令牌；已登录令牌继续按自身 exp 校验。
+        $ttl = $this->settings === null ? $this->ttl : $this->settings->security()['session_expire'] * 60;
+        $expiresAt = $issuedAt + $ttl;
         $tokenId = bin2hex(random_bytes(16));
         $token = JWT::encode([
             'iss' => $this->issuer,
