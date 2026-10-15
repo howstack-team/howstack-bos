@@ -1,0 +1,7 @@
+.release-changelog-items {
+  margin: 0;
+  padding-left: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.release-changelog-items li + li { margin-top: 6px; }

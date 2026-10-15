@@ -52,7 +52,7 @@ final readonly class SystemSettingsController
      * @param string  $category 分类路径参数
      * @return Response 类型化设置响应
      */
-    #[Get(path: '/settings/{category}', name: 'admin.settings.show')]
+    #[Get(path: '/settings/{category:base|security|registration}', name: 'admin.settings.show')]
     public function show(Request $request, string $category): Response
     {
         return $this->responses->success($request, $this->settings->get($this->context->account($request), $category));
@@ -64,7 +64,7 @@ final readonly class SystemSettingsController
      * @param string  $category 分类路径参数
      * @return Response 已保存设置响应
      */
-    #[Put(path: '/settings/{category}', name: 'admin.settings.update')]
+    #[Put(path: '/settings/{category:base|security|registration}', name: 'admin.settings.update')]
     public function update(Request $request, string $category): Response
     {
         return $this->responses->success($request, $this->settings->save(

@@ -33,7 +33,14 @@ interface AdminAccessRepositoryInterface
      * @param int            $pageSize 每页数量
      * @return array{data: list<array<string, mixed>>, total: int} 范围内管理员及总数
      */
-    public function administrators(AdminDataScope $scope, int $actorId, string $keyword, int $page, int $pageSize): array;
+    public function administrators(
+        AdminDataScope $scope,
+        int $actorId,
+        string $keyword,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array;
 
     /**
      * 查询范围内单个管理员。

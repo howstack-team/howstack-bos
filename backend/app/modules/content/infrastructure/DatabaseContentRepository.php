@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\content\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use app\modules\content\infrastructure\model\ContentCategoryModel;
 use app\modules\content\infrastructure\model\ContentEntryModel;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -13,12 +15,27 @@ use app\modules\content\contract\ContentRepositoryInterface;
 /** 帮助与公告的分类、正文持久化。 */
 final class DatabaseContentRepository implements ContentRepositoryInterface
 {
-    public function paginate(string $kind, bool $categories, string $keyword, ?string $status, int $page, int $pageSize): array
+    public function __construct(private \app\modules\file\contract\FileRegistryInterface $files) {}
+
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function paginate(
+        string $kind,
+        bool $categories,
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
+        $keyword = $filters[$categories ? 'name' : 'title'] ?? $keyword;
         $table = $categories ? 'content_categories' : 'content_entries';
         $query = $this->modelQuery($table)->where('kind', $kind);
         if ($categories && $kind === 'help') {
-            $all = array_map(self::normalize(...), $query->orderBy('sort_order')->orderBy('id', 'desc')->get()->all());
+            $all = array_map(self::normalize(...), TableQueryOrder::apply(
+            $query, $filters, ['sort_order' => 'sort_order', 'created_at' => 'created_at'],
+            ['sort_order' => 'asc', 'id' => 'desc'],
+        )->get()->all());
             $children = [];
             foreach ($all as $category) {
                 if ($category['parent_id'] !== null) $children[$category['parent_id']][] = $category;
@@ -38,10 +55,17 @@ final class DatabaseContentRepository implements ContentRepositoryInterface
             }
             return ['data' => $roots, 'total' => count($roots)];
         }
-        if ($keyword !== '') $query->where($categories ? 'name' : 'title', 'like', '%' . $keyword . '%');
+        if ($keyword !== '') {
+            $column = $categories ? 'name' : 'title';
+            $pattern = '%' . strtr($keyword, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+            $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+        }
         if ($status !== null) $query->where('status', $status);
         $total = (int) (clone $query)->count();
-        $rows = $query->orderBy('sort_order')->orderBy('id', 'desc')->forPage($page, $pageSize)->get();
+        $rows = TableQueryOrder::apply(
+            $query, $filters, ['sort_order' => 'sort_order', 'created_at' => 'created_at'],
+            ['sort_order' => 'asc', 'id' => 'desc'],
+        )->forPage($page, $pageSize)->get();
         return ['data' => array_map(self::normalize(...), $rows->all()), 'total' => $total];
     }
 
@@ -54,14 +78,23 @@ final class DatabaseContentRepository implements ContentRepositoryInterface
     public function save(bool $categories, ?int $id, array $data): int
     {
         $table = $categories ? 'content_categories' : 'content_entries';
-        if ($id === null) return (int) $this->modelQuery($table)->create($data)->getKey();
-        $this->modelQuery($table)->findOrFail($id)->fill($data)->save();
-        return $id;
+        return \support\Db::transaction(function () use ($categories, $table, $id, $data): int {
+            $saved = $id ?? (int) $this->modelQuery($table)->create($data)->getKey();
+            if ($id !== null) $this->modelQuery($table)->findOrFail($id)->fill($data)->save();
+            if (!$categories) {
+                $entry = $this->modelQuery($table)->findOrFail($saved);
+                $this->files->syncReferences('content', (string) $saved, $entry->title, \app\modules\file\domain\FileReferences::collect($entry->body));
+            }
+            return $saved;
+        });
     }
 
     public function delete(bool $categories, int $id): void
     {
-        $this->modelQuery($categories ? 'content_categories' : 'content_entries')->where('id', $id)->delete();
+        \support\Db::transaction(function () use ($categories, $id): void {
+            $this->modelQuery($categories ? 'content_categories' : 'content_entries')->where('id', $id)->delete();
+            if (!$categories) $this->files->syncReferences('content', (string)$id, '', []);
+        });
     }
 
     public function categoryNameExists(string $kind, string $name, ?int $parentId, ?int $exceptId): bool
@@ -86,7 +119,7 @@ final class DatabaseContentRepository implements ContentRepositoryInterface
     private static function normalize(Model $row): array
     {
         $data = array_intersect_key($row->getAttributes(), array_flip([
-            'id', 'kind', 'name', 'sort_order', 'status', 'created_at', 'updated_at', 'parent_id', 'category_id', 'title', 'summary', 'body', 'published_at',
+            'id', 'kind', 'name', 'sort_order', 'status', 'created_at', 'updated_at', 'parent_id', 'category_id', 'title', 'summary', 'body', 'body_format', 'published_at',
         ]));
         foreach (['id', 'category_id', 'parent_id', 'sort_order'] as $field) {
             if (isset($data[$field])) $data[$field] = (int) $data[$field];

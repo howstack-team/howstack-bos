@@ -28,12 +28,20 @@ final readonly class ViewAdminOrdersService
      * @param int          $pageSize 每页数量
      * @return array{data: list<array<string, mixed>>, total: int} 订单分页
      * @throws BusinessException 无查看权限时抛出
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
      */
-    public function paginate(AdminAccount $actor, string $keyword, ?string $status, int $page, int $pageSize): array
+    public function paginate(
+        AdminAccount $actor,
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->access->requirePermission($actor, 'admin.page.order-list.view');
 
-        return $this->orders->paginate($keyword, $status, $page, $pageSize);
+        return $this->orders->paginate($keyword, $status, $page, $pageSize, $filters);
     }
 
     /**

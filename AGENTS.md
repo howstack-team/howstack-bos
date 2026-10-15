@@ -16,7 +16,7 @@
 - 仓库名称：`howstack-bos`，地址为 `https://github.com/howstack-team/howstack-bos`，不替代用户可见的正式名称。
 - 后端：PHP 8.4、Webman、MySQL 8.0、Redis。
 - 运营后台：React 18、TypeScript、Vite、Arco Design React，采用 Arco Design Pro 的后台布局。
-- 会员控制台：React 19、TypeScript、Vite、Ant Design 6。
+- 会员控制台：React 19、TypeScript、Vite、Arco Design React。
 - 在线安装器：React 19、TypeScript、Vite、Arco Design React。
 - 官网：由 Webman 渲染并支持主题切换。
 - 开源协议：AGPL-3.0；第三方依赖继续遵循各自许可证。
@@ -24,6 +24,7 @@
 ## 顶层目录职责
 
 - `backend/`：Webman 后端、官网渲染、插件和主题运行环境。
+- `backend/plugins/<category>/<plugin_id>/`：本系统业务插件的分类目录，由宿主注册器管理；提供者、支付、实名、短信、邮件、存储、第三方登录、人机验证、产品扩展和专项功能分类存放。旧 `backend/plugin/` 已移除，框架组件的 `backend/config/plugin/` 继续保留。
 - `frontend/admin/`：运营后台独立 Vite 应用。
 - `frontend/console/`：会员控制台独立 Vite 应用。
 - `frontend/install/`：在线安装器独立 Vite 应用，构建产物随后端发行包交付。
@@ -39,9 +40,13 @@
 
 - 修改前先确认现有实现、目录边界和未提交改动，只处理本次任务范围。
 - 保留用户已有和与本次任务无关的改动，不擅自格式化、重构或删除无关内容。
-- 跨端数据结构以 `contracts/` 中的版本化契约为准；契约变更必须同步评估生产者、消费者及兼容策略。
+- 跨端数据结构以 `contracts/` 中的版本化契约为准；契约变更必须同步修改生产者、消费者及相关测试。
+- 当前系统未上线，内部 API 统一采用最新契约：直接更新当前主版本，删除无调用的旧入口、旧字段别名及兼容分支，不机械新增 `/v2` 或设置弃用期。变更前搜索全部调用方，同步实现、前端、OpenAPI 和测试；正式发布且存在既有消费者后，再执行版本兼容与迁移规则。第三方协议约束、安全校验、交易历史快照和已执行的数据库迁移不属于旧 API 兼容，仍按各自规则维护。
+- API 文档唯一源为 `contracts/openapi/` 的版本化契约。新增或修改接口同步更新参数、响应和授权说明，执行 `tools/api-docs` 的 build/check，交付受保护的文档与本地组件资源；不得为新接口增加历史响应缺口豁免。维护流程见 `docs/development/api-documentation.md`。
+- 数据库表和字段必须设置中文 `COMMENT`，说明业务含义；金额、容量、时间、状态、关联及敏感字段还须说明单位、取值或用途。新增、修改结构和插件迁移均遵循 [数据库注释规范](docs/development/database-schema-comments.md)，不能用代码注释代替数据库注释。
 - 每新增一个后台页面，必须同时在后端权限目录注册对应的页面访问权限，并为新增、修改、删除等实际操作定义操作权限；同步接入路由、菜单、页面操作入口和服务端接口校验，确保角色分配权限时可选择。不得以菜单隐藏代替服务端授权，交付前验证无权限不能访问或执行操作。
 - 可配置产品和插件能力使用契约、能力声明及映射规则表达，不把供应商专属字段固化到核心领域。
+- 插件通过声明式配置、类别固定接口和受控 SDK 接入，不直接访问核心模型、表结构、容器或私有前端状态；目录、配置、方法、权限及迁移方案见 [业务插件体系优化方案](docs/architecture/business-plugin-optimization.md)。原生 PHP 和同域 JavaScript 按受信代码审核，开发边界不等于安全沙箱。
 - 不提交真实 `.env`、访问令牌、私钥、数据库密码、生产地址、日志或用户数据。
 - 新增依赖前确认必要性、许可证、维护状态和影响范围，锁文件必须随依赖变更一并提交。
 

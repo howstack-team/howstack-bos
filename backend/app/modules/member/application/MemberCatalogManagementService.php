@@ -17,14 +17,26 @@ final readonly class MemberCatalogManagementService
     {
     }
 
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function groups(AdminAccount $actor, string $keyword, ?int $status, int $page, int $pageSize): array
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function groups(
+        AdminAccount $actor,
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->access->requirePermission($actor, 'admin.member-groups.view');
-        return $this->catalog->groups($keyword, $status, $page, $pageSize);
+        return $this->catalog->groups($keyword, $status, $page, $pageSize, $filters);
     }
 
-    /** @param array<string, mixed> $input @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $input @return array<string, mixed>
+     */
     public function saveGroup(AdminAccount $actor, ?int $id, array $input): array
     {
         $this->access->requirePermission($actor, 'admin.member-groups.' . ($id === null ? 'create' : 'update'));
@@ -47,11 +59,21 @@ final readonly class MemberCatalogManagementService
         $this->catalog->deleteGroup($id);
     }
 
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function levels(AdminAccount $actor, string $keyword, ?int $status, int $page, int $pageSize): array
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function levels(
+        AdminAccount $actor,
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->access->requirePermission($actor, 'admin.member-levels.view');
-        return $this->catalog->levels($keyword, $status, $page, $pageSize);
+        return $this->catalog->levels($keyword, $status, $page, $pageSize, $filters);
     }
 
     /** @param array<string, mixed> $input @return array<string, mixed> */

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "api_url",
+      "label": "平台地址",
+      "type": "url",
+      "required": true,
+      "max_length": 512,
+      "placeholder": "例如 https://cloud.example.com"
+    },
+    {
+      "key": "username",
+      "label": "登录账号",
+      "type": "text",
+      "required": true,
+      "max_length": 128
+    },
+    {
+      "key": "password",
+      "label": "登录密码",
+      "type": "password",
+      "required": true,
+      "max_length": 2048
+    }
+  ]
+}

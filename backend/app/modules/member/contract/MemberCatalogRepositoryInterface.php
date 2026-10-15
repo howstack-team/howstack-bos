@@ -7,10 +7,21 @@ namespace app\modules\member\contract;
 /** 会员分组与等级目录持久化契约。 */
 interface MemberCatalogRepositoryInterface
 {
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function groups(string $keyword, ?int $status, int $page, int $pageSize): array;
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function groups(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array;
 
-    /** @return array<string, mixed>|null */
+    /**
+     * @return array<string, mixed>|null
+     */
     public function group(int $id): ?array;
 
     public function groupCodeExists(string $code, ?int $exceptId): bool;
@@ -22,8 +33,17 @@ interface MemberCatalogRepositoryInterface
 
     public function deleteGroup(int $id): void;
 
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function levels(string $keyword, ?int $status, int $page, int $pageSize): array;
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function levels(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array;
 
     /** @return array<string, mixed>|null */
     public function level(int $id): ?array;

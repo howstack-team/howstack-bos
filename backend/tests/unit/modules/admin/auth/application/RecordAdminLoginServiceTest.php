@@ -18,7 +18,14 @@ final class RecordAdminLoginServiceTest extends TestCase
             public array $records = [];
 
             public function append(array $record): void { $this->records[] = $record; }
-            public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array { return ['data' => [], 'total' => 0]; }
+            /** @param array<string, string> $filters 独立文本条件，使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array { return ['data' => [], 'total' => 0]; }
             public function countBefore(string $cutoff): int { return 0; }
             public function deleteBatchBefore(string $cutoff, int $limit): int { return 0; }
         };

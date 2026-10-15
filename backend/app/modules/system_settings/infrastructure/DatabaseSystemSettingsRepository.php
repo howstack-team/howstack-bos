@@ -22,7 +22,7 @@ final class DatabaseSystemSettingsRepository implements SystemSettingsRepository
     public function categories(): array
     {
         try {
-            return SystemSettingCategoryModel::query()->whereIn('code', ['base', 'security'])
+            return SystemSettingCategoryModel::query()->whereIn('code', ['base', 'security', 'notifications', 'registration'])
                 ->orderBy('sort_order')->orderBy('id')->get(['id', 'code', 'name', 'sort_order'])
                 ->map(static fn (Model $row): array => [
                     'id' => (int) $row->id, 'code' => (string) $row->code,

@@ -10,6 +10,10 @@ interface MemberAuthRepositoryInterface
 {
     public function findByMobile(string $mobile): ?MemberAccount;
 
+    public function findByEmail(string $email): ?MemberAccount;
+
+    public function findByPublicId(string $publicId): ?MemberAccount;
+
     public function findById(int $id): ?MemberAccount;
 
     public function recordLogin(int $id): void;

@@ -1,0 +1,27 @@
+{
+  "id": "official-console",
+  "name": "官方会员中心",
+  "version": "1.0.7",
+  "theme_api": "1",
+  "requires": {
+    "core": ">=0.1.0 <1.0.0"
+  },
+  "cover": "cover.svg",
+  "components": {
+    "console": {
+      "contract": "1",
+      "entries": {
+        "responsive": {
+          "routes": [
+            "auth.login",
+            "auth.register",
+            "console.overview",
+            "account.profile",
+            "finance.wallet"
+          ],
+          "index": "console/responsive/index.html"
+        }
+      }
+    }
+  }
+}

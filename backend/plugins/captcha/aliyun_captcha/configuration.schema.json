@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "AccessKey ID",
+      "type": "text",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入AccessKey ID"
+    },
+    {
+      "key": "access_key_secret",
+      "label": "AccessKey Secret",
+      "type": "password",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入AccessKey Secret"
+    },
+    {
+      "key": "scene_id",
+      "label": "场景 ID",
+      "type": "text",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入场景 ID"
+    },
+    {
+      "key": "prefix",
+      "label": "身份标识前缀",
+      "type": "text",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入身份标识前缀"
+    },
+    {
+      "key": "region",
+      "label": "服务区域",
+      "type": "select",
+      "required": true,
+      "default": "cn",
+      "options": [
+        {
+          "label": "中国内地",
+          "value": "cn"
+        },
+        {
+          "label": "非中国内地",
+          "value": "sgp"
+        }
+      ],
+      "placeholder": "请选择服务区域"
+    }
+  ]
+}

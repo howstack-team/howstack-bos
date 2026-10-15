@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version",
+    "theme_api",
+    "requires",
+    "cover"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "theme_api": {
+      "const": "1"
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core"
+      ],
+      "properties": {
+        "core": {
+          "type": "string",
+          "pattern": "^>=\\d+\\.\\d+\\.\\d+ <\\d+\\.\\d+\\.\\d+$"
+        }
+      }
+    },
+    "cover": {
+      "type": "string"
+    },
+    "console": {
+      "description": "会员中心入口按目录识别：console/pc必备，console/mobile可选；移动端开关由宿主管理，不在清单重复声明。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "routes": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{0,79}$"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "AccessKey ID",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入AccessKey ID",
+      "max_length": 128
+    },
+    {
+      "key": "access_key_secret",
+      "label": "AccessKey Secret",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入AccessKey Secret",
+      "max_length": 128
+    },
+    {
+      "key": "sign_name",
+      "label": "短信签名",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入短信签名",
+      "max_length": 128
+    }
+  ]
+}

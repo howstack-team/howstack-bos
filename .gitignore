@@ -17,6 +17,7 @@
 
 # PHP / Webman
 backend/vendor/
+backend/plugins/*/*/vendor/
 backend/runtime/
 backend/tests/tmp/
 backend/tests/.phpunit.result.cache
@@ -39,3 +40,9 @@ test-results/
 
 # Local design drafts
 docs/design/
+
+# 官网主题的摘要快照与发布资源由 website:publish 生成
+backend/public/theme-assets/
+
+# Official console theme build output
+backend/themes/default/console/

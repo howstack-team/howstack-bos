@@ -19,7 +19,7 @@ final class SystemSettingsValidator
     public function category(mixed $category): string
     {
         $validator = Validator::make(['category' => $category], [
-            'category' => 'required|string|in:base,security',
+            'category' => 'required|string|in:base,security,registration',
         ])->toIlluminate();
         if ($validator->fails()) {
             throw new BusinessException('不支持的设置分类', ApiErrorCode::VALIDATION_FAILED, 422,
@@ -38,11 +38,8 @@ final class SystemSettingsValidator
      */
     public function values(string $category, array $input): array
     {
-        $rules = $category === 'base' ? [
+        $rules = $category === 'registration' ? array_fill_keys(array_keys(\app\modules\system_settings\application\GetSystemSettingsService::REGISTRATION_KEYS), 'required|integer:strict|in:0,1') : ($category === 'base' ? [
             'site_title' => 'required|string|min:2|max:120',
-            'site_subtitle' => 'present|string|max:120',
-            'site_keywords' => 'present|string|max:255',
-            'site_description' => 'present|string|max:500',
             'site_url' => 'required|string|url:http,https|max:255',
             'copyright' => 'present|string|max:200',
             'icp_record' => 'present|string|max:100',
@@ -52,7 +49,7 @@ final class SystemSettingsValidator
             'session_expire' => 'required|integer:strict|min:5|max:1440',
             'login_attempts' => 'required|integer:strict|min:1|max:100',
             'login_window' => 'required|integer:strict|min:10|max:3600',
-        ];
+        ]);
         foreach ($input as $field => $value) {
             if (is_string($value)) {
                 $input[$field] = trim($value);
@@ -71,7 +68,7 @@ final class SystemSettingsValidator
             throw new BusinessException('参数校验失败', ApiErrorCode::VALIDATION_FAILED, 422, ['errors' => $errors]);
         }
         $values = $validator->validated()['settings'];
-        if ($category === 'security') {
+        if ($category !== 'base') {
             $values = array_map(static fn (mixed $value): int => (int) $value, $values);
         }
 

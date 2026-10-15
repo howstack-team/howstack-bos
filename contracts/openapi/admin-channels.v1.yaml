@@ -1,0 +1,1613 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "后台基础服务通道配置",
+    "version": "v1",
+    "description": "七类通道配置及已发布 v1 运行契约，支持 SMTP、支付宝、阿里云、腾讯云、赛邮、短信宝、OSS/COS/七牛/本地存储、微信 Native、微信网站登录和 QQ 登录。邮件提供宿主测试发送，其他完整业务流程由核心接入；启用不代表外部连通、支付成功、认证或会员登录完成。 人机验证通道支持 image_captcha、geetest_v4、yidun_captcha、tencent_captcha、aliyun_captcha。验证只由核心业务用例执行，不开放任意公网验证或放行接口。"
+  },
+  "security": [
+    {
+      "adminCookie": []
+    }
+  ],
+  "paths": {
+    "/api/admin/v1/channels/{category}": {
+      "parameters": [
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "admin.channels.index",
+        "responses": {
+          "200": {
+            "description": "统一响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "data",
+                        "total",
+                        "default_label"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Channel"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "default_label": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "enum": [
+                            "主用通道",
+                            "默认存储",
+                            null
+                          ],
+                          "description": "类别规则：sms/mail为主用通道，storage为默认存储；payment/identity/oauth/captcha为null，不展示统一默认选项。"
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "类别中的通道不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本、平台状态或引用冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数校验失败；data.errors按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "按本地已校验插件目录默认展示；尚未配置的插件为 id=0、revision=0、configured=false，默认禁用；GET 不创建连接。已有历史连接保留。",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "plugin_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 10
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sort_order",
+                "created_at",
+                "updated_at"
+              ]
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "summary": "查看通道与配置状态"
+      }
+    },
+    "/api/admin/v1/channels/{category}/platforms": {
+      "parameters": [
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "admin.channels.platforms",
+        "responses": {
+          "200": {
+            "description": "统一响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Platform"
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "类别中的通道不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本、平台状态或引用冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数校验失败；data.errors按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "类别对应 admin.channels.{category}.view 权限；写入校验同源。",
+        "summary": "查看插件平台及配置字段"
+      }
+    },
+    "/api/admin/v1/channels/{category}/{id}": {
+      "parameters": [
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "admin.channels.show",
+        "responses": {
+          "200": {
+            "description": "统一响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Detail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "类别中的通道不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本、平台状态或引用冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数校验失败；data.errors按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "类别对应 admin.channels.{category}.view 权限；写入校验同源。",
+        "summary": "查看通道配置"
+      },
+      "put": {
+        "operationId": "admin.channels.update",
+        "responses": {
+          "200": {
+            "description": "统一响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Detail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "类别中的通道不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本、平台状态或引用冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数校验失败；data.errors按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "编辑已有配置；名称与平台沿用已保存身份，客户端不能更换。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Input"
+              }
+            }
+          }
+        },
+        "summary": "保存通道配置"
+      }
+    },
+    "/api/admin/v1/channels/{category}/{id}/status": {
+      "parameters": [
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "admin.channels.status",
+        "responses": {
+          "200": {
+            "description": "统一响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Detail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "类别中的通道不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本、平台状态或引用冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数校验失败；data.errors按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "类别对应 admin.channels.{category}.update 权限；写入校验同源。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "revision"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "启用或禁用通道"
+      }
+    },
+    "/api/admin/v1/channels/mail/{id}/test": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "admin.channels.mail.test",
+        "responses": {
+          "200": {
+            "description": "统一响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "status",
+                        "message_id",
+                        "message"
+                      ],
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "accepted",
+                            "failed",
+                            "unknown"
+                          ]
+                        },
+                        "message_id": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "类别中的通道不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本、平台状态或引用冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数校验失败；data.errors按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "通道测试间隔不足30秒；统一错误响应"
+          }
+        },
+        "description": "要求 admin.channels.mail.view 和 admin.channels.mail.test 权限及同源写保护。允许测试禁用的已保存配置；相同 UUID 不重复发送，同一通道测试间隔至少30秒。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "recipient",
+                  "revision",
+                  "request_key"
+                ],
+                "properties": {
+                  "recipient": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "request_key": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "向管理员指定邮箱发送固定测试邮件"
+      }
+    },
+    "/api/public/v1/storage/local": {
+      "get": {
+        "tags": [
+          "文件存储"
+        ],
+        "summary": "读取限时 HMAC 授权的本地私有附件",
+        "description": "业务先检查对象归属，再生成签名链接。固定入口先验签再返回二进制内容，不执行上传内容。支持单段字节Range（206）；不可满足为416。无效或多段Range、无可匹配校验器的If-Range返回200完整内容。音视频使用inline，其余作为附件。",
+        "operationId": "downloadSignedLocalObject",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expires",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "signature",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Range",
+            "in": "header",
+            "description": "单段字节范围，例如bytes=0-1023、bytes=1024-或bytes=-1024",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Range",
+            "in": "header",
+            "description": "当前未提供资源校验器，携带此字段时返回完整文件",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "已授权附件",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "bytes"
+                  ]
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "签名无效、过期或对象不存在"
+          },
+          "422": {
+            "description": "查询字段验证失败"
+          },
+          "206": {
+            "description": "已授权文件的单段字节范围",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "bytes"
+                  ]
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "416": {
+            "description": "已授权文件的请求范围不可满足，响应体为空",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "bytes"
+                  ]
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/channels/{category}/platforms/{pluginId}": {
+      "parameters": [
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          }
+        },
+        {
+          "name": "pluginId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          }
+        }
+      ],
+      "put": {
+        "operationId": "admin.channels.configure",
+        "responses": {
+          "200": {
+            "description": "统一响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Detail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "类别中的通道不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本、平台状态或引用冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数校验失败；data.errors按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "固定插件首次配置，使用 update 权限；名称与插件身份由服务端决定。revision=0，同一插件并发或重复首次配置返回409。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Input"
+              }
+            }
+          }
+        },
+        "summary": "首次配置指定插件"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "adminCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_admin_token"
+      }
+    },
+    "schemas": {
+      "Channel": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "name",
+          "plugin_id",
+          "platform_name",
+          "platform_version",
+          "platform_available",
+          "configuration_current",
+          "status",
+          "is_default",
+          "sort_order",
+          "description",
+          "revision",
+          "created_at",
+          "updated_at",
+          "configured"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "plugin_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "platform_name": {
+            "type": "string"
+          },
+          "platform_version": {
+            "type": "string"
+          },
+          "platform_available": {
+            "type": "boolean"
+          },
+          "configuration_current": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "仅sms/mail/storage支持true，且必须启用；其他类别请求true返回422，响应始终false。禁用当前主用配置后不自动切换。"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "是否已保存持久配置"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "configured": {
+                  "const": false
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "id": {
+                  "const": 0
+                },
+                "revision": {
+                  "const": 0
+                },
+                "status": {
+                  "const": 0
+                },
+                "is_default": {
+                  "const": false
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "id": {
+                  "minimum": 1
+                },
+                "revision": {
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Field": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "password",
+              "url",
+              "integer",
+              "boolean",
+              "select"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "max_length": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2048
+          },
+          "minimum": {
+            "type": "integer"
+          },
+          "maximum": {
+            "type": "integer"
+          },
+          "default": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Channel"
+          },
+          {
+            "type": "object",
+            "required": [
+              "configuration",
+              "configured_secrets",
+              "configuration_fields"
+            ],
+            "properties": {
+              "configuration": {
+                "type": "object",
+                "description": "仅普通字段，私密字段不回显",
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "configured_secrets": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
+              "configuration_fields": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Field"
+                },
+                "maxItems": 16
+              }
+            }
+          }
+        ]
+      },
+      "Platform": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "category",
+          "version",
+          "configuration_fields",
+          "platform_available",
+          "template_review"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "configuration_fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Field"
+            },
+            "maxItems": 16
+          },
+          "platform_available": {
+            "type": "boolean",
+            "description": "已安装、启用且摘要与本地包一致，才可保存并启用配置"
+          },
+          "template_review": {
+            "type": "object",
+            "description": "由短信或邮件插件实际实现的可选接口识别。后台入口还须同时检查 platform_available；不表示任何模板已审核通过。其他类别为 false。",
+            "additionalProperties": false,
+            "required": [
+              "submit",
+              "query"
+            ],
+            "properties": {
+              "submit": {
+                "type": "boolean",
+                "description": "支持提交第三方模板审核"
+              },
+              "query": {
+                "type": "boolean",
+                "description": "支持查询第三方模板审核状态"
+              }
+            }
+          }
+        }
+      },
+      "Input": {
+        "type": "object",
+        "required": [
+          "configuration",
+          "status",
+          "is_default",
+          "sort_order",
+          "revision",
+          "description"
+        ],
+        "properties": {
+          "configuration": {
+            "type": "object",
+            "maxProperties": 16,
+            "description": "仅已安装平台声明字段；私密空值保留原值",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "clear_secrets": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "仅sms/mail/storage支持true，且必须启用；其他类别请求true返回422，响应始终false。禁用当前主用配置后不自动切换。"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "创建为0，更新为详情返回的当前版本"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -18,7 +18,7 @@ interface WalletLedgerRepositoryInterface
     /** @return list<array{member_id: int, amount_minor: int, currency: string, channel: string}> */
     public function confirmedRechargePayments(int $rechargeId): array;
 
-    /** @return array{id: int, member_id: int, available_minor: int, version: int} */
+    /** @return array{id: int, member_id: int, available_minor: int, frozen_minor: int, version: int} */
     public function lockAccount(int $memberId, string $currency): array;
 
     /** @return array{member_id: int, amount_minor: int, currency: string, status: string}|null */

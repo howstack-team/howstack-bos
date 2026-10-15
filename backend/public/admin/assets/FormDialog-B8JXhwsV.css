@@ -1,0 +1,1 @@
+.form-dialog-fields{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px;display:grid}.form-dialog-wide{grid-column:1/-1;min-width:0}.form-dialog-actions{justify-content:flex-end;display:flex}@media (width<=767px){.form-dialog-fields{grid-template-columns:minmax(0,1fr)}}

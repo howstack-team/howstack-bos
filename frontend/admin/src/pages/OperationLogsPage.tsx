@@ -1,13 +1,17 @@
+import { StatusBadge } from '../components/TableEnum'
+import { AUDIT_STATUSES } from '../utils/businessEnums'
+import { enumLabels } from '../utils/tableEnum'
+import useTableQuery from '../hooks/useTableQuery'
+import TableQueryForm from '../components/TableQueryForm'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Alert, Descriptions, Drawer, Input, Link, Select, Spin, Table, Tag } from '@arco-design/web-react'
-import { IconSearch } from '@arco-design/web-react/icon'
+import { Form, Alert, Descriptions, Drawer, Link, Select, Spin, Table } from '@arco-design/web-react'
 import type { TableColumnProps } from '@arco-design/web-react'
 import { getOperationLog, listOperationLogs } from '../api/operationLogsApi.ts'
 import type { OperationLogDetail, OperationLogSummary } from '../api/operationLogsApi.ts'
 import TableActions from '../components/TableActions.tsx'
 import { tableCellText } from '../utils/tableCellText.ts'
-import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination.ts'
+import { TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination.ts'
 import './OperationLogsPage.css'
 
 const DESCRIPTION_COLUMNS = { xs: 1, sm: 1, md: 2, lg: 2, xl: 2, xxl: 2, xxxl: 2 }
@@ -48,11 +52,15 @@ function parameterRows(raw: string | null, module: string): DetailRow[] {
 
 /** 操作日志的真实分页列表及脱敏详情抽屉。 */
 export default function OperationLogsPage() {
-  const [input, setInput] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [status, setStatus] = useState<0 | 1 | undefined>()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
+  const searchFields = [
+    { key: 'operator_username', label: '操作账号', maxLength: 64 },
+    { key: 'module', label: '模块', maxLength: 64 },
+    { key: 'operation', label: '操作内容', maxLength: 128 },
+    { key: 'client_ip', label: 'IP', maxLength: 64 },
+    { key: 'operator_nickname', label: '操作人', maxLength: 64 },
+  ]
+  const { queryParams, sortColumn, filterColumn, onTableChange, fields, draftFields, setField, discard, page, pageSize, setPage, setPageSize, search, reset, refreshKey, status: appliedStatus, draftStatus, setDraftStatus } = useTableQuery({ sortFields: ['operated_at', 'duration_ms'], textFields: searchFields.map(field => field.key), statusValues: [0, 1] })
+  const status = appliedStatus === undefined ? undefined : Number(appliedStatus) as 0 | 1
   const [rows, setRows] = useState<OperationLogSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -63,16 +71,11 @@ export default function OperationLogsPage() {
   const [detailError, setDetailError] = useState('')
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { setPage(1); setKeyword(input.trim()) }, 300)
-    return () => window.clearTimeout(timer)
-  }, [input])
-
-  useEffect(() => {
     let active = true
     const timer = window.setTimeout(() => {
       setLoading(true)
       setError('')
-      void listOperationLogs({ keyword, status, page, page_size: pageSize })
+      void listOperationLogs({ ...queryParams, status, page, page_size: pageSize })
         .then((result) => { if (active) { setRows(result.data); setTotal(result.total) } })
         .catch((reason: unknown) => {
           if (!active) return
@@ -83,7 +86,7 @@ export default function OperationLogsPage() {
         .finally(() => { if (active) setLoading(false) })
     }, 0)
     return () => { active = false; window.clearTimeout(timer) }
-  }, [keyword, status, page, pageSize])
+  }, [queryParams, fields, status, page, pageSize, refreshKey])
 
   useEffect(() => {
     if (selectedId === null) return
@@ -104,16 +107,16 @@ export default function OperationLogsPage() {
 
   const columns: TableColumnProps<OperationLogSummary>[] = [
     { title: '序号', width: 76, render: (_value, _row, index) => (page - 1) * pageSize + index + 1 },
-    { title: '操作时间', dataIndex: 'operated_at', width: 200, render: (_value, row) =>
+    { ...sortColumn('operated_at'), title: '操作时间', dataIndex: 'operated_at', width: 200, render: (_value, row) =>
       row.operated_at ? <Link href="#" style={{ whiteSpace: 'nowrap' }} onClick={(event) => { event.preventDefault(); openDetail(row.id) }}>{row.operated_at}</Link> : '-' },
     { title: '操作人', dataIndex: 'operator_nickname', width: 130, ellipsis: true, render: tableCellText },
     { title: '操作内容', dataIndex: 'operation', width: 150, ellipsis: true, render: tableCellText },
     { title: '所属模块', dataIndex: 'module', width: 120, ellipsis: true, render: tableCellText },
-    { title: '状态', width: 90, render: (_value, row) => <Tag color={row.status === 1 ? 'green' : 'red'}>{row.status === 1 ? '成功' : '失败'}</Tag> },
+    { ...filterColumn('status', enumLabels(AUDIT_STATUSES)), title: '状态', width: 90, render: (_value, row) => <StatusBadge value={row.status} mapping={AUDIT_STATUSES} /> },
     { title: '操作IP', dataIndex: 'client_ip', width: 155, ellipsis: true, render: tableCellText },
     { title: '操作地点', dataIndex: 'client_ip_location', width: 160, ellipsis: true, render: tableCellText },
-    { title: '耗时', width: 100, render: (_value, row) => row.duration_ms == null ? '-' : row.duration_ms + ' ms' },
-    { title: '操作', width: 80, fixed: 'right', render: (_value, row) => <TableActions actions={[{ key: 'detail', label: '详情', onClick: () => openDetail(row.id) }]} /> },
+    { ...sortColumn('duration_ms'), title: '耗时', width: 100, render: (_value, row) => row.duration_ms == null ? '-' : row.duration_ms + ' ms' },
+    { title: '操作', width: 104, fixed: 'right', render: (_value, row) => <TableActions actions={[{ key: 'detail', label: '详情', onClick: () => openDetail(row.id) }]} /> },
   ]
 
   const infoRows: DetailRow[] = detail ? [
@@ -122,7 +125,7 @@ export default function OperationLogsPage() {
     { key: 'operator_username', label: '操作账号', value: detail.operator_username },
     { key: 'operation', label: '操作内容', value: detail.operation },
     { key: 'module', label: '所属模块', value: detail.module },
-    { key: 'status', label: '状态', value: <Tag color={detail.status === 1 ? 'green' : 'red'}>{detail.status === 1 ? '成功' : '失败'}</Tag> },
+    { key: 'status', label: '状态', value: <StatusBadge value={detail.status} mapping={AUDIT_STATUSES} /> },
     { key: 'http_status', label: 'HTTP 状态', value: detail.http_status },
     { key: 'client_ip', label: '操作 IP', value: detail.client_ip },
     { key: 'location', label: '操作地点', value: detail.client_ip_location },
@@ -141,16 +144,18 @@ export default function OperationLogsPage() {
   }))
 
   return <section className="page-card">
-    <div className="page-toolbar">
-      <Input prefix={<IconSearch />} placeholder="搜索操作人、模块、内容或 IP" value={input} onChange={setInput} allowClear style={{ width: 290, maxWidth: '100%' }} />
-      <Select placeholder="全部状态" allowClear value={status} onChange={(value: 0 | 1 | undefined) => { setPage(1); setStatus(value) }}
-        options={[{ label: '成功', value: 1 }, { label: '失败', value: 0 }]} style={{ width: 130 }} />
-    </div>
+    <TableQueryForm fields={searchFields} values={draftFields} onFieldChange={setField}
+      appliedCount={Object.keys(queryParams).filter(key => !['sort_by', 'sort_order'].includes(key)).length} onCancelFilters={discard}
+      onSearch={search} onReset={reset} loading={loading}>
+
+      <Form.Item label="状态" className="table-query-field" style={{ marginBottom: 0, marginRight: 0, minWidth: 0, maxWidth: '100%' }}><Select placeholder="全部状态" allowClear value={draftStatus === undefined ? undefined : Number(draftStatus)} onChange={setDraftStatus}
+        options={Object.entries(AUDIT_STATUSES).map(([value, item]) => ({ label: item.text, value: Number(value) }))} style={{ width: 130 }} /></Form.Item>
+      </TableQueryForm>
     {error && <Alert type="error" content={error} style={{ marginBottom: 16 }} />}
-    <div className="table-scroll"><Table<OperationLogSummary> rowKey="id" columns={columns} data={rows} loading={loading} scroll={{ x: 1261 }}
+    <div className="table-scroll"><Table<OperationLogSummary> onChange={onTableChange} rowKey="id" columns={columns} data={rows} loading={loading} scroll={{ x: 1261 }}
       pagination={{ current: page, pageSize, total, showTotal: true, sizeCanChange: true, sizeOptions: TABLE_PAGE_SIZE_OPTIONS,
-        onChange: setPage, onPageSizeChange: (size) => { setPage(1); setPageSize(size) } }} /></div>
-    <Drawer title="操作日志详情" visible={selectedId !== null} width="min(760px, 100vw)" onCancel={closeDetail} footer={null}>
+        onChange: setPage, onPageSizeChange: setPageSize }} /></div>
+    <Drawer maskClosable title="操作日志详情" visible={selectedId !== null} width="min(760px, calc(100vw - 24px))" onCancel={closeDetail} footer={null}>
       {detailLoading && <Spin />}
       {detailError && <Alert type="error" content={detailError} />}
       {detail && <>

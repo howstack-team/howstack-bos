@@ -29,6 +29,7 @@ final readonly class AdminAccount
         public ?string $lastLoginAt,
         public bool $isFounder = false,
         public ?int $departmentId = null,
+        public int $authVersion = 0,
     ) {
     }
 

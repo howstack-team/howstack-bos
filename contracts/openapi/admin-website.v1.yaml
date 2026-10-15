@@ -1,0 +1,1213 @@
+openapi: 3.1.0
+info:
+  title: 官网与主题 API
+  version: 1.0.0
+servers:
+  - url: /
+security:
+  - adminBearer: []
+  - adminCookie: []
+paths:
+  /api/admin/v1/website/settings:
+    get:
+      summary: 读取主题管理的官网公共上下文
+      operationId: websiteOperation1
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/WebsiteData"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      description: 需要admin.page.website.view权限。品牌和备案资料引用系统设置，公司资料由官网基础设置维护，SEO由页面SEO独立维护，导航由导航管理维护。此接口仅供主题预览读取完整官网配置。
+  /api/admin/v1/website/themes/{id}/pages:
+    get:
+      summary: 读取导航可选页面
+      operationId: websiteOperation4
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Page"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+            pattern: ^[a-z][a-z0-9_-]{0,63}$
+          description: 已安装主题标识，包含未启用主题
+      description: 需要admin.page.website.view权限。品牌字段site只读，维护入口为系统设置。已安装主题可分别配置、切换和独立预览。
+  /api/admin/v1/website/images/availability:
+    get:
+      summary: 读取官网存储可用状态
+      operationId: websiteOperation7
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/Availability"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      description: 需要admin.page.website.update权限及同源校验。品牌字段site只读，维护入口为系统设置。已安装主题可分别配置、切换和独立预览。
+  /api/admin/v1/website/images:
+    post:
+      summary: 上传官网图片
+      operationId: websiteOperation8
+      responses:
+        "201":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/Image"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 未设置可用的默认存储通道
+        "422":
+          description: 图片不符合类型、尺寸或大小要求
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 5MiB/1600万像素内的JPEG、PNG、GIF或WebP；不接受SVG
+              required:
+                - file
+      description: 需要admin.page.website.update权限及同源校验。品牌字段site只读，维护入口为系统设置。已安装主题可分别配置、切换和独立预览。
+  /api/public/v1/website/images/{id}:
+    get:
+      summary: 访问已上传官网图片
+      operationId: publicWebsiteImage
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 32
+            pattern: ^[a-f0-9]{32}$
+          description: 已安装主题标识，包含未启用主题
+      responses:
+        "302":
+          description: 重定向到短期存储签名地址
+          headers:
+            Location:
+              schema:
+                type: string
+              description: 存储通道生成的图片地址
+        "404":
+          description: 图片不存在或未上传完成
+      description: ""
+  /api/admin/v1/website/base:
+    get:
+      summary: 读取官网基础设置
+      operationId: websitebaseRead
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/WebsiteBaseData"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      description: 需要admin.website.base.view权限。只处理本分区字段，其他分区保持原值；保存比较共用revision，并发冲突返回409。
+    put:
+      summary: 保存官网基础设置
+      operationId: websitebaseUpdate
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/WebsiteBaseData"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 配置修订冲突
+        "422":
+          description: 配置校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                revision:
+                  type: integer
+                  minimum: 1
+                settings:
+                  $ref: "#/components/schemas/WebsiteBaseSettings"
+              required:
+                - revision
+                - settings
+      description: 需要admin.website.base.view及admin.website.base.update权限。只处理本分区字段，其他分区保持原值；保存比较共用revision，并发冲突返回409。
+  /api/admin/v1/website/navigation:
+    get:
+      summary: 读取官网导航
+      operationId: websitenavigationRead
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/WebsiteNavigationData"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      description: 需要admin.website.navigation.view权限。只处理本分区字段，其他分区保持原值；保存比较共用revision，并发冲突返回409。
+    put:
+      summary: 保存官网导航
+      operationId: websitenavigationUpdate
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/WebsiteNavigationData"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 权限或请求来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 配置修订冲突
+        "422":
+          description: 配置校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                revision:
+                  type: integer
+                  minimum: 1
+                settings:
+                  $ref: "#/components/schemas/WebsiteNavigationSettings"
+              required:
+                - revision
+                - settings
+      description: 需要admin.website.navigation.view及admin.website.navigation.update权限。只处理本分区字段，其他分区保持原值；保存比较共用revision，并发冲突返回409。
+  /api/admin/v1/website/seo:
+    get:
+      operationId: websiteSeoCatalog
+      summary: 读取逐页SEO配置
+      description: 需要admin.website.seo.view。返回当前启用主题的首页与声明页面，不包含会员控制台、未知路径或动态文章详情。settings为空文字或indexable为null时继承；effective展示正式页面生效值，sources说明各字段来源。
+      responses:
+        "200": &a1
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    $ref: "#/components/schemas/WebsiteSeoCatalog"
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401": &a2
+          description: 未登录
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403": &a3
+          description: 权限不足或来源无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/v1/website/seo/pages/{id}:
+    put:
+      operationId: websiteSeoPageUpdate
+      summary: 保存指定页面SEO
+      description: 需要admin.website.seo.view/update及同源校验。只允许当前主题已注册页面；首页scope=core，自定义页scope=theme:主题ID。scope不符422，未知页面404，过期revision409。空白文字和null索引恢复继承；主题切换保留各主题覆盖值。保存不改变路由或模板。
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,63}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                revision:
+                  type: integer
+                  minimum: 1
+                scope:
+                  type: string
+                  maxLength: 70
+                settings:
+                  $ref: "#/components/schemas/PageSeoSettings"
+              required:
+                - revision
+                - scope
+                - settings
+      responses:
+        "200": *a1
+        "401": *a2
+        "403": *a3
+        "404":
+          description: 页面不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 官网修订或当前主题已变化
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: 字段校验失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  securitySchemes:
+    adminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    adminCookie:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+  schemas:
+    WebsiteSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        logo_image_id:
+          type: string
+          maxLength: 32
+        favicon_image_id:
+          type: string
+          maxLength: 32
+        navigation:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              label:
+                type: string
+                maxLength: 40
+              target:
+                type: string
+                enum:
+                  - core
+                  - theme_page
+                  - external
+              core_page:
+                type: string
+                maxLength: 64
+              theme_id:
+                type: string
+                maxLength: 64
+              page_id:
+                type: string
+                maxLength: 64
+              url:
+                type: string
+                maxLength: 500
+            required:
+              - label
+              - target
+        footer_links:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              label:
+                type: string
+                maxLength: 40
+              target:
+                type: string
+                enum:
+                  - core
+                  - theme_page
+                  - external
+              core_page:
+                type: string
+                maxLength: 64
+              theme_id:
+                type: string
+                maxLength: 64
+              page_id:
+                type: string
+                maxLength: 64
+              url:
+                type: string
+                maxLength: 500
+            required:
+              - label
+              - target
+        company:
+          type: object
+          additionalProperties: false
+          properties:
+            introduction:
+              type: string
+              maxLength: 6000
+            contact_phone:
+              type: string
+              maxLength: 50
+            contact_email:
+              type: string
+              maxLength: 100
+            address:
+              type: string
+              maxLength: 300
+            image_id:
+              type: string
+              maxLength: 32
+          required:
+            - introduction
+            - contact_phone
+            - contact_email
+            - address
+            - image_id
+      required:
+        - logo_image_id
+        - favicon_image_id
+        - navigation
+        - footer_links
+        - company
+    ThemeConfiguration:
+      type: object
+      additionalProperties: false
+      properties:
+        global:
+          type: object
+          additionalProperties: true
+        pages:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: true
+      required:
+        - global
+        - pages
+    WebsiteData:
+      type: object
+      additionalProperties: false
+      properties:
+        active_theme_id:
+          type: string
+          maxLength: 64
+        active_theme_version:
+          type: string
+          maxLength: 32
+        active_theme_digest:
+          type: string
+          maxLength: 64
+        settings:
+          $ref: "#/components/schemas/WebsiteSettings"
+        revision:
+          type: integer
+          minimum: 1
+        schema:
+          type: object
+          additionalProperties: true
+        site:
+          type: object
+          additionalProperties: false
+          properties:
+            site_title:
+              type: string
+              maxLength: 2000
+            site_url:
+              type: string
+              maxLength: 2000
+            copyright:
+              type: string
+              maxLength: 2000
+            icp_record:
+              type: string
+              maxLength: 2000
+            public_security_record:
+              type: string
+              maxLength: 2000
+            business_license:
+              type: string
+              maxLength: 2000
+          required:
+            - site_title
+            - site_url
+            - copyright
+            - icp_record
+            - public_security_record
+            - business_license
+      required:
+        - active_theme_id
+        - active_theme_version
+        - active_theme_digest
+        - settings
+        - revision
+    ThemeSettingsData:
+      type: object
+      additionalProperties: false
+      properties:
+        theme_id:
+          type: string
+          maxLength: 64
+        schema_version:
+          type: integer
+          minimum: 1
+        settings:
+          $ref: "#/components/schemas/ThemeConfiguration"
+        revision:
+          type: integer
+          minimum: 1
+        schema:
+          type: object
+          additionalProperties: true
+        defaults:
+          $ref: "#/components/schemas/ThemeConfiguration"
+      required:
+        - theme_id
+        - schema_version
+        - settings
+        - revision
+    Theme:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 80
+        version:
+          type: string
+          maxLength: 32
+        digest:
+          type: string
+          maxLength: 64
+        active:
+          type: boolean
+      required:
+        - id
+        - name
+        - version
+        - digest
+        - active
+    Page:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          maxLength: 64
+        kind:
+          type: string
+          enum:
+            - core
+            - custom
+        title:
+          type: string
+          maxLength: 100
+        path:
+          type: string
+          maxLength: 180
+      required:
+        - id
+        - kind
+        - title
+        - path
+    Availability:
+      type: object
+      additionalProperties: false
+      properties:
+        available:
+          type: boolean
+        message:
+          type: string
+          maxLength: 200
+        configure_path:
+          type: string
+          maxLength: 180
+      required:
+        - available
+        - message
+        - configure_path
+    Image:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          maxLength: 32
+          pattern: ^[a-f0-9]{32}$
+        url:
+          type: string
+          maxLength: 500
+        alt:
+          type: string
+          maxLength: 200
+      required:
+        - id
+        - url
+        - alt
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: integer
+          minimum: 1
+        message:
+          type: string
+          maxLength: 1000
+        data:
+          anyOf:
+            - type: "null"
+            - type: object
+              additionalProperties: true
+        request_id:
+          type: string
+          maxLength: 128
+      required:
+        - code
+        - message
+        - data
+        - request_id
+    ThemePreview:
+      type: object
+      additionalProperties: false
+      required:
+        - url
+        - expires_at
+      properties:
+        url:
+          type: string
+          maxLength: 200
+          description: 站内独立预览URL，持有该链接即可访问公开预览，请勿公开传播
+        expires_at:
+          type: integer
+          description: Unix秒时间戳，创建后600秒过期
+    WebsiteBaseSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        logo_image_id:
+          type: string
+          maxLength: 32
+        favicon_image_id:
+          type: string
+          maxLength: 32
+        company:
+          type: object
+          additionalProperties: false
+          properties:
+            introduction:
+              type: string
+              maxLength: 6000
+            contact_phone:
+              type: string
+              maxLength: 50
+            contact_email:
+              type: string
+              maxLength: 100
+            address:
+              type: string
+              maxLength: 300
+            image_id:
+              type: string
+              maxLength: 32
+          required:
+            - introduction
+            - contact_phone
+            - contact_email
+            - address
+            - image_id
+      required:
+        - logo_image_id
+        - favicon_image_id
+        - company
+    WebsiteBaseData:
+      type: object
+      additionalProperties: false
+      properties:
+        active_theme_id:
+          type: string
+          maxLength: 64
+        active_theme_version:
+          type: string
+          maxLength: 32
+        active_theme_digest:
+          type: string
+          maxLength: 64
+        settings:
+          $ref: "#/components/schemas/WebsiteBaseSettings"
+        revision:
+          type: integer
+          minimum: 1
+        schema:
+          type: object
+          additionalProperties: true
+        site:
+          type: object
+          additionalProperties: false
+          properties:
+            site_title:
+              type: string
+              maxLength: 2000
+            site_url:
+              type: string
+              maxLength: 2000
+            copyright:
+              type: string
+              maxLength: 2000
+            icp_record:
+              type: string
+              maxLength: 2000
+            public_security_record:
+              type: string
+              maxLength: 2000
+            business_license:
+              type: string
+              maxLength: 2000
+          required:
+            - site_title
+            - site_url
+            - copyright
+            - icp_record
+            - public_security_record
+            - business_license
+      required:
+        - active_theme_id
+        - active_theme_version
+        - active_theme_digest
+        - settings
+        - revision
+    WebsiteNavigationSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        navigation:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              label:
+                type: string
+                maxLength: 40
+              target:
+                type: string
+                enum:
+                  - core
+                  - theme_page
+                  - external
+              core_page:
+                type: string
+                maxLength: 64
+              theme_id:
+                type: string
+                maxLength: 64
+              page_id:
+                type: string
+                maxLength: 64
+              url:
+                type: string
+                maxLength: 500
+            required:
+              - label
+              - target
+        footer_links:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              label:
+                type: string
+                maxLength: 40
+              target:
+                type: string
+                enum:
+                  - core
+                  - theme_page
+                  - external
+              core_page:
+                type: string
+                maxLength: 64
+              theme_id:
+                type: string
+                maxLength: 64
+              page_id:
+                type: string
+                maxLength: 64
+              url:
+                type: string
+                maxLength: 500
+            required:
+              - label
+              - target
+      required:
+        - navigation
+        - footer_links
+    WebsiteNavigationData:
+      type: object
+      additionalProperties: false
+      properties:
+        active_theme_id:
+          type: string
+          maxLength: 64
+        active_theme_version:
+          type: string
+          maxLength: 32
+        active_theme_digest:
+          type: string
+          maxLength: 64
+        settings:
+          $ref: "#/components/schemas/WebsiteNavigationSettings"
+        revision:
+          type: integer
+          minimum: 1
+        schema:
+          type: object
+          additionalProperties: true
+        site:
+          type: object
+          additionalProperties: false
+          properties:
+            site_title:
+              type: string
+              maxLength: 2000
+            site_url:
+              type: string
+              maxLength: 2000
+            copyright:
+              type: string
+              maxLength: 2000
+            icp_record:
+              type: string
+              maxLength: 2000
+            public_security_record:
+              type: string
+              maxLength: 2000
+            business_license:
+              type: string
+              maxLength: 2000
+          required:
+            - site_title
+            - site_url
+            - copyright
+            - icp_record
+            - public_security_record
+            - business_license
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeclaredPage"
+      required:
+        - active_theme_id
+        - active_theme_version
+        - active_theme_digest
+        - settings
+        - revision
+    DeclaredPage:
+      $ref: "#/components/schemas/Page"
+    PageSeoSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          description: 首页填写副标题，生成「网站名称 - 副标题」；其他页填写标题正文，生成「页面标题 - 网站名称」。留空继承默认值
+        description:
+          type: string
+          maxLength: 500
+        keywords:
+          type: string
+          maxLength: 255
+        indexable:
+          type:
+            - boolean
+            - "null"
+          description: null继承页面默认索引策略；false禁止索引
+      required:
+        - title
+        - description
+        - keywords
+        - indexable
+    PageSeoEffective:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 243
+          description: 首页为「网站名称 - 副标题」，其他页为「页面标题 - 网站名称」；首页无副标题时仅显示网站名称
+        description:
+          type: string
+          maxLength: 500
+        keywords:
+          type: string
+          maxLength: 255
+        indexable:
+          type: boolean
+      required:
+        - title
+        - description
+        - keywords
+        - indexable
+    WebsiteSeoPage:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,63}$
+        scope:
+          type: string
+          pattern: ^(core|theme:[a-z][a-z0-9_-]{0,63})$
+        kind:
+          type: string
+          enum:
+            - core
+            - custom
+        title:
+          type: string
+          maxLength: 100
+        path:
+          type: string
+          maxLength: 180
+        settings:
+          $ref: "#/components/schemas/PageSeoSettings"
+        effective:
+          $ref: "#/components/schemas/PageSeoEffective"
+        sources:
+          type: object
+          additionalProperties: false
+          properties:
+            title: &a4
+              type: string
+              enum:
+                - override
+                - page_default
+                - default
+            description: *a4
+            keywords: *a4
+            indexable: *a4
+          required:
+            - title
+            - description
+            - keywords
+            - indexable
+      required:
+        - id
+        - scope
+        - kind
+        - title
+        - path
+        - settings
+        - effective
+        - sources
+    WebsiteSeoCatalog:
+      type: object
+      additionalProperties: false
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        active_theme_id:
+          type: string
+          maxLength: 64
+        pages:
+          type: array
+          minItems: 1
+          maxItems: 33
+          items:
+            $ref: "#/components/schemas/WebsiteSeoPage"
+      required:
+        - revision
+        - active_theme_id
+        - pages

@@ -16,7 +16,13 @@ use support\annotation\route\Post;
 use support\annotation\route\RouteGroup;
 use support\Request;
 use support\Response;
-use support\validation\Validator;
+use app\modules\member\application\MemberCodeAuthenticationService;
+use app\modules\member\contract\MemberTokenServiceInterface;
+use app\modules\member\validation\MemberCodeAuthValidator;
+use app\modules\member\middleware\MemberWriteOriginMiddleware;
+use app\shared\contract\ClientIpResolverInterface;
+use app\exception\BusinessException;
+use app\shared\http\ApiErrorCode;
 
 /** 会员控制台登录、当前身份与退出。 */
 #[DisableDefaultRoute]
@@ -27,21 +33,21 @@ final readonly class MemberAuthController
         private LoginMemberService $login,
         private MemberAuthenticationContext $context,
         private ApiResponse $responses,
+        private MemberCodeAuthenticationService $codes,
+        private MemberTokenServiceInterface $tokens,
+        private ClientIpResolverInterface $ips,
+        private \app\modules\member\application\MemberOAuthAuthenticationService $oauth,
     ) {
     }
 
     #[Post(path: '/login', name: 'member.auth.login')]
-    #[Middleware(MemberLoginRateLimitMiddleware::class)]
+    #[Middleware(MemberWriteOriginMiddleware::class, MemberLoginRateLimitMiddleware::class)]
     public function login(Request $request): Response
     {
-        $input = Validator::make(['mobile' => $request->post('mobile'), 'password' => $request->post('password')], [
-            'mobile' => ['required', 'string', 'regex:/^\+?[0-9]{6,20}$/'], 'password' => 'required|string|min:1|max:1024',
-        ])->validate();
-        $result = $this->login->login($input['mobile'], $input['password']);
+        $input = MemberCodeAuthValidator::passwordLogin($request->post());
+        $result = $this->login->login($input['account'], $input['password'], (bool) $input['remember_me']);
 
-        return $this->noStore($this->responses->success($request, ['user' => $result['user']]))->cookie(
-            $this->cookieName(), $result['token'], null, '/', '', $this->secureCookie(), true, 'Strict',
-        );
+        return $this->sessionResponse($request, $result, (bool) $input['remember_me']);
     }
 
     #[Get(path: '/me', name: 'member.auth.me')]
@@ -52,10 +58,73 @@ final readonly class MemberAuthController
     }
 
     #[Post(path: '/logout', name: 'member.auth.logout')]
+    #[Middleware(MemberWriteOriginMiddleware::class)]
     public function logout(Request $request): Response
     {
+        $this->tokens->revoke((string) $request->cookie($this->cookieName(), ''));
         return $this->noStore($this->responses->success($request, null))->cookie(
             $this->cookieName(), '', 0, '/', '', $this->secureCookie(), true, 'Strict',
+        );
+    }
+
+    #[Get(path: '/options', name: 'member.auth.options')]
+    public function options(Request $request): Response
+    {
+        $binding = (string) $request->cookie('hlyq_auth_binding', '');
+        if (!preg_match('/^[a-f0-9]{64}$/D', $binding)) $binding = bin2hex(random_bytes(32));
+        return $this->noStore($this->responses->success($request, array_replace($this->codes->options(), ['oauth_providers' => $this->oauth->providers()])))
+            ->cookie('hlyq_auth_binding', $binding, time() + 1800, '/', '', $this->secureCookie(), true, 'Strict');
+    }
+
+    #[Post(path: '/login-code', name: 'member.auth.login-code')]
+    #[Middleware(MemberWriteOriginMiddleware::class)]
+    public function loginCode(Request $request): Response
+    {
+        $input = MemberCodeAuthValidator::input($request->post(), true, false);
+        return $this->noStore($this->responses->success($request, $this->codes->send('login', $input['mobile'], $this->binding($request), $this->ips->resolve($request))));
+    }
+
+    #[Post(path: '/login-sms', name: 'member.auth.login-sms')]
+    #[Middleware(MemberWriteOriginMiddleware::class, MemberLoginRateLimitMiddleware::class)]
+    public function loginSms(Request $request): Response
+    {
+        $input = MemberCodeAuthValidator::input($request->post(), true, true);
+        $result = $this->codes->login($input['mobile'], $input['challenge_id'], $input['code'], $this->binding($request), $this->ips->resolve($request), (bool) $input['remember_me']);
+        return $this->sessionResponse($request, $result, (bool) $input['remember_me']);
+    }
+
+    #[Post(path: '/password-reset-code', name: 'member.auth.password-reset-code')]
+    #[Middleware(MemberWriteOriginMiddleware::class)]
+    public function resetCode(Request $request): Response
+    {
+        $input = MemberCodeAuthValidator::input($request->post(), false, false);
+        return $this->noStore($this->responses->success($request, $this->codes->send('password_reset', $input['account'], $this->binding($request), $this->ips->resolve($request))));
+    }
+
+    #[Post(path: '/password-reset', name: 'member.auth.password-reset')]
+    #[Middleware(MemberWriteOriginMiddleware::class)]
+    public function resetPassword(Request $request): Response
+    {
+        $input = MemberCodeAuthValidator::input($request->post(), false, true);
+        $this->codes->reset($input['account'], $input['challenge_id'], $input['code'], $input['password'], $this->binding($request), $this->ips->resolve($request));
+        return $this->noStore($this->responses->success($request, null));
+    }
+
+    private function binding(Request $request): string
+    {
+        $binding = (string) $request->cookie('hlyq_auth_binding', '');
+        if (!preg_match('/^[a-f0-9]{64}$/D', $binding)) {
+            throw new BusinessException('认证会话已失效，请刷新页面重试', ApiErrorCode::FORBIDDEN, 403);
+        }
+        return $binding;
+    }
+
+    /** @param array{user: array<string, mixed>, token: string} $result 服务端会话结果 */
+    private function sessionResponse(Request $request, array $result, bool $remember): Response
+    {
+        return $this->noStore($this->responses->success($request, ['user' => $result['user']]))->cookie(
+            $this->cookieName(), $result['token'], $remember ? time() + (int) config('authentication.member.remember_ttl', 2592000) : null,
+            '/', '', $this->secureCookie(), true, 'Strict',
         );
     }
 

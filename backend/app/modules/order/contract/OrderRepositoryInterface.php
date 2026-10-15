@@ -14,8 +14,15 @@ interface OrderRepositoryInterface
      * @param int         $page     页码
      * @param int         $pageSize 每页数量
      * @return array{data: list<array<string, mixed>>, total: int} 订单分页
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
      */
-    public function paginate(string $keyword, ?string $status, int $page, int $pageSize): array;
+    public function paginate(
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array;
 
     /**
      * 查询订单及其所有订单项。

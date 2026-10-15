@@ -1,11 +1,26 @@
 .system-maintenance-page { min-width: 0; }
 .system-maintenance-heading { margin-bottom: 20px; }
-.system-maintenance-panel { padding-top: 16px; }
+.system-maintenance-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+.system-maintenance-header > div { min-width: 0; }
+.system-maintenance-account-entry { margin-left: auto; white-space: nowrap; }
+.account-binding-status__success { color: rgb(var(--success-6)); }
+.account-binding-status__warning { color: rgb(var(--warning-6)); }
+.account-binding-status__default { color: var(--color-text-3); }
+.system-update-status__success { color: rgb(var(--success-6)); }
+.system-update-status__warning { color: rgb(var(--warning-6)); }
+.system-maintenance-content { display: flex; flex-direction: column; gap: 32px; }
 .system-maintenance-heading .arco-typography { margin: 0 0 6px; }
 .system-maintenance-section { margin-top: 24px; }
 .system-maintenance-section > .arco-typography:first-child { margin-top: 0; }
 .system-maintenance-actions { margin-top: 16px; }
 .system-update-steps { margin: 20px 0; }
 @media (max-width: 768px) {
+  .system-maintenance-header { flex-direction: column; gap: 12px; }
+  .system-maintenance-account-entry { margin-left: 0; }
   .system-update-steps { overflow-x: auto; padding-bottom: 8px; }
+}
+
+@media (max-width: 576px) {
+  .system-maintenance-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .system-maintenance-page .arco-descriptions-item-value { overflow-wrap: anywhere; }
 }

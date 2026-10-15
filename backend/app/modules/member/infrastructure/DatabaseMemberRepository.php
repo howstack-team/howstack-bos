@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace app\modules\member\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+use support\Db;
+
 use app\modules\member\application\dto\MemberProfile;
 use app\modules\member\contract\MemberRepositoryInterface;
 use app\modules\member\infrastructure\model\MemberModel;
@@ -15,15 +18,21 @@ use Illuminate\Database\Eloquent\Builder;
 final readonly class DatabaseMemberRepository implements MemberRepositoryInterface
 {
     private const array COLUMNS = [
-        'id', 'nickname', 'group_id', 'level_id', 'mobile', 'email', 'description', 'status',
+        'id', 'public_id', 'nickname', 'group_id', 'level_id', 'mobile', 'email', 'description', 'status',
         'last_login_at', 'created_at', 'updated_at',
     ];
-
     public function __construct(private OrderMemberReferenceInterface $orders)
     {
     }
 
-    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $query = $this->query();
         if ($keyword !== '') {
@@ -33,8 +42,21 @@ final readonly class DatabaseMemberRepository implements MemberRepositoryInterfa
             });
         }
         if ($status !== null) $query->where('status', $status);
+        foreach ([
+            'nickname' => 'nickname',
+            'mobile' => 'mobile',
+            'email' => 'email',
+        ] as $field => $column) {
+            if (isset($filters[$field])) {
+                $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+            }
+        }
         $total = (int) (clone $query)->count();
-        $rows = $query->orderByDesc('id')->forPage($page, $pageSize)->get();
+        $rows = TableQueryOrder::apply($query, $filters, [
+                'created_at' => 'created_at',
+                'last_login_at' => 'last_login_at',
+            ], ['created_at' => 'desc', 'id' => 'desc'], 'id')->forPage($page, $pageSize)->get();
         return ['data' => $rows->map(fn (MemberModel $row): array => $this->profile($row)->toArray())->all(), 'total' => $total];
     }
 
@@ -56,9 +78,27 @@ final readonly class DatabaseMemberRepository implements MemberRepositoryInterfa
 
     public function save(?int $id, array $data): int
     {
-        $model = $id === null ? new MemberModel() : MemberModel::query()->findOrFail($id);
-        $model->fill($data)->save();
-        return $model->id;
+        if ($id !== null) {
+            $model = MemberModel::query()->findOrFail($id);
+            unset($data['public_id']);
+            $model->fill($data);
+            foreach (['mobile', 'email'] as $field) {
+                if ($model->isDirty($field)) $model->{$field . '_verified_at'} = null;
+            }
+            $model->save();
+            return $model->id;
+        }
+        unset($data['public_id']);
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $number = \app\modules\member\domain\PublicMemberId::generate();
+            try {
+                return Db::transaction(static fn (): int => MemberModel::query()->create(['public_id' => $number] + $data)->id);
+            } catch (\Illuminate\Database\QueryException $error) {
+                if (!in_array($error->getCode(), ['23000', '23505'], true)
+                    || !MemberModel::query()->where('public_id', $number)->exists()) throw $error;
+            }
+        }
+        throw new \app\exception\BusinessException('会员编号生成失败，请稍后重试', \app\shared\http\ApiErrorCode::SERVICE_UNAVAILABLE, 503);
     }
 
     public function delete(int $id): void
@@ -91,6 +131,7 @@ final readonly class DatabaseMemberRepository implements MemberRepositoryInterfa
     {
         return new MemberProfile(
             id: $row->id,
+            publicId: $row->public_id,
             nickname: $row->nickname,
             groupId: $row->group_id,
             groupName: $row->group?->name,

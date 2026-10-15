@@ -20,6 +20,7 @@ use app\modules\admin\operation\middleware\AdminOperationLogMiddleware;
 return [
     '' => [
         InstallGuardMiddleware::class,
+        \app\modules\software_maintenance\infrastructure\MaintenanceMiddleware::class,
         AdminOperationLogMiddleware::class,
     ],
 ];

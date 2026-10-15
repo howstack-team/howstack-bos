@@ -5,5 +5,7 @@
   "menu": true,
   "footer": true,
   "themeColor": "#165DFF",
-  "menuWidth": 220
+  "layout": "classic",
+  "classicMenuWidth": 220,
+  "menuWidth": 168
 }

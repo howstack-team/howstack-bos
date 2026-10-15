@@ -1,0 +1,1888 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "消息收件箱与发送日志",
+    "version": "v1",
+    "description": "业务事务 Outbox、Redis ID队列、本人已读与明确失败重试。未开放任意发送代理。"
+  },
+  "security": [
+    {
+      "adminCookie": []
+    }
+  ],
+  "paths": {
+    "/api/admin/v1/messages": {
+      "get": {
+        "operationId": "admin.messages.index",
+        "security": [
+          {
+            "adminCookie": []
+          }
+        ],
+        "description": "仅认证本人收件箱，account_id 来自会话；分类、子分类 AND 过滤。",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            },
+            "description": ""
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 10
+            },
+            "description": ""
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 24
+            },
+            "description": ""
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InboxList"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "查询条件无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取本人消息"
+      }
+    },
+    "/api/admin/v1/messages/summary": {
+      "get": {
+        "operationId": "admin.messages.summary",
+        "security": [
+          {
+            "adminCookie": []
+          }
+        ],
+        "description": "本人未读统计。发送成功不等于已读。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InboxSummary"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取本人未读统计"
+      }
+    },
+    "/api/admin/v1/messages/{id}/read": {
+      "post": {
+        "operationId": "admin.messages.read",
+        "security": [
+          {
+            "adminCookie": []
+          }
+        ],
+        "description": "同源写入，本人已读持久化；重复操作幂等。无请求正文。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息不存在或不属于本人",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "将本人消息标为已读"
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ]
+    },
+    "/api/admin/v1/messages/read-all": {
+      "post": {
+        "operationId": "admin.messages.read-all",
+        "security": [
+          {
+            "adminCookie": []
+          }
+        ],
+        "description": "同源写入，本人已读持久化；重复操作幂等。无请求正文。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息不存在或不属于本人",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "将本人全部消息标为已读"
+      }
+    },
+    "/api/console/v1/messages": {
+      "get": {
+        "operationId": "console.messages.index",
+        "security": [
+          {
+            "memberCookie": []
+          }
+        ],
+        "description": "仅认证本人收件箱，account_id 来自会话；分类、子分类 AND 过滤。",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            },
+            "description": ""
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 10
+            },
+            "description": ""
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 24
+            },
+            "description": ""
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 32
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InboxList"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "查询条件无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取会员本人消息"
+      }
+    },
+    "/api/console/v1/messages/summary": {
+      "get": {
+        "operationId": "console.messages.summary",
+        "security": [
+          {
+            "memberCookie": []
+          }
+        ],
+        "description": "本人未读统计。发送成功不等于已读。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InboxSummary"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取会员未读统计"
+      }
+    },
+    "/api/console/v1/messages/{id}/read": {
+      "post": {
+        "operationId": "console.messages.read",
+        "security": [
+          {
+            "memberCookie": []
+          }
+        ],
+        "description": "同源写入，本人已读持久化；重复操作幂等。无请求正文。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息不存在或不属于本人",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "将会员本人消息标为已读"
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ]
+    },
+    "/api/console/v1/messages/read-all": {
+      "post": {
+        "operationId": "console.messages.read-all",
+        "security": [
+          {
+            "memberCookie": []
+          }
+        ],
+        "description": "同源写入，本人已读持久化；重复操作幂等。无请求正文。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息不存在或不属于本人",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "将会员全部消息标为已读"
+      }
+    },
+    "/api/admin/v1/message-logs": {
+      "get": {
+        "operationId": "admin.message-logs.index",
+        "description": "需要 admin.message-logs.view；独立条件 AND。无正文、地址或凭据。",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            },
+            "description": ""
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 10
+            },
+            "description": ""
+          },
+          {
+            "name": "scene",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "description": ""
+          },
+          {
+            "name": "business_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "description": ""
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "description": "按 created_at、id 同向排序"
+          },
+          {
+            "name": "purpose",
+            "in": "query",
+            "description": "独立AND条件；渠道与投递结果需匹配同一任务",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "verification",
+                "notification",
+                "marketing",
+                "system"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "description": "独立AND条件；渠道与投递结果需匹配同一任务",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "sms",
+                "message",
+                "wechat",
+                "dingtalk",
+                "wecom",
+                "feishu"
+              ]
+            }
+          },
+          {
+            "name": "delivery_status",
+            "in": "query",
+            "description": "独立AND条件；渠道与投递结果需匹配同一任务",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "processing",
+                "accepted",
+                "delivered",
+                "failed",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "name": "audience",
+            "in": "query",
+            "description": "与渠道及投递结果匹配同一条投递；多条件AND",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "customer",
+                "admin",
+                "robot"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "逻辑消息全部投递的总体结果；先聚合再分页",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "inactive",
+                "pending",
+                "processing",
+                "accepted",
+                "delivered",
+                "partial",
+                "failed",
+                "unknown"
+              ]
+            }
+          },
+          {
+            "name": "business_id",
+            "in": "query",
+            "description": "关联业务主键，配合business_type精准定位；不是业务单号",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "description": "记录起始日期（含当日00:00:00）",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "description": "记录结束日期（含当日整天），不得早于起始日期",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LogList"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无查看权限",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "查询条件无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取消息发送日志"
+      }
+    },
+    "/api/admin/v1/message-logs/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "get": {
+        "operationId": "admin.message-logs.show",
+        "description": "需要 admin.message-logs.view；逐渠道结果及尝试，不解密返回快照。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MessageDetail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无查看权限",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息不存在",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取消息发送详情"
+      }
+    },
+    "/api/admin/v1/message-logs/deliveries/{id}/retry": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "post": {
+        "operationId": "admin.message-logs.retry",
+        "description": "需要 view + retry 权限和同源检查。仅明确 failed 且累计少于10次，保留请求标识及快照，unknown 禁止重发。无请求正文。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "会话无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "任务不是明确失败或次数达到上限",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "重试失败的消息投递"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "adminCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_admin_token"
+      },
+      "memberCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_member_token"
+      }
+    },
+    "schemas": {
+      "InboxMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "body",
+          "unread",
+          "created_at",
+          "business_type",
+          "business_id",
+          "purpose",
+          "category",
+          "topic"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "unread": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "business_type": {
+            "type": "string"
+          },
+          "business_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          }
+        }
+      },
+      "InboxSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "unread",
+          "categories",
+          "topics"
+        ],
+        "properties": {
+          "unread": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "categories": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "topics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "MessageLog": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scene",
+          "name",
+          "purpose",
+          "business_type",
+          "business_id",
+          "created_at",
+          "delivery_states",
+          "status",
+          "groups"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scene": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "verification",
+              "notification",
+              "marketing",
+              "system"
+            ]
+          },
+          "business_type": {
+            "type": "string"
+          },
+          "business_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "delivery_states": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "inactive",
+              "pending",
+              "processing",
+              "accepted",
+              "delivered",
+              "partial",
+              "failed",
+              "unknown"
+            ],
+            "description": "实时聚合结果；accepted表示全部受理或送达，不表示厂商最终送达"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "customer",
+                    "admin",
+                    "robot"
+                  ]
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "email",
+                    "sms",
+                    "message",
+                    "wechat",
+                    "dingtalk",
+                    "wecom",
+                    "feishu"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "audience",
+                "channel",
+                "count"
+              ]
+            }
+          }
+        }
+      },
+      "Delivery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "audience",
+          "account_id",
+          "read_at",
+          "channel",
+          "status",
+          "attempts",
+          "error_code",
+          "updated_at",
+          "group_key",
+          "group_name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "customer",
+              "robot"
+            ]
+          },
+          "account_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "read_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "accepted",
+              "delivered",
+              "failed",
+              "unknown"
+            ]
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "group_key": {
+            "type": "string"
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "channel_name": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "任务创建时绑定的公开平台名称快照；空值表示历史记录或未指定通道。旧服务端可能未返回该字段，客户端兼容缺失。"
+          }
+        }
+      },
+      "Attempt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "delivery_id",
+          "attempt_no",
+          "status",
+          "error_code",
+          "duration_ms",
+          "created_at",
+          "finished_at"
+        ],
+        "properties": {
+          "delivery_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "attempt_no": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "accepted",
+              "delivered",
+              "failed",
+              "unknown"
+            ]
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "data",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {},
+          "request_id": {
+            "type": "string"
+          }
+        }
+      },
+      "MessageDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scene",
+          "name",
+          "purpose",
+          "business_type",
+          "business_id",
+          "created_at",
+          "delivery_states",
+          "deliveries",
+          "attempts",
+          "status",
+          "groups"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scene": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "verification",
+              "notification",
+              "marketing",
+              "system"
+            ]
+          },
+          "business_type": {
+            "type": "string"
+          },
+          "business_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "delivery_states": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Delivery"
+            }
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attempt"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "inactive",
+              "pending",
+              "processing",
+              "accepted",
+              "delivered",
+              "partial",
+              "failed",
+              "unknown"
+            ],
+            "description": "实时聚合结果；accepted表示全部受理或送达，不表示厂商最终送达"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "audience": {
+                  "type": "string",
+                  "enum": [
+                    "customer",
+                    "admin",
+                    "robot"
+                  ]
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "email",
+                    "sms",
+                    "message",
+                    "wechat",
+                    "dingtalk",
+                    "wecom",
+                    "feishu"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "audience",
+                "channel",
+                "count"
+              ]
+            }
+          }
+        }
+      },
+      "InboxList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "total"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InboxMessage"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "LogList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "total",
+          "scenes"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageLog"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "scenes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "name"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

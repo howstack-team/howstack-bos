@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\controller;
 
 use app\modules\install\contract\InstallationStateRepositoryInterface;
+use support\Request;
 use support\Response;
 
 /**
@@ -16,7 +17,7 @@ final readonly class FrontendController
      * 初始化前端应用入口控制器。
      * @param InstallationStateRepositoryInterface $stateRepository 安装状态仓储
      */
-    public function __construct(private InstallationStateRepositoryInterface $stateRepository)
+    public function __construct(private InstallationStateRepositoryInterface $stateRepository, private \app\modules\website\application\ConsoleThemeRuntimeService $themes)
     {
     }
 
@@ -24,9 +25,9 @@ final readonly class FrontendController
      * 返回会员控制台入口页面。
      * @return Response 会员控制台 HTML 响应
      */
-    public function console(): Response
+    public function console(Request $request): Response
     {
-        return $this->serve('console');
+        return response($this->themes->page((string) $request->cookie('console_presentation', 'auto'), (string) $request->header('user-agent', '')), 200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     /**
@@ -44,6 +45,25 @@ final readonly class FrontendController
         return $this->serve('admin');
     }
 
+    /** 将旧书签重定向到无 /app 前缀的入口，保留查询参数。 */
+    public function redirectLegacy(Request $request, string $app, string $path = ''): Response
+    {
+        if (!in_array($app, ['admin', 'console'], true)) {
+            return response('Not Found', 404);
+        }
+
+        $isAsset = str_starts_with($path, 'assets/')
+            || in_array($path, ['logo.png', 'favicon.svg', 'icons.svg'], true);
+        $base = $app === 'admin' && !$isAsset ? $this->stateRepository->adminPath() : $app;
+        $location = '/' . $base . ($path === '' ? '' : '/' . $path);
+        $query = $request->queryString();
+        if ($query !== '') {
+            $location .= '?' . $query;
+        }
+
+        return response('', 308, ['Location' => $location, 'Cache-Control' => 'no-cache']);
+    }
+
     /**
      * 读取指定前端应用的构建入口。
      * @param string $application 前端应用目录标识
@@ -51,7 +71,7 @@ final readonly class FrontendController
      */
     private function serve(string $application): Response
     {
-        $path = public_path() . "/app/{$application}/index.html";
+        $path = public_path() . "/{$application}/index.html";
         if (!is_file($path)) {
             return response('Frontend application is not built', 503);
         }

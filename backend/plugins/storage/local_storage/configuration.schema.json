@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "namespace",
+      "label": "存储分区",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入存储分区",
+      "max_length": 128,
+      "default": "uploads",
+      "description": "使用独立逻辑分区，不填写服务器文件路径。"
+    }
+  ]
+}

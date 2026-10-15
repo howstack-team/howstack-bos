@@ -1,0 +1,185 @@
+openapi: 3.0.3
+info:
+  title: 皓量云擎管理员个人设置 API
+  version: 1.0.0
+  description: 仅操作当前认证管理员，资料按白名单输出，不接受目标用户 ID。
+servers:
+  - url: /api/admin/v1
+security:
+  - AdminCookie: []
+  - AdminBearer: []
+paths:
+  /profile:
+    get:
+      operationId: admin.profile.show
+      summary: 查询本人资料
+      description: 需要 admin.profile.view；响应 Cache-Control 为 no-store。
+      responses:
+        "200":
+          $ref: "#/components/responses/ProfileResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: admin.profile.update
+      summary: 保存本人邮箱、手机号和工号
+      description: 需要 admin.profile.update 和同源 Origin。完整提交三个字段，空字符串转为 null；工号在系统用户中唯一。其他字段忽略。
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          $ref: "#/components/responses/ProfileResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+  /profile/password:
+    post:
+      operationId: admin.profile.password
+      summary: 验证原密码并修改本人密码
+      description: 需要 admin.profile.password 和同源 Origin；新密码最多72字节且不能与旧密码相同。成功后清除管理员Cookie并使旧会话失效，前端重新登录。
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - new_password
+                - new_password_confirmation
+              properties:
+                current_password:
+                  type: string
+                  maxLength: 128
+                  writeOnly: true
+                new_password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+                  writeOnly: true
+                new_password_confirmation:
+                  type: string
+                  maxLength: 72
+                  writeOnly: true
+      responses:
+        "200":
+          description: 修改成功，清除 Cookie
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                        example: null
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    AdminCookie:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+    AdminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uri
+      description: 与当前请求 Host 同源的浏览器来源
+  schemas:
+    Envelope:
+      type: object
+      required:
+        - code
+        - message
+        - data
+        - request_id
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data: {}
+        request_id:
+          type: string
+    ProfileInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          nullable: true
+        mobile:
+          type: string
+          pattern: ^\+?[0-9]{6,20}$
+          nullable: true
+        employee_no:
+          type: string
+          maxLength: 32
+          nullable: true
+    Profile:
+      allOf:
+        - $ref: "#/components/schemas/ProfileInput"
+        - type: object
+          required:
+            - id
+            - username
+            - nickname
+            - email
+            - mobile
+            - employee_no
+          properties:
+            id:
+              type: integer
+            username:
+              type: string
+            nickname:
+              type: string
+  responses:
+    ProfileResponse:
+      description: 当前管理员的公开个人资料
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Envelope"
+              - type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Profile"
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+    Error:
+      description: 统一业务错误；401需重新登录，403无权限或非同源，422字段不合法或原密码错误
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Envelope"

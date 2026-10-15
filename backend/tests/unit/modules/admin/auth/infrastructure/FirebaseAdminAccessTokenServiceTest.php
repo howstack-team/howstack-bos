@@ -47,6 +47,18 @@ final class FirebaseAdminAccessTokenServiceTest extends TestCase
         $service->parse(implode('.', $segments));
     }
 
+    /** 不接受升级前缺少凭证绑定的会话，以免改密后旧令牌继续有效。 */
+    public function testLegacyTokenWithoutCredentialProofIsRejected(): void
+    {
+        $token = \Firebase\JWT\JWT::encode([
+            'iss' => 'https://example.com', 'aud' => 'hlyq-admin', 'sub' => '42',
+            'iat' => time(), 'exp' => time() + 7200,
+            'jti' => str_repeat('a', 32), 'typ' => 'admin_access',
+        ], str_repeat('a', 96), 'HS256');
+        $this->expectException(AdminAuthenticationException::class);
+        $this->service()->parse($token);
+    }
+
     /**
      * 验证未配置足够长度的密钥时拒绝签发令牌。
      * @return void

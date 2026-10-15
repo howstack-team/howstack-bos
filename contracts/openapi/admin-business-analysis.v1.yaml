@@ -1,0 +1,155 @@
+openapi: 3.0.3
+info:
+  title: 运营后台经营分析
+  version: 1.0.0
+  description: 社区版全站只读经营分析。按订单付款、退款完成和会员创建的实际时间统计，不把充值当作销售额，不推算利润。
+paths:
+  /api/admin/v1/business-analysis:
+    get:
+      operationId: admin.business-analysis.show
+      summary: 查询经营分析
+      description: >-
+        要求管理员会话及 admin.page.analysis.view 权限，该权限允许查看全站聚合，不授予客户资料或交易详情权限。
+        默认包含今天的最近 30 天，最多 366 天，不能查询未来日期；按系统业务时区解释包含边界的自然日。
+        同时返回紧邻的同天数前期数据。统计币种固定 CNY；订单按 paid_at 汇总累计实付，不因后续退款而删除付款事实。
+        退款仅包括 source_type=order_unit 且 status=completed 的实际退款，按 completed_at 汇总。
+        净实付是本期付款减本期退款，可因历史订单退款而为负，不是利润或现金流。
+        订单数量和状态按本期创建订单统计，状态为查询时状态；付费订单按本期付款统计，不将两者比例作为转化率。
+        金额以整数分表示，客单价以实付总额除付费订单数四舍五入到分。空数据返回零和完整时间轴。
+      x-permissions: [admin.page.analysis.view]
+      parameters:
+        - name: start_date
+          in: query
+          description: 开始日期，包含当天；未传时为结束日期前 29 天
+          schema: {type: string, format: date}
+        - name: end_date
+          in: query
+          description: 结束日期，包含当天；默认系统业务时区今天，不能早于开始日期或晚于今天
+          schema: {type: string, format: date}
+        - name: granularity
+          in: query
+          description: 趋势粒度；月度趋势只统计所选区间覆盖的部分，不自动扩大为完整月份
+          schema: {type: string, enum: [day, month], default: day}
+      responses:
+        '200':
+          description: 当前区间与前期汇总、连续趋势、订单类型与状态分布
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AnalysisEnvelope'}
+        '401':
+          description: 未登录或会话失效
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '403':
+          description: 没有经营分析查看权限
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '422':
+          description: 日期格式、区间或粒度无效，data.errors 按字段返回错误数组
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '500':
+          description: 服务端异常，仅返回通用错误，不能暴露 SQL 或堆栈
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+components:
+  schemas:
+    AnalysisEnvelope:
+      type: object
+      required: [code, message, data, request_id]
+      properties:
+        code: {type: integer, enum: [0]}
+        message: {type: string}
+        request_id: {type: string, minLength: 1}
+        data: {$ref: '#/components/schemas/Analysis'}
+    Analysis:
+      type: object
+      required: [period, summary, previous_summary, trend, order_types, order_statuses]
+      properties:
+        period: {$ref: '#/components/schemas/Period'}
+        summary: {$ref: '#/components/schemas/Summary'}
+        previous_summary:
+          description: 同长度前期。前期值为零时前端增长比例显示暂无对比，不以零作除数
+          allOf: [{$ref: '#/components/schemas/Summary'}]
+        trend:
+          type: array
+          minItems: 1
+          maxItems: 366
+          description: 日期升序，补齐零值；日粒度 YYYY-MM-DD，月粒度 YYYY-MM
+          items: {$ref: '#/components/schemas/TrendPoint'}
+        order_types:
+          type: array
+          description: 按类型标识升序；没有数据时为空数组，计数与金额口径分别对应创建时间与付款时间
+          items: {$ref: '#/components/schemas/OrderType'}
+        order_statuses:
+          type: array
+          description: 所选区间内创建订单的当前状态分布，按状态标识升序；不能表示历史时点状态
+          items:
+            type: object
+            required: [status, count]
+            properties:
+              status: {type: string, description: 订单原始状态码}
+              count: {type: integer, minimum: 0}
+    Period:
+      type: object
+      required: [start_date, end_date, previous_start_date, previous_end_date, granularity, timezone, currency, generated_at]
+      properties:
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        previous_start_date: {type: string, format: date}
+        previous_end_date: {type: string, format: date}
+        granularity: {type: string, enum: [day, month]}
+        timezone: {type: string, description: 系统业务时区，例如 Asia/Shanghai}
+        currency: {type: string, enum: [CNY]}
+        generated_at: {type: string, pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', description: 查询开始时刻，系统业务时区}
+    Summary:
+      type: object
+      required: [paid_amount_minor, refund_amount_minor, net_paid_amount_minor, created_orders, paid_orders, paid_members, new_members, average_paid_order_minor]
+      properties:
+        paid_amount_minor: {type: integer, minimum: 0, description: 按付款时间统计的订单实付，整数分，包含之后已退款的订单}
+        refund_amount_minor: {type: integer, minimum: 0, description: 按完成时间统计的已完成订单实例退款，整数分}
+        net_paid_amount_minor: {type: integer, description: 本期实付减本期退款，整数分，允许负数}
+        created_orders: {type: integer, minimum: 0, description: 本期创建的 CNY 订单数，包含试用、未付款和取消订单}
+        paid_orders: {type: integer, minimum: 0, description: 本期有付款时间且累计实付大于零的 CNY 订单数}
+        paid_members: {type: integer, minimum: 0, description: 本期付费会员去重数，按整个区间去重而非累加每日人数}
+        new_members: {type: integer, minimum: 0, description: 按创建时间统计的新增会员数量，包含当前已禁用会员}
+        average_paid_order_minor: {type: integer, minimum: 0, description: 本期实付除付费订单数并四舍五入到分；没有付费订单时为零}
+    TrendPoint:
+      type: object
+      required: [date, created_orders, paid_orders, paid_amount_minor, refund_amount_minor, net_paid_amount_minor, new_members]
+      properties:
+        date: {type: string, pattern: '^\d{4}-\d{2}(-\d{2})?$'}
+        created_orders: {type: integer, minimum: 0}
+        paid_orders: {type: integer, minimum: 0}
+        paid_amount_minor: {type: integer, minimum: 0, description: 整数分}
+        refund_amount_minor: {type: integer, minimum: 0, description: 整数分}
+        net_paid_amount_minor: {type: integer, description: 整数分，允许负数}
+        new_members: {type: integer, minimum: 0}
+    OrderType:
+      type: object
+      required: [order_type, created_orders, paid_orders, paid_amount_minor]
+      properties:
+        order_type: {type: string, description: 订单类型标识，例如 purchase/renewal/upgrade/trial；前端类型以普通文本展示}
+        created_orders: {type: integer, minimum: 0}
+        paid_orders: {type: integer, minimum: 0}
+        paid_amount_minor: {type: integer, minimum: 0, description: 整数分}
+    ErrorEnvelope:
+      type: object
+      required: [code, message, data, request_id]
+      properties:
+        code: {type: integer, minimum: 1}
+        message: {type: string}
+        request_id: {type: string, minLength: 1}
+        data:
+          type: object
+          nullable: true
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: {type: string}

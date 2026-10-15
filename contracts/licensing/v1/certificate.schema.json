@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://howstack.example/contracts/licensing/v1/certificate.schema.json",
+  "title": "本机商业权益签名载荷",
+  "description": "该对象是Base64 payload解码后的内容；必须先验证原始字节Ed25519签名和实例/连接上下文，再校验结构、修订及期限。首期只支持最多七天的在线租约。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "type", "software_code", "installation_id", "connection_id", "license_no", "edition", "status", "revision", "issued_at", "offline_policy", "offline_until", "grants"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "type": {"const": "software-license"},
+    "software_code": {"const": "howstack-bos"},
+    "installation_id": {"type": "string", "format": "uuid"},
+    "connection_id": {"type": "string", "format": "uuid"},
+    "license_no": {"type": "string", "minLength": 1, "maxLength": 40},
+    "edition": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,15}$", "not": {"const": "community"}},
+    "edition_name": {"type": "string", "minLength": 1, "maxLength": 120, "pattern": "\\S"},
+    "status": {"enum": ["active", "expired", "revoked"]},
+    "revision": {"type": "integer", "minimum": 1},
+    "issued_at": {"type": "integer", "minimum": 1},
+    "offline_policy": {"const": "online_lease"},
+    "offline_until": {"type": "integer", "minimum": 1, "description": "必须大于issued_at且最多issued_at+604800；该跨字段约束由服务端校验"},
+    "grants": {
+      "type": "array",
+      "maxItems": 128,
+      "description": "capability必须全局唯一；签名授予未接入能力也不会使其可执行",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["capability", "use_until", "updates_until", "limits"],
+        "properties": {
+          "capability": {"type": "string", "maxLength": 96, "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"},
+          "use_until": {"type": ["integer", "null"], "minimum": 1, "description": "使用截止Unix秒；null为明确永久使用"},
+          "updates_until": {"type": ["integer", "null"], "minimum": 1, "description": "允许获取的版本首次发布时间截止；null为明确永久更新"},
+          "limits": {
+            "type": "object",
+            "maxProperties": 32,
+            "propertyNames": {"pattern": "^[a-z][a-z0-9_]{0,63}$"},
+            "additionalProperties": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+            "description": "具体额度由业务模块定义并原子占用，首期不提供通用计量"
+          }
+        }
+      }
+    }
+  }
+}

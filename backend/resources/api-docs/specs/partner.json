@@ -1,0 +1,22 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "合作方 API",
+    "version": "1.0.0",
+    "description": "统一返回 code、message、data、request_id；金额以整数分表示。文档访问权限不会授予业务操作权限。实际请求仍执行各接口的认证、权限、同源和归属校验。"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {},
+  "components": {
+    "securitySchemes": {},
+    "schemas": {},
+    "responses": {},
+    "parameters": {},
+    "requestBodies": {}
+  },
+  "tags": []
+}

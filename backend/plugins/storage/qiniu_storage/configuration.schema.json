@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "access_key",
+      "label": "AccessKey",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入AccessKey",
+      "max_length": 128
+    },
+    {
+      "key": "secret_key",
+      "label": "SecretKey",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入SecretKey",
+      "max_length": 128
+    },
+    {
+      "key": "bucket",
+      "label": "存储空间",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入存储空间",
+      "max_length": 128
+    },
+    {
+      "key": "region",
+      "label": "地域",
+      "type": "select",
+      "required": true,
+      "placeholder": "请输入地域",
+      "options": [
+        {
+          "label": "z0",
+          "value": "z0"
+        },
+        {
+          "label": "z1",
+          "value": "z1"
+        },
+        {
+          "label": "z2",
+          "value": "z2"
+        },
+        {
+          "label": "na0",
+          "value": "na0"
+        },
+        {
+          "label": "as0",
+          "value": "as0"
+        }
+      ],
+      "default": "z0"
+    },
+    {
+      "key": "download_base",
+      "label": "访问域名",
+      "type": "url",
+      "required": true,
+      "placeholder": "请输入访问域名",
+      "max_length": 512,
+      "description": "填写已绑定空间的 HTTPS 下载域名；建议使用私有空间。"
+    }
+  ]
+}

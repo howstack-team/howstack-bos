@@ -8,6 +8,7 @@ import Block from './block';
 import ColorPanel from './color';
 import IconButton from '../NavBar/IconButton';
 import useLocale from '@/utils/useLocale';
+import LayoutSelector from '../../layouts/LayoutSelector';
 
 interface SettingProps {
   trigger?: React.ReactElement;
@@ -31,9 +32,9 @@ function Setting(props: SettingProps) {
           onClick: () => setVisible(true),
         })
       ) : (
-        <IconButton icon={<IconSettings />} onClick={() => setVisible(true)} />
+        <IconButton aria-label="页面配置" icon={<IconSettings />} onClick={() => setVisible(true)} />
       )}
-      <Drawer
+      <Drawer maskClosable
         width={300}
         title={
           <>
@@ -50,13 +51,18 @@ function Setting(props: SettingProps) {
         <Block title={locale['settings.themeColor']}>
           <ColorPanel />
         </Block>
+        <Block title={locale['settings.layout']}>
+          <LayoutSelector />
+        </Block>
         <Block
           title={locale['settings.content']}
           options={[
             { name: 'settings.navbar', value: 'navbar' },
             { name: 'settings.menu', value: 'menu' },
             { name: 'settings.footer', value: 'footer' },
-            { name: 'settings.menuWidth', value: 'menuWidth', type: 'number' },
+            settings.layout === 'double-column'
+              ? { name: 'settings.menuWidth', value: 'menuWidth', type: 'number' }
+              : { name: 'settings.classicMenuWidth', value: 'classicMenuWidth', type: 'number' },
           ]}
         />
         <Block

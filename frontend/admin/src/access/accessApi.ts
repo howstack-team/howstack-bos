@@ -1,3 +1,4 @@
+import type { TableSortQuery } from '../api/tableQuery'
 import { request } from '../api/httpClient.ts'
 
 /** 后台授权的数据范围类型。 */
@@ -70,7 +71,7 @@ export type DepartmentInput = Omit<DepartmentRecord, 'id' | 'is_root'>
 
 /** 统一的运营后台授权接口。 */
 export const accessApi = {
-  administrators(params: { keyword?: string; page?: number; page_size?: number }) {
+  administrators(params: TableSortQuery & { keyword?: string; status?: string | number; page?: number; page_size?: number }) {
     return request<{ data: AdministratorRecord[]; total: number }>({ url: '/administrators', params })
   },
   administrator(id: number) {

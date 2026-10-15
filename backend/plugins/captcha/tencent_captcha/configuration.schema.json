@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "secret_id",
+      "label": "SecretId",
+      "type": "text",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入SecretId"
+    },
+    {
+      "key": "secret_key",
+      "label": "SecretKey",
+      "type": "password",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入SecretKey"
+    },
+    {
+      "key": "captcha_app_id",
+      "label": "验证码应用 ID",
+      "type": "text",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入验证码应用 ID"
+    },
+    {
+      "key": "app_secret_key",
+      "label": "验证码应用密钥",
+      "type": "password",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入验证码应用密钥"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+.responsive-table-pagination {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  min-width: 0;
+  margin-top: 16px;
+}
+
+.responsive-table-pagination[hidden] {
+  display: none;
+}
+
+.responsive-table-pagination-compact {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.responsive-table-pagination-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.responsive-table-pagination-total {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-2);
+  font-size: 13px;
+  line-height: 28px;
+}
+
+.responsive-table-pagination-controls {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}

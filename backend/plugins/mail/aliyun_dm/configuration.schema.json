@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "AccessKey ID",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入AccessKey ID",
+      "max_length": 128
+    },
+    {
+      "key": "access_key_secret",
+      "label": "AccessKey Secret",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入AccessKey Secret",
+      "max_length": 128
+    },
+    {
+      "key": "region",
+      "label": "地域",
+      "type": "select",
+      "required": true,
+      "placeholder": "请输入地域",
+      "options": [
+        {
+          "label": "cn-hangzhou",
+          "value": "cn-hangzhou"
+        },
+        {
+          "label": "ap-southeast-1",
+          "value": "ap-southeast-1"
+        },
+        {
+          "label": "ap-southeast-2",
+          "value": "ap-southeast-2"
+        }
+      ],
+      "default": "cn-hangzhou"
+    },
+    {
+      "key": "from_email",
+      "label": "发件邮箱",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入发件邮箱",
+      "max_length": 128
+    },
+    {
+      "key": "from_name",
+      "label": "发件名称",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入发件名称",
+      "max_length": 128
+    }
+  ]
+}

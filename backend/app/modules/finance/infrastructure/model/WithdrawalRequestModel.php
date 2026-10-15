@@ -14,6 +14,7 @@ final class WithdrawalRequestModel extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'operator_id', 'remark', 'review_reason',
         'withdrawal_no',
         'member_id',
         'source_type',
@@ -34,6 +35,9 @@ final class WithdrawalRequestModel extends Model
     protected $hidden = ['payee_snapshot'];
 
     protected $casts = [
+        'operator_id' => 'integer',
+        'remark' => 'string',
+        'review_reason' => 'string',
         'id' => 'integer',
         'withdrawal_no' => 'string',
         'member_id' => 'integer',

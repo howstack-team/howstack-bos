@@ -37,7 +37,7 @@ final class DatabaseWalletLedgerRepository implements WalletLedgerRepositoryInte
     public function confirmedRechargePayments(int $rechargeId): array
     {
         return PaymentTransactionModel::query()->where('purpose', 'recharge')->where('purpose_id', $rechargeId)
-            ->where('status', 'paid')->get()->map(static fn (PaymentTransactionModel $row): array => [
+            ->where('status', 'paid')->lockForUpdate()->get()->map(static fn (PaymentTransactionModel $row): array => [
                 'member_id' => $row->member_id, 'amount_minor' => $row->amount_minor, 'currency' => $row->currency, 'channel' => $row->channel,
             ])->all();
     }
@@ -53,7 +53,7 @@ final class DatabaseWalletLedgerRepository implements WalletLedgerRepositoryInte
         ]);
         $row = WalletAccountModel::query()->where('member_id', $memberId)->where('currency', $currency)
             ->where('fund_type', 'recharge_cash')->lockForUpdate()->firstOrFail();
-        return ['id' => $row->id, 'member_id' => $row->member_id, 'available_minor' => $row->available_minor, 'version' => $row->version];
+        return ['id' => $row->id, 'member_id' => $row->member_id, 'available_minor' => $row->available_minor, 'frozen_minor' => $row->frozen_minor, 'version' => $row->version];
     }
 
     public function orderWalletPayment(int $orderId): ?array

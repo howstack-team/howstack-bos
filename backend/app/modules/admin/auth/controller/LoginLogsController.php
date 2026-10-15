@@ -8,6 +8,7 @@ use app\modules\admin\auth\application\AdminAuthenticationContext;
 use app\modules\admin\auth\application\ListAdminLoginLogsService;
 use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\DisableDefaultRoute;
 use support\annotation\route\Get;
@@ -50,6 +51,7 @@ final readonly class LoginLogsController
             $query['status'] === null ? null : (int) $query['status'],
             (int) $query['page'],
             (int) $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['username' => 64, 'nickname' => 64, 'client_ip' => 64, 'client_ip_location' => 128], ['logged_at']),
         ));
     }
 }

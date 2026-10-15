@@ -1,13 +1,14 @@
 import React, { useContext, useMemo } from 'react';
-import { Avatar, Dropdown, Input, Menu, Message, Select, Tooltip } from '@arco-design/web-react';
-import { IconClose, IconLanguage, IconMenu, IconMoonFill, IconPoweroff, IconSunFill } from '@arco-design/web-react/icon';
+import { Avatar, Dropdown, Input, Menu, Message, Tooltip } from '@arco-design/web-react';
+import { IconBook, IconClose, IconMenu, IconMoonFill, IconPoweroff, IconSunFill, IconUser } from '@arco-design/web-react/icon';
+import type { UpdateNotice } from '@/api/officialPlatformApi';
 import { useHistory } from 'react-router-dom';
 import { GlobalContext } from '@/context';
 import { useAdminAuth } from '@/auth/AuthContext';
 import useRoute, { toUserPermission, type IRoute } from '@/routes';
 import useLocale from '@/utils/useLocale';
-import defaultLocale from '@/locale';
 import IconButton from './IconButton';
+import Notifications from './Notifications';
 import Settings from '../Settings';
 import styles from './style/index.module.less';
 
@@ -20,13 +21,14 @@ interface NavbarProps {
   showMenu: boolean;
   mobileMenuOpen: boolean;
   onMobileMenuToggle: () => void;
+  notice?: UpdateNotice;
 }
 
-function Navbar({ show, showMenu, mobileMenuOpen, onMobileMenuToggle }: NavbarProps) {
+function Navbar({ show, showMenu, mobileMenuOpen, onMobileMenuToggle, notice }: NavbarProps) {
   const t = useLocale();
   const history = useHistory();
   const { user, permissions, logout } = useAdminAuth();
-  const { setLang, lang, theme, setTheme } = useContext(GlobalContext);
+  const { theme, setTheme } = useContext(GlobalContext);
   const userPermission = useMemo(() => toUserPermission(permissions), [permissions]);
   const [allowedRoutes] = useRoute(userPermission);
   const availablePages = useMemo(() => leaves(allowedRoutes), [allowedRoutes]);
@@ -51,24 +53,24 @@ function Navbar({ show, showMenu, mobileMenuOpen, onMobileMenuToggle }: NavbarPr
 
   if (!show) return <div className={styles['fixed-settings']}>{menuButton}<Settings /></div>;
 
-  const droplist = <Menu onClickMenuItem={(key) => { if (key === 'logout') void signOut(); }}>
+  const droplist = <Menu onClickMenuItem={(key) => {
+    if (key === 'profile') history.push('/profile');
+    if (key === 'api-docs') window.open('/api-docs', '_blank', 'noopener,noreferrer');
+    if (key === 'logout') void signOut();
+  }}>
+    {permissions.includes('admin.profile.view') && <Menu.Item key="profile"><IconUser className={styles['dropdown-icon']} />个人设置</Menu.Item>}
+    {permissions.includes('admin.api-docs.view') && <Menu.Item key="api-docs"><IconBook className={styles['dropdown-icon']} />API 文档</Menu.Item>}
     <Menu.Item key="logout"><IconPoweroff className={styles['dropdown-icon']} />退出登录</Menu.Item>
   </Menu>;
 
   return <div className={styles.navbar}>
     <div className={styles.left}>{menuButton}<div className={styles.logo}>
-      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
-      <div className={styles['logo-name']}>皓量云擎</div>
+      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" style={{ width: 32, height: 32, flexShrink: 0, objectFit: 'contain' }} />
+      <div className={styles['logo-name']} title="云业务运营后台">云业务运营后台</div>
     </div></div>
     <ul className={styles.right}>
       <li className={styles['search-item']}><Input.Search className={styles.round} placeholder="搜索页面" onSearch={search} /></li>
-      <li><Select triggerElement={<IconButton icon={<IconLanguage />} />}
-        options={[{ label: '中文', value: 'zh-CN' }, { label: 'English', value: 'en-US' }]}
-        value={lang} triggerProps={{ autoAlignPopupWidth: false, autoAlignPopupMinWidth: true, position: 'br' }}
-        trigger="hover" onChange={(value) => {
-          setLang(value);
-          Message.info(`${defaultLocale[value]['message.lang.tips']}${value}`);
-        }} /></li>
+      <li><Notifications notice={notice} /></li>
       <li><Tooltip content={theme === 'light' ? t['settings.navbar.theme.toDark'] : t['settings.navbar.theme.toLight']}>
         <IconButton icon={theme === 'dark' ? <IconSunFill /> : <IconMoonFill />}
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} />

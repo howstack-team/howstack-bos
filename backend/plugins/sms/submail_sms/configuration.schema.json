@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "APPID",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入APPID",
+      "max_length": 128
+    },
+    {
+      "key": "app_key",
+      "label": "APPKEY",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入APPKEY",
+      "max_length": 128
+    }
+  ]
+}

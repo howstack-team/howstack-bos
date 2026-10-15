@@ -18,6 +18,7 @@ final readonly class InstallationConfiguration
 
     private const RESERVED_PATHS = [
         'api',
+        'api-docs',
         'console',
         'install',
         'install-assets',

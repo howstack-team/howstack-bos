@@ -13,10 +13,10 @@ final class FrontendAssetController
     public function show(Request $request, string $app, string $path): Response
     {
         if (!in_array($app, ['admin', 'console'], true)
-            || preg_match('/^(?:assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:js|css|png|svg|woff2?|webp)|favicon\.svg|icons\.svg)$/D', $path) !== 1) {
+            || preg_match('/^(?:assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:js|css|png|svg|woff2?|webp)|logo\.png|favicon\.svg|icons\.svg)$/D', $path) !== 1) {
             return response('Not Found', 404);
         }
-        $file = public_path('app/' . $app . '/' . $path);
+        $file = public_path($app . '/' . $path);
         if (!is_file($file)) {
             return response('Not Found', 404);
         }

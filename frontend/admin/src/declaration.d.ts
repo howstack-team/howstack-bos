@@ -16,6 +16,8 @@ declare module '*/settings.json' {
     menu: boolean;
     footer: boolean;
     themeColor: string;
+    layout: 'classic' | 'double-column';
+    classicMenuWidth: number;
     menuWidth: number;
   };
 

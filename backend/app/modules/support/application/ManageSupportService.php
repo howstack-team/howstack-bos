@@ -17,18 +17,36 @@ final readonly class ManageSupportService
         'types' => ['ticket_types', 'admin.tickets.types'],
         'quick-replies' => ['ticket_quick_replies', 'admin.tickets.quick-replies'],
     ];
+    public function __construct(
+        private SupportRepositoryInterface $repository,
+        private AdminAccessControlService $access,
+        private \app\modules\message\contract\MessagePublisherInterface $messages,
+        private \app\shared\contract\TransactionManagerInterface $transactions,
+    ) {
+    }
 
-    public function __construct(private SupportRepositoryInterface $repository, private AdminAccessControlService $access) {}
-
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function catalog(AdminAccount $actor, string $kind, string $keyword, ?int $status, int $page, int $pageSize): array
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function catalog(
+        AdminAccount $actor,
+        string $kind,
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         [$table, $permission] = $this->catalogSpec($kind);
         $this->access->requirePermission($actor, $permission . '.view');
-        return $this->repository->catalog($table, $keyword, $status, $page, $pageSize);
+        return $this->repository->catalog($table, $keyword, $status, $page, $pageSize, $filters);
     }
 
-    /** @param array<string, mixed> $input @return array<string, mixed> */
+    /**
+     * @param array<string, mixed> $input @return array<string, mixed>
+     */
     public function saveCatalog(AdminAccount $actor, string $kind, ?int $id, array $input): array
     {
         [$table, $permission] = $this->catalogSpec($kind);
@@ -62,11 +80,21 @@ final readonly class ManageSupportService
         $this->repository->deleteCatalog($table, $id);
     }
 
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function tickets(AdminAccount $actor, string $keyword, ?string $status, int $page, int $pageSize): array
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function tickets(
+        AdminAccount $actor,
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->access->requirePermission($actor, 'admin.tickets.list.view');
-        return $this->repository->tickets($keyword, $status, $page, $pageSize);
+        return $this->repository->tickets($keyword, $status, $page, $pageSize, $filters);
     }
 
     /** @return array{ticket: array<string, mixed>, messages: list<array<string, mixed>>} */
@@ -82,9 +110,15 @@ final readonly class ManageSupportService
         $this->access->requirePermission($actor, 'admin.tickets.list.reply');
         $content = trim($content);
         if ($content === '') throw new BusinessException('回复内容不能为空', ApiErrorCode::VALIDATION_FAILED, 422);
-        if (!$this->repository->reply($id, $actor->id, $content)) {
-            throw new BusinessException('工单不存在或已关闭', ApiErrorCode::CONFLICT, 409);
-        }
+        $this->transactions->run(function () use ($id, $actor, $content): void {
+            $replyId = $this->repository->reply($id, $actor->id, $content);
+            if ($replyId === null) {
+                throw new BusinessException('工单不存在或已关闭', ApiErrorCode::CONFLICT, 409);
+            }
+            $ticket = $this->repository->ticket($id) ?? throw $this->notFound();
+            $this->messages->publish('ticket.reply.' . $replyId, 'ticket_replied', 'ticket', $id, $ticket['member_id'],
+                ['site_name' => '云业务运营系统', 'ticket_no' => $ticket['ticket_no'], 'ticket_title' => $ticket['subject']], ['customer']);
+        });
     }
 
     /** @return array{string, string} */

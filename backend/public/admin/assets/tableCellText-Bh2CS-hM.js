@@ -1,0 +1,1 @@
+function e(e){return e==null||typeof e==`string`&&e.trim()===``?`-`:typeof e==`string`||typeof e==`number`?e:String(e)}export{e as t};

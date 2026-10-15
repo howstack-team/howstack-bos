@@ -51,6 +51,7 @@ function InstallerContent() {
   const screens = { sm: viewportWidth >= 576, md: viewportWidth >= 768, lg: viewportWidth >= 992 }
   const [current, setCurrent] = useState(0)
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null)
+  const [installationKey, setInstallationKey] = useState('')
   const [bootError, setBootError] = useState('')
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
@@ -83,11 +84,11 @@ function InstallerContent() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  async function initialize() {
+  async function initialize(key = '') {
     setLoading(true)
     setBootError('')
     try {
-      const data = await loadBootstrap()
+      const data = await loadBootstrap(key)
       setBootstrap(data)
       form.setFieldsValue({
         agreement_agreed: false,
@@ -466,7 +467,7 @@ function InstallerContent() {
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item field="mysql.port" label="端口" rules={[{ required: true, message: '请填写端口' }]}>
-                  <InputNumber min={1} max={65535} className="full-width" />
+                  <InputNumber mode="button" precision={0} placeholder="请输入端口" min={1} max={65535} className="full-width" />
                 </Form.Item>
               </Col>
               <Col span={24}>
@@ -481,6 +482,7 @@ function InstallerContent() {
                   rules={[{ required: true, message: '请填写数据库账号' }]}
                 >
                   <Input
+                    placeholder="请输入数据库账号"
                     id="mysql_account"
                     autoComplete="one-time-code"
                     data-1p-ignore="true"
@@ -489,8 +491,8 @@ function InstallerContent() {
                 </Form.Item>
               </Col>
               <Col span={24}>
-                <Form.Item field="mysql.password" label="密码">
-                  <Input.Password autoComplete="new-password" />
+                <Form.Item field="mysql.password" label="密码" extra="未设置数据库密码时可留空。">
+                  <Input.Password placeholder="请输入数据库密码（选填）" autoComplete="new-password" />
                 </Form.Item>
               </Col>
             </Row>
@@ -520,17 +522,17 @@ function InstallerContent() {
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item field="redis.port" label="端口" rules={[{ required: true, message: '请填写端口' }]}>
-                  <InputNumber min={1} max={65535} className="full-width" />
+                  <InputNumber mode="button" precision={0} placeholder="请输入端口" min={1} max={65535} className="full-width" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={16}>
-                <Form.Item field="redis.password" label="密码">
-                  <Input.Password placeholder="可选" autoComplete="new-password" />
+                <Form.Item field="redis.password" label="密码" extra="Redis 未启用密码认证时可留空。">
+                  <Input.Password placeholder="请输入 Redis 密码（选填）" autoComplete="new-password" />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item field="redis.database" label="数据库编号" rules={[{ required: true, message: '请填写数据库编号' }]}>
-                  <InputNumber min={0} max={255} className="full-width" />
+                  <InputNumber mode="button" precision={0} placeholder="请输入数据库编号" min={0} max={255} className="full-width" />
                 </Form.Item>
               </Col>
             </Row>
@@ -566,7 +568,7 @@ function InstallerContent() {
             <Row gutter={16}>
               <Col span={24}>
                 <Form.Item field="system.site_title" label="网站标题" rules={[{ required: true, message: '网站标题应为 2 至 120 个字符', minLength: 2, maxLength: 120 }]}>
-                  <Input />
+                  <Input placeholder="请输入网站标题" />
                 </Form.Item>
               </Col>
               <Col span={24}>
@@ -581,6 +583,7 @@ function InstallerContent() {
                 <Form.Item
                   field="system.admin_path"
                   label="后台访问路径"
+                  tooltip="3–32 位小写字母、数字或连字符，须以小写字母开头。"
                   extra="安装后可通过该路径访问运营后台，请妥善保存。"
                   rules={[
                     { required: true, message: '请填写后台访问路径' },
@@ -588,6 +591,7 @@ function InstallerContent() {
                   ]}
                 >
                   <Input
+                    placeholder="请输入后台访问路径"
                     addBefore="/"
                     addAfter={
                       <Link onClick={() => void handleRandom('path')}>
@@ -608,13 +612,14 @@ function InstallerContent() {
                   label="管理员昵称"
                   rules={[{ required: true, message: '管理员昵称应为 2 至 32 个字符', minLength: 2, maxLength: 32 }]}
                 >
-                  <Input autoComplete="nickname" />
+                  <Input placeholder="请输入管理员昵称" autoComplete="nickname" />
                 </Form.Item>
               </Col>
               <Col span={24}>
                 <Form.Item
                   field="admin.username"
                   label="管理员账号"
+                  tooltip="6–32 位英文字母、数字或下划线，须以英文字母开头。"
                   rules={[
                     { required: true, message: '请填写管理员账号' },
                     {
@@ -624,6 +629,7 @@ function InstallerContent() {
                   ]}
                 >
                   <Input
+                    placeholder="请输入管理员账号"
                     autoComplete="one-time-code"
                     data-1p-ignore="true"
                     data-lpignore="true"
@@ -655,6 +661,7 @@ function InstallerContent() {
                   ]}
                 >
                   <Input.Password
+                    placeholder="请输入管理员密码"
                     autoComplete="new-password"
                     addAfter={
                       <Link onClick={() => void handleRandom('password')}>
@@ -759,7 +766,16 @@ function InstallerContent() {
   }
 
   if (bootError || !bootstrap) {
-    return <Result status="error" title="安装器初始化失败" subTitle={bootError} extra={<Button type="primary" onClick={() => void initialize()}>重新加载</Button>} />
+    return <Card title="验证安装权限" style={{ maxWidth: 560, margin: '48px auto' }}>
+      <Paragraph>在服务器的 backend 目录执行 <code>php webman install:key</code>，输入生成的一小时有效授权码后继续安装。</Paragraph>
+      <Form layout="vertical" onSubmit={() => { const key = installationKey; setInstallationKey(''); void initialize(key) }}>
+        <Form.Item label="安装授权码" field="key" rules={[{ required: true, message: '请输入安装授权码' }, { match: /^[a-f0-9]{64}$/, message: '请输入完整的安装授权码' }]}>
+          <Input.Password value={installationKey} onChange={setInstallationKey} autoComplete="off" />
+        </Form.Item>
+        {bootError && <Alert type="warning" content={bootError} style={{ marginBottom: 16 }} />}
+        <Button type="primary" htmlType="submit" loading={loading}>验证并继续</Button>
+      </Form>
+    </Card>
   }
 
   return (
@@ -870,7 +886,7 @@ function InstallerContent() {
 /** 使用 Arco 中文组件提供独立的在线安装界面。 */
 export default function InstallerApp() {
   return (
-    <ConfigProvider locale={zhCN}>
+    <ConfigProvider locale={zhCN} componentConfig={{ Switch: { type: 'round' }, Modal: { maskClosable: true }, Drawer: { maskClosable: true } }}>
       <InstallerContent />
     </ConfigProvider>
   )

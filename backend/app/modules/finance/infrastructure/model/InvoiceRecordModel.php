@@ -14,6 +14,7 @@ final class InvoiceRecordModel extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'red_number', 'red_at', 'operator_id', 'remark', 'review_reason',
         'invoice_no',
         'member_id',
         'order_id',
@@ -35,6 +36,11 @@ final class InvoiceRecordModel extends Model
     protected $hidden = [];
 
     protected $casts = [
+        'red_number' => 'string',
+        'red_at' => 'datetime:Y-m-d H:i:s',
+        'operator_id' => 'integer',
+        'remark' => 'string',
+        'review_reason' => 'string',
         'id' => 'integer',
         'invoice_no' => 'string',
         'member_id' => 'integer',

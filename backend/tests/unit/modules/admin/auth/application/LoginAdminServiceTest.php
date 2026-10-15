@@ -35,7 +35,7 @@ final class LoginAdminServiceTest extends TestCase
         $tokens = new FakeAdminAccessTokenService();
         $audit = new FakeAuthenticationAuditLogger();
         $logs = new FakeLoginLogRepository();
-        $service = new LoginAdminService($repository, $tokens, $audit, $this->recorder($logs));
+        $service = new LoginAdminService($repository, $tokens, $audit, $this->recorder($logs), $this->mfa());
 
         $result = $service->execute($this->credentials(), '127.0.0.1');
 
@@ -58,7 +58,7 @@ final class LoginAdminServiceTest extends TestCase
         $tokens = new FakeAdminAccessTokenService();
         $audit = new FakeAuthenticationAuditLogger();
         $logs = new FakeLoginLogRepository();
-        $service = new LoginAdminService($repository, $tokens, $audit, $this->recorder($logs));
+        $service = new LoginAdminService($repository, $tokens, $audit, $this->recorder($logs), $this->mfa());
 
         try {
             $service->execute(
@@ -91,6 +91,7 @@ final class LoginAdminServiceTest extends TestCase
             $tokens,
             $audit,
             $this->recorder($logs),
+            $this->mfa(),
         );
 
         try {
@@ -122,6 +123,7 @@ final class LoginAdminServiceTest extends TestCase
             new FakeAdminAccessTokenService(),
             new FakeAuthenticationAuditLogger(),
             $this->recorder(),
+            $this->mfa(),
         );
 
         $this->expectException(AdminAuthenticationException::class);
@@ -156,6 +158,17 @@ final class LoginAdminServiceTest extends TestCase
         return AdminLoginCredentials::fromValidatedInput('admin_user', 'Secure123!');
     }
 
+    private function mfa(): \app\modules\admin\auth\application\AdminMfaService
+    {
+        $repository = $this->createStub(\app\modules\admin\auth\contract\AdminMfaRepositoryInterface::class);
+        $repository->method('locked')->willReturn(null); // 本组用例只模拟未启用MFA；完整流程由数据库集成测试覆盖。
+        $limiter = $this->createStub(\app\modules\admin\auth\contract\AdminLoginRateLimiterInterface::class);
+        $limiter->method('allows')->willReturn(true);
+        return new \app\modules\admin\auth\application\AdminMfaService($repository,
+            new FakeAdminAccountRepository(null), new \app\modules\admin\auth\infrastructure\OtphpTotp(),
+            new \app\shared\infrastructure\SodiumSensitiveDataCipher(str_repeat('unit-fixture-key', 5)), $this->recorder(), $limiter);
+    }
+
     private function recorder(?FakeLoginLogRepository $logs = null): RecordAdminLoginService
     {
         return new RecordAdminLoginService($logs ?? new FakeLoginLogRepository(), new FakeIpLocationResolver());
@@ -172,7 +185,14 @@ final class FakeLoginLogRepository implements LoginLogRepositoryInterface
         $this->records[] = $record;
     }
 
-    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立文本条件，使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         return ['data' => $this->records, 'total' => count($this->records)];
     }
@@ -248,6 +268,11 @@ final class FakeAdminAccountRepository implements AdminAccountRepositoryInterfac
  */
 final class FakeAdminAccessTokenService implements AdminAccessTokenServiceInterface
 {
+    public function matchesAccount(AccessTokenClaims $claims, AdminAccount $account): bool
+    {
+        return $claims->adminId === $account->id;
+    }
+
     public int $issuedCount = 0;
 
     /**

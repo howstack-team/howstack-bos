@@ -14,6 +14,7 @@ final class RechargeModel extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'external_reference', 'operator_id', 'remark', 'review_reason',
         'recharge_no',
         'member_id',
         'amount_minor',
@@ -28,6 +29,10 @@ final class RechargeModel extends Model
     protected $hidden = [];
 
     protected $casts = [
+        'external_reference' => 'string',
+        'operator_id' => 'integer',
+        'remark' => 'string',
+        'review_reason' => 'string',
         'id' => 'integer',
         'recharge_no' => 'string',
         'member_id' => 'integer',
@@ -39,4 +44,9 @@ final class RechargeModel extends Model
         'created_at' => 'datetime:Y-m-d H:i:s',
         'updated_at' => 'datetime:Y-m-d H:i:s',
     ];
+
+    public function fundingLot(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(WalletFundingLotModel::class, 'recharge_id');
+    }
 }

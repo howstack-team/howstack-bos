@@ -1,0 +1,199 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "global",
+    "pages"
+  ],
+  "properties": {
+    "global": {
+      "type": "object",
+      "title": "全局配置",
+      "additionalProperties": false,
+      "required": [
+        "primary_color",
+        "hero_title",
+        "hero_description",
+        "banners",
+        "features"
+      ],
+      "properties": {
+        "primary_color": {
+          "type": "string",
+          "title": "主题色",
+          "maxLength": 7,
+          "format": "color",
+          "x-widget": "color",
+          "default": "#165dff"
+        },
+        "hero_title": {
+          "type": "string",
+          "title": "首页主标题",
+          "maxLength": 80,
+          "default": "让云端业务，更简单"
+        },
+        "hero_description": {
+          "type": "string",
+          "title": "首页简介",
+          "maxLength": 300,
+          "x-widget": "textarea",
+          "default": "从服务购买到资源管理，在一个平台完成。"
+        },
+        "banners": {
+          "type": "array",
+          "title": "展示内容",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "title",
+              "description",
+              "image_id"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "title": "标题",
+                "maxLength": 80
+              },
+              "description": {
+                "type": "string",
+                "title": "说明",
+                "maxLength": 300
+              },
+              "image_id": {
+                "type": "string",
+                "title": "图片",
+                "maxLength": 32,
+                "format": "image-id",
+                "x-widget": "image"
+              }
+            }
+          },
+          "default": []
+        },
+        "features": {
+          "type": "array",
+          "title": "服务介绍",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "title",
+              "description"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "title": "标题",
+                "maxLength": 40
+              },
+              "description": {
+                "type": "string",
+                "title": "介绍",
+                "maxLength": 180
+              }
+            }
+          },
+          "default": [
+            {
+              "title": "云服务器",
+              "description": "按地域与配置选择合适的云端资源。"
+            },
+            {
+              "title": "统一管理",
+              "description": "在会员中心管理服务、订单与账户。"
+            },
+            {
+              "title": "服务支持",
+              "description": "通过工单与我们沟通，查询服务处理进展。"
+            }
+          ]
+        }
+      },
+      "default": {
+        "primary_color": "#165dff",
+        "hero_title": "让云端业务，更简单",
+        "hero_description": "从服务购买到资源管理，在一个平台完成。",
+        "banners": [],
+        "features": [
+          {
+            "title": "云服务器",
+            "description": "按地域与配置选择合适的云端资源。"
+          },
+          {
+            "title": "统一管理",
+            "description": "在会员中心管理服务、订单与账户。"
+          },
+          {
+            "title": "服务支持",
+            "description": "通过工单与我们沟通，查询服务处理进展。"
+          }
+        ]
+      }
+    },
+    "pages": {
+      "type": "object",
+      "title": "页面配置",
+      "additionalProperties": false,
+      "required": [
+        "company"
+      ],
+      "properties": {
+        "company": {
+          "type": "object",
+          "title": "公司介绍",
+          "additionalProperties": false,
+          "required": [
+            "show_contact"
+          ],
+          "properties": {
+            "show_contact": {
+              "type": "boolean",
+              "title": "显示联系方式",
+              "x-widget": "switch",
+              "default": true
+            }
+          },
+          "default": {
+            "show_contact": true
+          }
+        }
+      },
+      "default": {
+        "company": {
+          "show_contact": true
+        }
+      }
+    }
+  },
+  "default": {
+    "global": {
+      "primary_color": "#165dff",
+      "hero_title": "让云端业务，更简单",
+      "hero_description": "从服务购买到资源管理，在一个平台完成。",
+      "banners": [],
+      "features": [
+        {
+          "title": "云服务器",
+          "description": "按地域与配置选择合适的云端资源。"
+        },
+        {
+          "title": "统一管理",
+          "description": "在会员中心管理服务、订单与账户。"
+        },
+        {
+          "title": "服务支持",
+          "description": "通过工单与我们沟通，查询服务处理进展。"
+        }
+      ]
+    },
+    "pages": {
+      "company": {
+        "show_contact": true
+      }
+    }
+  }
+}

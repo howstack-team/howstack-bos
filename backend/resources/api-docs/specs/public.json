@@ -1,0 +1,6129 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "公开与安装 API",
+    "version": "1.0.0",
+    "description": "统一返回 code、message、data、request_id；金额以整数分表示。文档访问权限不会授予业务操作权限。实际请求仍执行各接口的认证、权限、同源和归属校验。"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/public/v1/storage/local": {
+      "get": {
+        "tags": [
+          "存储"
+        ],
+        "summary": "读取限时 HMAC 授权的本地私有附件",
+        "description": "业务先检查对象归属，再生成签名链接。固定入口先验签再返回二进制内容，不执行上传内容。支持单段字节Range（206）；不可满足为416。无效或多段Range、无可匹配校验器的If-Range返回200完整内容。音视频使用inline，其余作为附件。",
+        "operationId": "downloadSignedLocalObject",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expires",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "signature",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Range",
+            "in": "header",
+            "description": "单段字节范围，例如bytes=0-1023、bytes=1024-或bytes=-1024",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Range",
+            "in": "header",
+            "description": "当前未提供资源校验器，携带此字段时返回完整文件",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "已授权附件",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "bytes"
+                  ]
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "已授权文件的单段字节范围",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "bytes"
+                  ]
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "签名无效、过期或对象不存在"
+          },
+          "416": {
+            "description": "已授权文件的请求范围不可满足，响应体为空",
+            "headers": {
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "bytes"
+                  ]
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "查询字段验证失败"
+          }
+        },
+        "security": [
+          {
+            "adminCookie": []
+          }
+        ],
+        "x-source-contract": "admin-channels.v1.yaml",
+        "x-route-name": "public.storage.local"
+      }
+    },
+    "/api/public/v1/content/images/{id}": {
+      "get": {
+        "summary": "访问公开内容图片",
+        "description": "只读取已保存且上传完成的图片引用，按封存通道签发只读地址，不接受任意对象键。图片地址可公开访问。",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "重新获取有效的短期读取地址，响应 Cache-Control 为 no-store",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "图片不存在或尚未完成"
+          },
+          "409": {
+            "description": "原通道配置变化或不可用"
+          }
+        },
+        "security": [],
+        "tags": [
+          "内容"
+        ],
+        "x-source-contract": "admin-content.v1.yaml",
+        "x-route-name": "public.content.images",
+        "operationId": "get__api_public_v1_content_images_id_"
+      }
+    },
+    "/api/install/bootstrap": {
+      "get": {
+        "summary": "读取安装会话、协议及环境",
+        "description": "仅在尚未安装且已验证服务器安装授权码时可用；匿名返回403，已安装返回409。不能通过API文档取得部署授权或重新安装系统。环境检测包含可选的 OPcache 扩展检查，未安装时返回推荐安装提示，不影响环境检测整体通过及继续安装。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "X-Install-Key",
+            "in": "header",
+            "required": false,
+            "description": "服务器执行php webman install:key得到的一小时授权码。首次必须提供，后续同一授权Session可省略；轮换、到期或安装完成后失效。不得放入URL。",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；X-Request-Id 与响应 request_id 一致。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "请求追踪标识"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "description": "当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。",
+                      "x-schema-status": "partial"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或会话失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限、同源或归属校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本冲突或业务状态不允许",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段或业务校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超过请求频率",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "admin-core.v1.yaml",
+        "x-route-name": null,
+        "operationId": "get__api_install_bootstrap"
+      }
+    },
+    "/api/install/random-defaults": {
+      "get": {
+        "summary": "重新生成安装默认值",
+        "description": "仅在尚未安装且已验证服务器安装授权码时可用；匿名返回403，已安装返回409。不能通过API文档取得部署授权或重新安装系统。",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功；X-Request-Id 与响应 request_id 一致。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "请求追踪标识"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "description": "当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。",
+                      "x-schema-status": "partial"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或会话失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限、同源或归属校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本冲突或业务状态不允许",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段或业务校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超过请求频率",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Install-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "description": "从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。"
+          }
+        ],
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "admin-core.v1.yaml",
+        "x-route-name": null,
+        "operationId": "get__api_install_random_defaults"
+      }
+    },
+    "/api/install/test-connections": {
+      "post": {
+        "summary": "测试安装数据库与缓存连接",
+        "description": "仅在尚未安装且已验证服务器安装授权码时可用；匿名返回403，已安装返回409。不能通过API文档取得部署授权或重新安装系统。",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功；X-Request-Id 与响应 request_id 一致。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "请求追踪标识"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "description": "当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。",
+                      "x-schema-status": "partial"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或会话失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限、同源或归属校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本冲突或业务状态不允许",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段或业务校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超过请求频率",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Install-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "description": "从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mysql",
+                  "redis"
+                ],
+                "properties": {
+                  "mysql": {
+                    "type": "object",
+                    "required": [
+                      "host",
+                      "port",
+                      "database",
+                      "username",
+                      "password"
+                    ],
+                    "properties": {
+                      "host": {
+                        "type": "string",
+                        "maxLength": 253
+                      },
+                      "port": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 65535
+                      },
+                      "database": {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      "username": {
+                        "type": "string",
+                        "maxLength": 128
+                      },
+                      "password": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "writeOnly": true
+                      }
+                    }
+                  },
+                  "redis": {
+                    "type": "object",
+                    "required": [
+                      "host",
+                      "port",
+                      "password",
+                      "database"
+                    ],
+                    "properties": {
+                      "host": {
+                        "type": "string",
+                        "maxLength": 253
+                      },
+                      "port": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 65535
+                      },
+                      "password": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "writeOnly": true
+                      },
+                      "database": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 255
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "admin-core.v1.yaml",
+        "x-route-name": null,
+        "operationId": "post__api_install_test_connections"
+      }
+    },
+    "/api/install/execute": {
+      "post": {
+        "summary": "执行安装阶段",
+        "description": "仅在尚未安装且已验证服务器安装授权码时可用；匿名返回403，已安装返回409。不能通过API文档取得部署授权或重新安装系统。",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功；X-Request-Id 与响应 request_id 一致。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "请求追踪标识"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "description": "当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。",
+                      "x-schema-status": "partial"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或会话失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限、同源或归属校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "资源不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本冲突或业务状态不允许",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段或业务校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "超过请求频率",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "服务暂时不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Install-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "description": "从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "phase",
+                  "configuration"
+                ],
+                "properties": {
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "database",
+                      "system",
+                      "configuration",
+                      "finalize"
+                    ]
+                  },
+                  "configuration": {
+                    "$ref": "#/components/schemas/admin_core_v1_yaml_InstallConfiguration"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "admin-core.v1.yaml",
+        "x-route-name": null,
+        "operationId": "post__api_install_execute"
+      }
+    },
+    "/api/public/v1/website/images/{id}": {
+      "get": {
+        "summary": "访问已上传官网图片",
+        "operationId": "publicWebsiteImage",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[a-f0-9]{32}$"
+            },
+            "description": "已安装主题标识，包含未启用主题"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "重定向到短期存储签名地址",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "存储通道生成的图片地址"
+              }
+            }
+          },
+          "404": {
+            "description": "图片不存在或未上传完成"
+          }
+        },
+        "description": "",
+        "tags": [
+          "官网与主题"
+        ],
+        "x-source-contract": "admin-website.v1.yaml",
+        "x-route-name": "public.website.images"
+      }
+    },
+    "/api/public/v1/files/{id}": {
+      "get": {
+        "operationId": "publicFileShow",
+        "summary": "读取公开文件的稳定地址",
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "跳转存储通道的限时地址",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "认证、授权、参数校验或文件状态错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/files_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "认证、授权、参数校验或文件状态错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/files_v1_yaml_Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "认证、授权、参数校验或文件状态错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/files_v1_yaml_Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "files.v1.yaml",
+        "x-route-name": "public.files.show"
+      }
+    },
+    "/api/public/v1/products": {
+      "get": {
+        "summary": "公开可购买产品目录",
+        "responses": {
+          "200": {
+            "description": "成功，金额单位为人民币整数分",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/public_purchase_v1_yaml_Product"
+                      }
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "parameters": [],
+        "security": [],
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "public-purchase.v1.yaml",
+        "x-route-name": "public.products.list",
+        "operationId": "get__api_public_v1_products"
+      }
+    },
+    "/api/public/v1/products/{id}/options": {
+      "post": {
+        "summary": "解析匿名产品联动选项",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "产品配置标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "selection": {
+                    "$ref": "#/components/schemas/public_purchase_v1_yaml_Selection"
+                  }
+                },
+                "required": [
+                  "version_id",
+                  "selection"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功，金额单位为人民币整数分",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/public_purchase_v1_yaml_Options"
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "public-purchase.v1.yaml",
+        "x-route-name": "public.products.configure",
+        "operationId": "post__api_public_v1_products_id_options"
+      }
+    },
+    "/api/public/v1/products/{id}/quote": {
+      "post": {
+        "summary": "匿名服务端报价并检查当前库存",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "产品配置标识"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "selection": {
+                    "$ref": "#/components/schemas/public_purchase_v1_yaml_Selection"
+                  }
+                },
+                "required": [
+                  "version_id",
+                  "selection"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功，金额单位为人民币整数分",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/public_purchase_v1_yaml_Quote"
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "请求无效、会话或权限错误、产品状态或价格冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": true
+                    },
+                    "request_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "tags": [
+          "在线安装"
+        ],
+        "x-source-contract": "public-purchase.v1.yaml",
+        "x-route-name": "public.products.configure",
+        "operationId": "post__api_public_v1_products_id_quote"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "adminCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_admin_token"
+      }
+    },
+    "schemas": {
+      "admin_channels_v1_yaml_Channel": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "name",
+          "plugin_id",
+          "platform_name",
+          "platform_version",
+          "platform_available",
+          "configuration_current",
+          "status",
+          "is_default",
+          "sort_order",
+          "description",
+          "revision",
+          "created_at",
+          "updated_at",
+          "configured"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "plugin_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "platform_name": {
+            "type": "string"
+          },
+          "platform_version": {
+            "type": "string"
+          },
+          "platform_available": {
+            "type": "boolean"
+          },
+          "configuration_current": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "仅sms/mail/storage支持true，且必须启用；其他类别请求true返回422，响应始终false。禁用当前主用配置后不自动切换。"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "是否已保存持久配置"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "configured": {
+                  "const": false
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "id": {
+                  "const": 0
+                },
+                "revision": {
+                  "const": 0
+                },
+                "status": {
+                  "const": 0
+                },
+                "is_default": {
+                  "const": false
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "id": {
+                  "minimum": 1
+                },
+                "revision": {
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "admin_channels_v1_yaml_Field": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "password",
+              "url",
+              "integer",
+              "boolean",
+              "select"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "max_length": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2048
+          },
+          "minimum": {
+            "type": "integer"
+          },
+          "maximum": {
+            "type": "integer"
+          },
+          "default": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "admin_channels_v1_yaml_Detail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_channels_v1_yaml_Channel"
+          },
+          {
+            "type": "object",
+            "required": [
+              "configuration",
+              "configured_secrets",
+              "configuration_fields"
+            ],
+            "properties": {
+              "configuration": {
+                "type": "object",
+                "description": "仅普通字段，私密字段不回显",
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "configured_secrets": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
+              "configuration_fields": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/admin_channels_v1_yaml_Field"
+                },
+                "maxItems": 16
+              }
+            }
+          }
+        ]
+      },
+      "admin_channels_v1_yaml_Platform": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "category",
+          "version",
+          "configuration_fields",
+          "platform_available",
+          "template_review"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "sms",
+              "mail",
+              "identity",
+              "storage",
+              "oauth",
+              "captcha"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "configuration_fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/admin_channels_v1_yaml_Field"
+            },
+            "maxItems": 16
+          },
+          "platform_available": {
+            "type": "boolean",
+            "description": "已安装、启用且摘要与本地包一致，才可保存并启用配置"
+          },
+          "template_review": {
+            "type": "object",
+            "description": "由短信或邮件插件实际实现的可选接口识别。后台入口还须同时检查 platform_available；不表示任何模板已审核通过。其他类别为 false。",
+            "additionalProperties": false,
+            "required": [
+              "submit",
+              "query"
+            ],
+            "properties": {
+              "submit": {
+                "type": "boolean",
+                "description": "支持提交第三方模板审核"
+              },
+              "query": {
+                "type": "boolean",
+                "description": "支持查询第三方模板审核状态"
+              }
+            }
+          }
+        }
+      },
+      "admin_channels_v1_yaml_Input": {
+        "type": "object",
+        "required": [
+          "configuration",
+          "status",
+          "is_default",
+          "sort_order",
+          "revision",
+          "description"
+        ],
+        "properties": {
+          "configuration": {
+            "type": "object",
+            "maxProperties": 16,
+            "description": "仅已安装平台声明字段；私密空值保留原值",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "clear_secrets": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "仅sms/mail/storage支持true，且必须启用；其他类别请求true返回422，响应始终false。禁用当前主用配置后不自动切换。"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "创建为0，更新为详情返回的当前版本"
+          }
+        }
+      },
+      "admin_channels_v1_yaml_Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          }
+        }
+      },
+      "admin_content_v1_yaml_ContentBody": {
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 100000,
+            "description": "正文；HTML 在服务端清理后保存，清理后的空正文不能保存。"
+          },
+          "body_format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "html"
+            ],
+            "description": "帮助文档仅支持markdown。新公告显式传html；更新时省略则保持原格式，新记录省略为markdown。历史记录迁移后为markdown。"
+          }
+        }
+      },
+      "admin_core_v1_yaml_Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "description": "字段校验错误通过 data.errors 返回；其他错误可能为 null。"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        }
+      },
+      "admin_core_v1_yaml_AdministratorInput": {
+        "type": "object",
+        "required": [
+          "username",
+          "nickname",
+          "status",
+          "role_ids"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 6,
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{5,31}$"
+          },
+          "nickname": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 2
+          },
+          "employee_no": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 32
+          },
+          "mobile": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 21,
+            "pattern": "^\\+?[0-9]{6,20}$"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 254,
+            "format": "email"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128,
+            "minLength": 8,
+            "writeOnly": true
+          },
+          "department_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "admin_core_v1_yaml_RoleInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "data_scope",
+          "status",
+          "permissions"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_]{1,63}$"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "data_scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "department_and_children",
+              "department",
+              "self",
+              "custom"
+            ]
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "department_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "admin_core_v1_yaml_DepartmentInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_AdminProfile": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "nickname",
+          "last_login_at",
+          "is_founder",
+          "department_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "username": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "last_login_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_founder": {
+            "type": "boolean"
+          },
+          "department_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          }
+        }
+      },
+      "admin_core_v1_yaml_MemberInput": {
+        "type": "object",
+        "required": [
+          "nickname",
+          "status"
+        ],
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "group_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "level_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "mobile": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 21,
+            "description": "手机号和邮箱至少填写一个。",
+            "pattern": "^\\+?[0-9]{6,20}$"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 254,
+            "format": "email"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128,
+            "minLength": 8,
+            "writeOnly": true
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_Member": {
+        "type": "object",
+        "required": [
+          "id",
+          "public_id",
+          "nickname",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "public_id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{7,8}$",
+            "description": "新会员为九位随机数字，兼容历史八位编号。排序使用创建时间和内部主键。"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "group_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "level_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "level_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mobile": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "last_login_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "admin_core_v1_yaml_GroupInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "sort_order",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,63}$"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_LevelInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "level_order",
+          "growth_threshold",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,63}$"
+          },
+          "level_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "growth_threshold": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999999999
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_RealName": {
+        "type": "object",
+        "required": [
+          "id",
+          "member_id",
+          "authentication_type",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "member_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "mobile": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "authentication_type": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "enterprise"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "subject_name": {
+            "type": "string"
+          },
+          "id_type": {
+            "type": "string"
+          },
+          "id_number_masked": {
+            "type": "string"
+          },
+          "company_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "registration_code_masked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "legal_representative": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "upgrade_from_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "reviewed_by": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "rejection_reason": {
+            "type": "string"
+          },
+          "submitted_at": {
+            "type": "string"
+          },
+          "reviewed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "admin_core_v1_yaml_ContentCategoryInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "sort_order",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_ContentEntryInput": {
+        "type": "object",
+        "required": [
+          "category_id",
+          "title",
+          "body",
+          "sort_order",
+          "status"
+        ],
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 2
+          },
+          "body_format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "html"
+            ],
+            "description": "帮助文档使用 Markdown，新闻公告支持净化后的 HTML。"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_TicketTypeInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "sort_order",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,63}$"
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_QuickReplyInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "content",
+          "sort_order",
+          "status"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_ConnectionInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "adapter_id",
+          "configuration",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "adapter_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "configuration": {
+            "type": "object",
+            "maxProperties": 16,
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            },
+            "description": "字段由已启用插件的 configuration_fields 声明；秘密字段只写入，响应不返回秘密值。"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "clear_secrets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "maxItems": 16,
+            "default": []
+          }
+        }
+      },
+      "admin_core_v1_yaml_StatusRevision": {
+        "type": "object",
+        "required": [
+          "revision",
+          "status"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_CloudInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "draft"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "default": ""
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "draft": {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_draft"
+          }
+        }
+      },
+      "admin_core_v1_yaml_DeliveryRuleInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "connection_id",
+          "status"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "default": ""
+          },
+          "connection_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "line_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxItems": 500,
+            "default": []
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "resource_ids": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxItems": 500
+            }
+          },
+          "parameter_mapping": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/admin_core_v1_yaml_providerParameterRule"
+            },
+            "maxItems": 64
+          }
+        }
+      },
+      "admin_core_v1_yaml_ServiceInstance": {
+        "type": "object",
+        "required": [
+          "id",
+          "instance_no",
+          "product_type",
+          "member_id",
+          "display_name",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "instance_no": {
+            "type": "string"
+          },
+          "product_type": {
+            "type": "string",
+            "enum": [
+              "cloud_server",
+              "physical_server",
+              "server_colocation"
+            ]
+          },
+          "member_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "member_nickname": {
+            "type": "string"
+          },
+          "member_mobile": {
+            "type": "string"
+          },
+          "order_no": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "activated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "admin_core_v1_yaml_Administrator": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "nickname",
+          "status",
+          "role_ids"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "username": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "employee_no": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mobile": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "department_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "created_by": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "is_founder": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "last_login_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "admin_core_v1_yaml_Role": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_RoleInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "is_system": {
+                "type": "boolean"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_Department": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_DepartmentInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "is_root": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_Group": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_GroupInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_Level": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_LevelInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_ContentCategory": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_ContentCategoryInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "help",
+                  "news"
+                ]
+              },
+              "created_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_ContentEntry": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_ContentEntryInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "help",
+                  "news"
+                ]
+              },
+              "published_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_TicketType": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_TicketTypeInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "created_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_QuickReply": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_QuickReplyInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "created_at": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_InstallConfiguration": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "mysql",
+              "redis"
+            ],
+            "properties": {
+              "mysql": {
+                "type": "object",
+                "required": [
+                  "host",
+                  "port",
+                  "database",
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "maxLength": 253
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
+                  "database": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "username": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "writeOnly": true
+                  }
+                }
+              },
+              "redis": {
+                "type": "object",
+                "required": [
+                  "host",
+                  "port",
+                  "password",
+                  "database"
+                ],
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "maxLength": 253
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "writeOnly": true
+                  },
+                  "database": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "agreement_agreed",
+              "system",
+              "admin"
+            ],
+            "properties": {
+              "agreement_agreed": {
+                "type": "boolean",
+                "const": true
+              },
+              "system": {
+                "type": "object",
+                "required": [
+                  "site_title",
+                  "site_url",
+                  "admin_path"
+                ],
+                "properties": {
+                  "site_title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 2
+                  },
+                  "site_url": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "format": "uri"
+                  },
+                  "admin_path": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{2,31}$",
+                    "description": "不能使用 api、api-docs、console、install、install-assets、assets、plugin-assets。"
+                  }
+                }
+              },
+              "admin": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "nickname",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z][a-zA-Z0-9_]{5,31}$"
+                  },
+                  "nickname": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 2
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 8,
+                    "writeOnly": true,
+                    "description": "同时包含大写、小写字母、数字和特殊字符。"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "admin_core_v1_yaml_LoginLog": {
+        "type": "object",
+        "required": [
+          "id",
+          "logged_at",
+          "nickname",
+          "status",
+          "client_ip",
+          "client_ip_location",
+          "browser",
+          "operating_system"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "logged_at": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "client_ip": {
+            "type": "string"
+          },
+          "client_ip_location": {
+            "type": "string"
+          },
+          "browser": {
+            "type": "string"
+          },
+          "operating_system": {
+            "type": "string"
+          }
+        }
+      },
+      "admin_core_v1_yaml_OperationLog": {
+        "type": "object",
+        "required": [
+          "id",
+          "operated_at",
+          "operator_nickname",
+          "module",
+          "operation",
+          "status",
+          "client_ip",
+          "client_ip_location",
+          "duration_ms"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "operated_at": {
+            "type": "string"
+          },
+          "operator_nickname": {
+            "type": "string"
+          },
+          "module": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "client_ip": {
+            "type": "string"
+          },
+          "client_ip_location": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer"
+          }
+        }
+      },
+      "admin_core_v1_yaml_Ticket": {
+        "type": "object",
+        "required": [
+          "id",
+          "ticket_no",
+          "member_id",
+          "member_nickname",
+          "member_mobile",
+          "type_id",
+          "type_name",
+          "subject",
+          "content",
+          "priority",
+          "status",
+          "created_at",
+          "updated_at",
+          "closed_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "ticket_no": {
+            "type": "string"
+          },
+          "member_id": {
+            "type": "integer"
+          },
+          "member_nickname": {
+            "type": "string"
+          },
+          "member_mobile": {
+            "type": "string"
+          },
+          "type_id": {
+            "type": "integer"
+          },
+          "type_name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "admin_core_v1_yaml_prices": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "day": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "month": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          }
+        },
+        "required": []
+      },
+      "admin_core_v1_yaml_durationOptions": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 24,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "months": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "discount_kind": {
+              "enum": [
+                "rate",
+                "billed_months"
+              ]
+            },
+            "rate_bps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "billed_months": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120
+            }
+          },
+          "required": [
+            "months",
+            "label",
+            "discount_kind"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "discount_kind": {
+                    "const": "rate"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "rate_bps"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "discount_kind": {
+                    "const": "billed_months"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "billed_months"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "admin_core_v1_yaml_providerParameterRule": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "target"
+        ],
+        "properties": {
+          "source": {
+            "enum": [
+              "region.external_id",
+              "zone.external_id",
+              "line.external_id",
+              "flavor_group.external_id",
+              "flavor.external_id",
+              "flavor.cpu",
+              "flavor.memory_mib",
+              "flavor.architecture",
+              "image.external_id",
+              "image.default_username",
+              "image.default_port",
+              "system_disk.type.external_id",
+              "system_disk.size_gib",
+              "data_disks",
+              "network.egress_mbps",
+              "network.ingress_mbps",
+              "network.ipv4_count",
+              "protection.external_id",
+              "quantity",
+              "duration.count",
+              "duration.unit",
+              "login_method"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+          },
+          "transform": {
+            "enum": [
+              "copy",
+              "string",
+              "multiply",
+              "divide",
+              "lookup"
+            ]
+          },
+          "factor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "lookup": {
+            "type": [
+              "object",
+              "array"
+            ],
+            "maxProperties": 200,
+            "maxItems": 200,
+            "additionalProperties": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            }
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "admin_core_v1_yaml_draft": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resource_ids": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "regions": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "zones": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "lines": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "flavor_groups": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "flavors": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "image_types": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "images": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "disk_types": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "protections": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "network_policies": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "required": [
+              "regions",
+              "zones",
+              "lines",
+              "flavor_groups",
+              "flavors",
+              "image_types",
+              "images",
+              "disk_types",
+              "protections"
+            ]
+          },
+          "cycles": {
+            "const": [
+              "month"
+            ]
+          },
+          "quantity_limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "setup_minor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "provider_connection_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "price_overrides": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "flavors": {
+                "type": "object",
+                "patternProperties": {
+                  "^[1-9][0-9]*$": {
+                    "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
+                  }
+                },
+                "additionalProperties": false,
+                "maxProperties": 500
+              },
+              "disk_types": {
+                "type": "object",
+                "patternProperties": {
+                  "^[1-9][0-9]*$": {
+                    "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
+                  }
+                },
+                "additionalProperties": false,
+                "maxProperties": 500
+              },
+              "protections": {
+                "type": "object",
+                "patternProperties": {
+                  "^[1-9][0-9]*$": {
+                    "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
+                  }
+                },
+                "additionalProperties": false,
+                "maxProperties": 500
+              }
+            },
+            "required": []
+          },
+          "network": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "bandwidth_min": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "bandwidth_max": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "bandwidth_step": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              "ip_min": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 64
+              },
+              "ip_max": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 64
+              },
+              "bandwidth_prices": {
+                "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
+              },
+              "ip_prices": {
+                "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
+              },
+              "bandwidth_billing_mode": {
+                "enum": [
+                  "flat",
+                  "graduated",
+                  "volume"
+                ],
+                "default": "flat"
+              },
+              "bandwidth_tiers": {
+                "type": "array",
+                "maxItems": 40,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "up_to_mbps",
+                    "prices"
+                  ],
+                  "properties": {
+                    "up_to_mbps": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1,
+                      "maximum": 1000000
+                    },
+                    "prices": {
+                      "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "bandwidth_min",
+              "bandwidth_max",
+              "bandwidth_step",
+              "ip_min",
+              "ip_max",
+              "bandwidth_prices",
+              "ip_prices"
+            ],
+            "deprecated": true
+          },
+          "trial_policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "hours": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 720
+              },
+              "limit_per_member": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              }
+            },
+            "required": [
+              "enabled",
+              "hours",
+              "limit_per_member"
+            ]
+          },
+          "refund_policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "window_hours": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8760
+              },
+              "prorated": {
+                "type": "boolean"
+              },
+              "keep_setup_fee": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled",
+              "window_hours",
+              "prorated",
+              "keep_setup_fee"
+            ]
+          },
+          "renewal_policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "pricing": {
+                "const": "current"
+              },
+              "auto_renew_enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "pricing",
+              "auto_renew_enabled"
+            ]
+          },
+          "network_policy_id": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "deprecated": true
+          },
+          "delivery_rule_id": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "system_disk_included_gib": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65536,
+            "default": 0,
+            "description": "每台实例、每个所选预付费周期的系统盘赠送容量（GiB）；计费容量为 max(0, 实际容量 - 赠送容量)，不抵扣数据盘，不改变完整交付容量。缺省为 0。"
+          },
+          "schema_version": {
+            "const": "2.0.0"
+          },
+          "billing_mode": {
+            "const": "prepaid"
+          },
+          "durations": {
+            "$ref": "#/components/schemas/admin_core_v1_yaml_durationOptions",
+            "description": "仅兼容未设置 zone_durations 的历史全局周期；显式按可用区设置时不使用此字段。"
+          },
+          "storage_policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "default_type_id": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              },
+              "default_size_gib": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65536
+              },
+              "max_data_disks": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32
+              }
+            },
+            "required": [
+              "default_type_id",
+              "default_size_gib",
+              "max_data_disks"
+            ]
+          },
+          "trial_scope": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "zone_ids": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "flavor_ids": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "line_ids": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "image_ids": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4294967295
+                }
+              },
+              "max_system_disk_gib": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              },
+              "max_data_disks": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32
+              },
+              "max_egress_mbps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "max_ingress_mbps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "max_ip_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 64
+              },
+              "cooldown_hours": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 8760
+              },
+              "concurrent_limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "disk_type_ids": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "protection_ids": {
+                "type": "array",
+                "maxItems": 500,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "max_data_disk_gib": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              }
+            },
+            "required": [
+              "zone_ids",
+              "flavor_ids",
+              "line_ids",
+              "image_ids",
+              "max_system_disk_gib",
+              "max_data_disks",
+              "max_egress_mbps",
+              "max_ingress_mbps",
+              "max_ip_count",
+              "cooldown_hours",
+              "concurrent_limit"
+            ]
+          },
+          "zone_provider_bindings": {
+            "type": "array",
+            "maxItems": 500,
+            "description": "按可用区配置提供者；发布要求覆盖可售可用区，未指定项保留历史单连接或交付规则语义。不保存凭据。",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "zone_id",
+                "connection_id"
+              ],
+              "properties": {
+                "zone_id": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "connection_id": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "parameter_mapping": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "items": {
+                    "$ref": "#/components/schemas/admin_core_v1_yaml_providerParameterRule"
+                  }
+                }
+              }
+            }
+          },
+          "zone_durations": {
+            "type": "array",
+            "maxItems": 500,
+            "description": "按参与购买的可用区分别设置周期及优惠；同一可用区仅一组，同组月数不能重复。保存可不完整，发布必须覆盖全部参与购买的可用区；显式配置不得回退全局周期。",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "zone_id",
+                "durations"
+              ],
+              "properties": {
+                "zone_id": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "durations": {
+                  "$ref": "#/components/schemas/admin_core_v1_yaml_durationOptions"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "resource_ids",
+          "cycles",
+          "quantity_limit",
+          "setup_minor",
+          "provider_connection_id",
+          "price_overrides",
+          "network",
+          "trial_policy",
+          "refund_policy",
+          "renewal_policy",
+          "schema_version",
+          "storage_policy",
+          "trial_scope"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "zone_durations"
+            ]
+          },
+          {
+            "required": [
+              "durations"
+            ]
+          }
+        ]
+      },
+      "admin_website_v1_yaml_WebsiteSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "logo_image_id": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "favicon_image_id": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "navigation": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "target": {
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "theme_page",
+                    "external"
+                  ]
+                },
+                "core_page": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "theme_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "page_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "required": [
+                "label",
+                "target"
+              ]
+            }
+          },
+          "footer_links": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "target": {
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "theme_page",
+                    "external"
+                  ]
+                },
+                "core_page": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "theme_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "page_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "required": [
+                "label",
+                "target"
+              ]
+            }
+          },
+          "company": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "introduction": {
+                "type": "string",
+                "maxLength": 6000
+              },
+              "contact_phone": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "contact_email": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "address": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "image_id": {
+                "type": "string",
+                "maxLength": 32
+              }
+            },
+            "required": [
+              "introduction",
+              "contact_phone",
+              "contact_email",
+              "address",
+              "image_id"
+            ]
+          }
+        },
+        "required": [
+          "logo_image_id",
+          "favicon_image_id",
+          "navigation",
+          "footer_links",
+          "company"
+        ]
+      },
+      "admin_website_v1_yaml_ThemeConfiguration": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "global": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "pages": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "global",
+          "pages"
+        ]
+      },
+      "admin_website_v1_yaml_WebsiteData": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "active_theme_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "active_theme_version": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "active_theme_digest": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "settings": {
+            "$ref": "#/components/schemas/admin_website_v1_yaml_WebsiteSettings"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "site": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "site_title": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "site_url": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "copyright": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "icp_record": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "public_security_record": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "business_license": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "site_title",
+              "site_url",
+              "copyright",
+              "icp_record",
+              "public_security_record",
+              "business_license"
+            ]
+          }
+        },
+        "required": [
+          "active_theme_id",
+          "active_theme_version",
+          "active_theme_digest",
+          "settings",
+          "revision"
+        ]
+      },
+      "admin_website_v1_yaml_ThemeSettingsData": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "theme_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "schema_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "settings": {
+            "$ref": "#/components/schemas/admin_website_v1_yaml_ThemeConfiguration"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/admin_website_v1_yaml_ThemeConfiguration"
+          }
+        },
+        "required": [
+          "theme_id",
+          "schema_version",
+          "settings",
+          "revision"
+        ]
+      },
+      "admin_website_v1_yaml_Theme": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "digest": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "digest",
+          "active"
+        ]
+      },
+      "admin_website_v1_yaml_Page": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "core",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 180
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "path"
+        ]
+      },
+      "admin_website_v1_yaml_Availability": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "configure_path": {
+            "type": "string",
+            "maxLength": 180
+          }
+        },
+        "required": [
+          "available",
+          "message",
+          "configure_path"
+        ]
+      },
+      "admin_website_v1_yaml_Image": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "alt"
+        ]
+      },
+      "admin_website_v1_yaml_Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data",
+          "request_id"
+        ]
+      },
+      "admin_website_v1_yaml_ThemePreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url",
+          "expires_at"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "站内独立预览URL，持有该链接即可访问公开预览，请勿公开传播"
+          },
+          "expires_at": {
+            "type": "integer",
+            "description": "Unix秒时间戳，创建后600秒过期"
+          }
+        }
+      },
+      "admin_website_v1_yaml_WebsiteBaseSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "logo_image_id": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "favicon_image_id": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "company": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "introduction": {
+                "type": "string",
+                "maxLength": 6000
+              },
+              "contact_phone": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "contact_email": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "address": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "image_id": {
+                "type": "string",
+                "maxLength": 32
+              }
+            },
+            "required": [
+              "introduction",
+              "contact_phone",
+              "contact_email",
+              "address",
+              "image_id"
+            ]
+          }
+        },
+        "required": [
+          "logo_image_id",
+          "favicon_image_id",
+          "company"
+        ]
+      },
+      "admin_website_v1_yaml_WebsiteBaseData": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "active_theme_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "active_theme_version": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "active_theme_digest": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "settings": {
+            "$ref": "#/components/schemas/admin_website_v1_yaml_WebsiteBaseSettings"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "site": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "site_title": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "site_url": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "copyright": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "icp_record": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "public_security_record": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "business_license": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "site_title",
+              "site_url",
+              "copyright",
+              "icp_record",
+              "public_security_record",
+              "business_license"
+            ]
+          }
+        },
+        "required": [
+          "active_theme_id",
+          "active_theme_version",
+          "active_theme_digest",
+          "settings",
+          "revision"
+        ]
+      },
+      "admin_website_v1_yaml_WebsiteNavigationSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "navigation": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "target": {
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "theme_page",
+                    "external"
+                  ]
+                },
+                "core_page": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "theme_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "page_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "required": [
+                "label",
+                "target"
+              ]
+            }
+          },
+          "footer_links": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "target": {
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "theme_page",
+                    "external"
+                  ]
+                },
+                "core_page": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "theme_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "page_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "required": [
+                "label",
+                "target"
+              ]
+            }
+          }
+        },
+        "required": [
+          "navigation",
+          "footer_links"
+        ]
+      },
+      "admin_website_v1_yaml_WebsiteNavigationData": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "active_theme_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "active_theme_version": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "active_theme_digest": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "settings": {
+            "$ref": "#/components/schemas/admin_website_v1_yaml_WebsiteNavigationSettings"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "schema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "site": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "site_title": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "site_url": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "copyright": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "icp_record": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "public_security_record": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "business_license": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "site_title",
+              "site_url",
+              "copyright",
+              "icp_record",
+              "public_security_record",
+              "business_license"
+            ]
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/admin_website_v1_yaml_DeclaredPage"
+            }
+          }
+        },
+        "required": [
+          "active_theme_id",
+          "active_theme_version",
+          "active_theme_digest",
+          "settings",
+          "revision"
+        ]
+      },
+      "admin_website_v1_yaml_DeclaredPage": {
+        "$ref": "#/components/schemas/admin_website_v1_yaml_Page"
+      },
+      "admin_website_v1_yaml_PageSeoSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "首页填写副标题，生成「网站名称 - 副标题」；其他页填写标题正文，生成「页面标题 - 网站名称」。留空继承默认值"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "keywords": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "indexable": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "null继承页面默认索引策略；false禁止索引"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "keywords",
+          "indexable"
+        ]
+      },
+      "admin_website_v1_yaml_PageSeoEffective": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 243,
+            "description": "首页为「网站名称 - 副标题」，其他页为「页面标题 - 网站名称」；首页无副标题时仅显示网站名称"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "keywords": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "indexable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "keywords",
+          "indexable"
+        ]
+      },
+      "admin_website_v1_yaml_WebsiteSeoPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "scope": {
+            "type": "string",
+            "pattern": "^(core|theme:[a-z][a-z0-9_-]{0,63})$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "core",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 180
+          },
+          "settings": {
+            "$ref": "#/components/schemas/admin_website_v1_yaml_PageSeoSettings"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/admin_website_v1_yaml_PageSeoEffective"
+          },
+          "sources": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string",
+                "enum": [
+                  "override",
+                  "page_default",
+                  "default"
+                ]
+              },
+              "description": {
+                "type": "string",
+                "enum": [
+                  "override",
+                  "page_default",
+                  "default"
+                ]
+              },
+              "keywords": {
+                "type": "string",
+                "enum": [
+                  "override",
+                  "page_default",
+                  "default"
+                ]
+              },
+              "indexable": {
+                "type": "string",
+                "enum": [
+                  "override",
+                  "page_default",
+                  "default"
+                ]
+              }
+            },
+            "required": [
+              "title",
+              "description",
+              "keywords",
+              "indexable"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "kind",
+          "title",
+          "path",
+          "settings",
+          "effective",
+          "sources"
+        ]
+      },
+      "admin_website_v1_yaml_WebsiteSeoCatalog": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "active_theme_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "pages": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 33,
+            "items": {
+              "$ref": "#/components/schemas/admin_website_v1_yaml_WebsiteSeoPage"
+            }
+          }
+        },
+        "required": [
+          "revision",
+          "active_theme_id",
+          "pages"
+        ]
+      },
+      "files_v1_yaml_FileAsset": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "original_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "extension": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "document",
+              "video",
+              "audio",
+              "other"
+            ]
+          },
+          "namespace": {
+            "type": "string",
+            "enum": [
+              "website",
+              "content",
+              "files"
+            ]
+          },
+          "mime_type": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "byte_size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "website",
+              "help",
+              "news",
+              "content",
+              "library"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "stored",
+              "pending",
+              "failed",
+              "unknown",
+              "deleting",
+              "delete_failed"
+            ]
+          },
+          "created_by": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "created_by_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 32,
+            "description": "上传管理员的当前展示名称，优先昵称、为空时使用账号；账号缺失时为null，原created_by保持不变"
+          },
+          "created_at": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "上传时实际使用的存储通道ID；不随默认通道切换"
+          },
+          "channel_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "上传时封存的存储配置修订，下载和删除使用此修订"
+          },
+          "channel_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128,
+            "description": "上传通道的当前展示名称，包含归档通道；元数据缺失时为null，不返回配置及密钥"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "scope": {
+                  "type": "string",
+                  "maxLength": 16
+                },
+                "owner": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "scope",
+                "owner",
+                "label"
+              ]
+            }
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "deletable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "original_name",
+          "extension",
+          "type",
+          "namespace",
+          "mime_type",
+          "byte_size",
+          "origin",
+          "status",
+          "created_by",
+          "created_by_name",
+          "created_at",
+          "channel_id",
+          "channel_revision",
+          "channel_name",
+          "references",
+          "url",
+          "deletable"
+        ]
+      },
+      "files_v1_yaml_Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "data": {
+            "type": [
+              "object",
+              "array",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "request_id": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data",
+          "request_id"
+        ]
+      },
+      "public_purchase_v1_yaml_Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "version_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "product_type": {
+            "type": "string",
+            "enum": [
+              "cloud_server"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "purchase_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version_id",
+          "product_type",
+          "description",
+          "purchase_url"
+        ],
+        "additionalProperties": false
+      },
+      "public_purchase_v1_yaml_Resource": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "country_code": {
+            "type": "string"
+          },
+          "test_ip": {
+            "type": "string"
+          },
+          "architecture": {
+            "type": "string"
+          },
+          "default_username": {
+            "type": "string"
+          },
+          "icon_url": {
+            "type": "string"
+          },
+          "cpu_model": {
+            "type": "string"
+          },
+          "region_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "group_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cpu": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "memory_mib": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "min_cpu": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "min_memory_mib": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "min_disk_gib": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "default_port": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "min_gib": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_gib": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "step_gib": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "capacity_gbps": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "base_clock_mhz": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "boost_clock_mhz": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        }
+      },
+      "public_purchase_v1_yaml_Selection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "region_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "zone_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "line_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "flavor_group_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "flavor_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "image_type_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "image_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "protection_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "duration_months": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "billing_mode": {
+            "type": "string",
+            "enum": [
+              "prepaid"
+            ]
+          },
+          "login_method": {
+            "type": "string",
+            "enum": [
+              "password"
+            ]
+          },
+          "system_disk": {
+            "type": "object",
+            "properties": {
+              "type_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "size_gib": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type_id",
+              "size_gib"
+            ],
+            "additionalProperties": false
+          },
+          "data_disks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type_id": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "size_gib": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "type_id",
+                "size_gib"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 32
+          },
+          "network": {
+            "type": "object",
+            "properties": {
+              "billing_mode": {
+                "type": "string",
+                "enum": [
+                  "fixed"
+                ]
+              },
+              "egress_mbps": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ingress_mbps": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ipv4_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "egress_mbps",
+              "ingress_mbps",
+              "ipv4_count"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "public_purchase_v1_yaml_Options": {
+        "type": "object",
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "enum": [
+              "2.0.0"
+            ]
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "regions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "zones": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "flavor_groups": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "flavors": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "image_types": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "disk_types": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              },
+              "protections": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/public_purchase_v1_yaml_Resource"
+                }
+              }
+            },
+            "required": [
+              "regions",
+              "zones",
+              "lines",
+              "flavor_groups",
+              "flavors",
+              "image_types",
+              "images",
+              "disk_types",
+              "protections"
+            ],
+            "additionalProperties": false
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/public_purchase_v1_yaml_Selection"
+          },
+          "invalid_fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "quantity_limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "system_disk_included_gib": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "durations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "months": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "label": {
+                  "type": "string"
+                },
+                "discount_kind": {
+                  "type": "string",
+                  "enum": [
+                    "rate",
+                    "billed_months"
+                  ]
+                },
+                "rate_bps": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "billed_months": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "months",
+                "label",
+                "discount_kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "storage_policy": {
+            "type": "object",
+            "properties": {
+              "default_type_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "default_size_gib": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "max_data_disks": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "default_type_id",
+              "default_size_gib",
+              "max_data_disks"
+            ],
+            "additionalProperties": false
+          },
+          "line_network": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "billing_mode": {
+                "type": "string",
+                "enum": [
+                  "fixed"
+                ]
+              },
+              "egress": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "step": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "default": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "included": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "price_minor": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "pricing_mode": {
+                    "type": "string",
+                    "enum": [
+                      "flat",
+                      "graduated",
+                      "volume"
+                    ]
+                  },
+                  "tiers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "up_to_mbps": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0
+                        },
+                        "price_minor": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "up_to_mbps",
+                        "price_minor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "min",
+                  "max",
+                  "step",
+                  "default",
+                  "included",
+                  "price_minor",
+                  "pricing_mode",
+                  "tiers"
+                ],
+                "additionalProperties": false
+              },
+              "ingress": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "step": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "default": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "included": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "price_minor": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "pricing_mode": {
+                    "type": "string",
+                    "enum": [
+                      "flat",
+                      "graduated",
+                      "volume"
+                    ]
+                  },
+                  "tiers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "up_to_mbps": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0
+                        },
+                        "price_minor": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "up_to_mbps",
+                        "price_minor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "min",
+                  "max",
+                  "step",
+                  "default",
+                  "included",
+                  "price_minor",
+                  "pricing_mode",
+                  "tiers"
+                ],
+                "additionalProperties": false
+              },
+              "ip": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "range",
+                      "options"
+                    ]
+                  },
+                  "min": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "step": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "default": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "included": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "price_minor": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "min",
+                  "max",
+                  "step",
+                  "default",
+                  "included",
+                  "price_minor",
+                  "options"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "billing_mode",
+              "egress",
+              "ingress",
+              "ip"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schema_version",
+          "options",
+          "configuration",
+          "invalid_fields",
+          "quantity_limit",
+          "system_disk_included_gib",
+          "durations",
+          "storage_policy",
+          "line_network"
+        ],
+        "additionalProperties": false
+      },
+      "public_purchase_v1_yaml_Quote": {
+        "type": "object",
+        "properties": {
+          "configuration": {
+            "$ref": "#/components/schemas/public_purchase_v1_yaml_Selection"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "CNY"
+            ]
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "unit_amount_minor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "amount_minor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "subtotal_minor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "discount_minor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unit_breakdown": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unit_price_minor": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "amount_minor": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "pricing_mode": {
+                  "type": "string"
+                },
+                "recurring": {
+                  "type": "boolean"
+                },
+                "subtotal_minor": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "discount_minor": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "quantity",
+                "unit_price_minor",
+                "amount_minor"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "configuration",
+          "currency",
+          "quantity",
+          "unit_amount_minor",
+          "amount_minor",
+          "subtotal_minor",
+          "discount_minor",
+          "unit_breakdown"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "responses": {},
+    "parameters": {},
+    "requestBodies": {}
+  },
+  "tags": [
+    {
+      "name": "内容"
+    },
+    {
+      "name": "在线安装"
+    },
+    {
+      "name": "存储"
+    },
+    {
+      "name": "官网与主题"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ use app\modules\admin\auth\application\AdminAuthenticationContext;
 use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\modules\order\application\ViewAdminOrdersService;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\DisableDefaultRoute;
 use support\annotation\route\Get;
@@ -47,6 +48,7 @@ final readonly class AdminOrderController
         return $this->responses->success($request, $this->orders->paginate(
             $this->context->account($request), trim($query['keyword']), $query['status'],
             (int) $query['page'], (int) $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['order_no' => 64, 'member_mobile' => 20, 'member_nickname' => 64], ['created_at', 'payable_minor', 'paid_minor'], ['order_type' => ['purchase', 'renewal', 'upgrade', 'trial'], 'payment_status' => ['unpaid', 'partial', 'paid', 'refunded', 'partial_refund']]),
         ));
     }
 

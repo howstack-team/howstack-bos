@@ -7,6 +7,10 @@ namespace app\modules\admin\auth\controller;
 use app\modules\admin\auth\application\AdminAuthenticationContext;
 use app\modules\admin\access\application\AdminAccessControlService;
 use app\modules\admin\auth\application\LoginAdminService;
+use app\modules\admin\auth\application\AdminMfaService;
+use app\modules\admin\auth\domain\AdminMfaLoginChallenge;
+use app\modules\admin\auth\validation\AdminMfaValidator;
+use app\shared\http\middleware\SameOriginWriteMiddleware;
 use app\modules\admin\auth\domain\AdminLoginCredentials;
 use app\modules\admin\auth\exception\AdminAuthenticationException;
 use app\modules\admin\auth\middleware\AdminAuthMiddleware;
@@ -44,6 +48,7 @@ final readonly class AuthController
         private AdminAuthenticationContext $context,
         private AdminAccessControlService $access,
         private ClientIpResolverInterface $clientIps,
+        private AdminMfaService $mfa,
     ) {
     }
 
@@ -56,7 +61,7 @@ final readonly class AuthController
      * @throws RandomException 请求追踪标识或 JWT 标识无法生成时抛出
      */
     #[Post(path: '/login', name: 'admin.auth.login')]
-    #[Middleware(AdminLoginRateLimitMiddleware::class)]
+    #[Middleware(SameOriginWriteMiddleware::class, AdminLoginRateLimitMiddleware::class)]
     public function login(Request $request): Response
     {
         $input = AdminLoginValidator::make([
@@ -74,7 +79,13 @@ final readonly class AuthController
             $this->clientIps->resolve($request),
             (string) $request->header('user-agent', ''),
         );
+        if ($result instanceof AdminMfaLoginChallenge) {
+            return $this->withNoStore($this->apiResponse->success($request, ['mfa_required' => true, 'expires_at' => $result->expiresAt], '请完成两步验证'))
+                ->cookie($this->cookieName(), '', 0, '/', '', $this->secureCookie(), true, 'Strict')
+                ->cookie('hlyq_admin_mfa', $result->token, 300, '/api/admin/v1/auth', '', $this->secureCookie(), true, 'Strict');
+        }
         $response = $this->apiResponse->success($request, [
+            'mfa_required' => false,
             'user' => $result->account->profile(),
             'permissions' => $this->access->permissions($result->account),
             'expires_at' => $result->token->expiresAt,
@@ -89,7 +100,21 @@ final readonly class AuthController
             $this->secureCookie(),
             true,
             'Strict',
-        );
+        )->cookie('hlyq_admin_mfa', '', 0, '/api/admin/v1/auth', '', $this->secureCookie(), true, 'Strict');
+    }
+
+    /** 临时挑战Cookie不被AdminAuthMiddleware接受，验证成功才签发完整凭证。 */
+    #[Post(path: '/mfa/verify', name: 'admin.auth.mfa.verify')]
+    #[Middleware(SameOriginWriteMiddleware::class, AdminLoginRateLimitMiddleware::class)]
+    public function verifyMfa(Request $request): Response
+    {
+        $data = AdminMfaValidator::input($request->post(), password: false);
+        $verified = $this->mfa->verifyLogin((string) $request->cookie('hlyq_admin_mfa', ''), $data['code'], $data['recovery'], $this->clientIps->resolve($request), (string) $request->header('user-agent', ''));
+        $result = $this->login->complete($verified['account'], $this->clientIps->resolve($request), (string) $request->header('user-agent', ''));
+        return $this->withNoStore($this->apiResponse->success($request, ['mfa_required' => false, 'user' => $result->account->profile(),
+            'permissions' => $this->access->permissions($result->account), 'expires_at' => $result->token->expiresAt], '登录成功'))
+            ->cookie($this->cookieName(), $result->token->value, $verified['remember'] ? max(1, $result->token->expiresAt - time()) : null, '/', '', $this->secureCookie(), true, 'Strict')
+            ->cookie('hlyq_admin_mfa', '', 0, '/api/admin/v1/auth', '', $this->secureCookie(), true, 'Strict');
     }
 
     /**
@@ -130,7 +155,7 @@ final readonly class AuthController
             $this->secureCookie(),
             true,
             'Strict',
-        );
+        )->cookie('hlyq_admin_mfa', '', 0, '/api/admin/v1/auth', '', $this->secureCookie(), true, 'Strict');
     }
 
     /**

@@ -1,0 +1,487 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:howstack:products:cloud-server:1.0.0",
+  "title": "云服务器后台配置契约 v1",
+  "description": "整数金额单位为分。草稿允许缺少可售资源；发布及计价时还必须经过领域组合、容量、架构及供应映射校验。后台预览不构成有效报价。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "code",
+    "description",
+    "revision",
+    "draft"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "maxLength": 64
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "draft": {
+      "$ref": "#/$defs/draft"
+    }
+  },
+  "$defs": {
+    "prices": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000000
+        },
+        "day": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000000
+        },
+        "month": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000000
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000000
+        }
+      },
+      "required": []
+    },
+    "draft": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resource_ids": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "regions": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "zones": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "lines": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "flavor_groups": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "flavors": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "image_types": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "images": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "disk_types": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            },
+            "protections": {
+              "type": "array",
+              "maxItems": 500,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            }
+          },
+          "required": [
+            "regions",
+            "zones",
+            "lines",
+            "flavor_groups",
+            "flavors",
+            "image_types",
+            "images",
+            "disk_types",
+            "protections"
+          ]
+        },
+        "cycles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "hour",
+              "day",
+              "month",
+              "year"
+            ]
+          }
+        },
+        "quantity_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "setup_minor": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000000
+        },
+        "provider_connection_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "price_overrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "flavors": {
+              "type": "object",
+              "patternProperties": {
+                "^[1-9][0-9]*$": {
+                  "$ref": "#/$defs/prices"
+                }
+              },
+              "additionalProperties": false,
+              "maxProperties": 500
+            },
+            "disk_types": {
+              "type": "object",
+              "patternProperties": {
+                "^[1-9][0-9]*$": {
+                  "$ref": "#/$defs/prices"
+                }
+              },
+              "additionalProperties": false,
+              "maxProperties": 500
+            },
+            "protections": {
+              "type": "object",
+              "patternProperties": {
+                "^[1-9][0-9]*$": {
+                  "$ref": "#/$defs/prices"
+                }
+              },
+              "additionalProperties": false,
+              "maxProperties": 500
+            }
+          },
+          "required": []
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bandwidth_min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "bandwidth_max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "bandwidth_step": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "ip_min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 64
+            },
+            "ip_max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 64
+            },
+            "bandwidth_prices": {
+              "$ref": "#/$defs/prices"
+            },
+            "ip_prices": {
+              "$ref": "#/$defs/prices"
+            }
+          },
+          "required": [
+            "bandwidth_min",
+            "bandwidth_max",
+            "bandwidth_step",
+            "ip_min",
+            "ip_max",
+            "bandwidth_prices",
+            "ip_prices"
+          ]
+        },
+        "trial_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "hours": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 720
+            },
+            "limit_per_member": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          },
+          "required": [
+            "enabled",
+            "hours",
+            "limit_per_member"
+          ]
+        },
+        "refund_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "window_hours": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8760
+            },
+            "prorated": {
+              "type": "boolean"
+            },
+            "keep_setup_fee": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled",
+            "window_hours",
+            "prorated",
+            "keep_setup_fee"
+          ]
+        },
+        "renewal_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pricing": {
+              "const": "current"
+            },
+            "auto_renew_enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "pricing",
+            "auto_renew_enabled"
+          ]
+        }
+      },
+      "required": [
+        "resource_ids",
+        "cycles",
+        "quantity_limit",
+        "setup_minor",
+        "provider_connection_id",
+        "price_overrides",
+        "network",
+        "trial_policy",
+        "refund_policy",
+        "renewal_policy"
+      ]
+    },
+    "disk": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "size_gib": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      },
+      "required": [
+        "type_id",
+        "size_gib"
+      ]
+    },
+    "purchase_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "region_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "zone_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "line_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "flavor_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "image_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "protection_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "billing_cycle": {
+          "enum": [
+            "hour",
+            "day",
+            "month",
+            "year"
+          ]
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "system_disk": {
+          "$ref": "#/$defs/disk"
+        },
+        "data_disks": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/disk"
+          }
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bandwidth_mbps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "ipv4_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 64
+            }
+          },
+          "required": [
+            "bandwidth_mbps",
+            "ipv4_count"
+          ]
+        },
+        "login_method": {
+          "enum": [
+            "password",
+            "ssh_key"
+          ]
+        }
+      },
+      "required": [
+        "region_id",
+        "zone_id",
+        "line_id",
+        "flavor_id",
+        "image_id",
+        "billing_cycle",
+        "quantity",
+        "system_disk",
+        "network"
+      ]
+    }
+  }
+}

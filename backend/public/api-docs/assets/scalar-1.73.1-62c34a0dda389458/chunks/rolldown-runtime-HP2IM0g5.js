@@ -1,0 +1,14 @@
+/*!
+*    _____ _________    __    ___    ____
+*   / ___// ____/   |  / /   /   |  / __ \
+*   \__ \/ /   / /| | / /   / /| | / /_/ /
+*  ___/ / /___/ ___ |/ /___/ ___ |/ _, _/
+* /____/\____/_/  |_/_____/_/  |_/_/ |_|
+*
+* @scalar/api-reference 1.73.1
+*
+* Website: https://scalar.com
+* GitHub:  https://github.com/scalar/scalar
+* License: https://github.com/scalar/scalar/blob/main/LICENSE
+**/
+var e=Object.create,t=Object.defineProperty,n=Object.getOwnPropertyDescriptor,r=Object.getOwnPropertyNames,i=Object.getPrototypeOf,a=Object.prototype.hasOwnProperty,o=(e,t)=>()=>(t||(e((t={exports:{}}).exports,t),e=null),t.exports),s=(e,n)=>{let r={};for(var i in e)t(r,i,{get:e[i],enumerable:!0});return n||t(r,Symbol.toStringTag,{value:`Module`}),r},c=(e,i,o,s)=>{if(i&&typeof i==`object`||typeof i==`function`)for(var c=r(i),l=0,u=c.length,d;l<u;l++)d=c[l],!a.call(e,d)&&d!==o&&t(e,d,{get:(e=>i[e]).bind(null,d),enumerable:!(s=n(i,d))||s.enumerable});return e},l=(n,r,a)=>(a=n==null?{}:e(i(n)),c(r||!n||!n.__esModule?t(a,`default`,{value:n,enumerable:!0}):a,n));export{s as n,l as r,o as t};

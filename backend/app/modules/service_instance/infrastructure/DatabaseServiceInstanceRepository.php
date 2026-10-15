@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\service_instance\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use app\modules\service_instance\contract\ServiceInstanceRepositoryInterface;
 use Illuminate\Database\Query\Builder;
 use stdClass;
@@ -18,8 +20,15 @@ final class DatabaseServiceInstanceRepository implements ServiceInstanceReposito
         'm.nickname as member_nickname', 'm.mobile as member_mobile',
         'o.order_no as order_no',
     ];
-
-    public function paginate(string $productType, string $keyword, ?string $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function paginate(
+        string $productType,
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $query = $this->query()->where('s.product_type', $productType);
         if ($status !== null) {
@@ -35,8 +44,23 @@ final class DatabaseServiceInstanceRepository implements ServiceInstanceReposito
             });
         }
 
+        foreach ([
+            'instance_no' => 's.instance_no',
+            'display_name' => 's.display_name',
+            'member_mobile' => 'm.mobile',
+            'member_nickname' => 'm.nickname',
+        ] as $field => $column) {
+            if (isset($filters[$field])) {
+                $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+            }
+        }
         $total = (int) (clone $query)->count('s.id');
-        $rows = $query->select(self::COLUMNS)->orderBy('s.id', 'desc')->forPage($page, $pageSize)->get();
+        $rows = TableQueryOrder::apply($query, $filters, [
+                'created_at' => 's.created_at',
+                'activated_at' => 's.activated_at',
+                'expires_at' => 's.expires_at',
+            ], ['s.id' => 'desc'], 's.id')->select(self::COLUMNS)->forPage($page, $pageSize)->get();
 
         return ['data' => array_map(self::normalize(...), $rows->all()), 'total' => $total];
     }

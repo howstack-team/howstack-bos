@@ -1,0 +1,673 @@
+openapi: 3.1.0
+info:
+  title: 文件管理 API
+  version: 1.0.0
+servers:
+  - url: /
+security:
+  - adminBearer: []
+  - adminCookie: []
+paths:
+  /api/admin/v1/files:
+    get:
+      operationId: filesList
+      summary: 分页查询公开文件库
+      description: 需要admin.files.view；名称、分类、来源按AND过滤。私密附件不在此列表，旧文件没有原始名时为null。deletable仅作界面提示，删除时再次事务检查引用。
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+            maxLength: 200
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum:
+              - image
+              - document
+              - video
+              - audio
+              - other
+        - in: query
+          name: origin
+          schema:
+            type: string
+            enum:
+              - website
+              - help
+              - news
+              - content
+              - library
+        - in: query
+          name: namespace
+          schema:
+            type: string
+            enum:
+              - website
+              - content
+              - files
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum:
+              - stored
+              - pending
+              - failed
+              - unknown
+              - deleting
+              - delete_failed
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+            enum:
+              - created_at
+              - byte_size
+        - in: query
+          name: sort_order
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            enum:
+              - 10
+              - 20
+              - 50
+              - 100
+            default: 10
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/FileAsset"
+                      total:
+                        type: integer
+                        minimum: 0
+                      page:
+                        type: integer
+                        minimum: 1
+                      page_size:
+                        type: integer
+                        enum:
+                          - 10
+                          - 20
+                          - 50
+                          - 100
+                    required:
+                      - data
+                      - total
+                      - page
+                      - page_size
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: filesUpload
+      summary: 上传公开素材文件
+      description: 需要admin.files.view/upload和同源请求。公开图片最大5MiB且验证真实图片，PDF/DOCX/XLS/XLSX/TXT/Markdown/CSV/ZIP/MP4/MP3/SQL/SQLite最大20MiB并验证MIME；DOCX/XLSX须匹配OOXML结构且限制解压大小，拒绝加密及含宏OOXML，XLS须匹配OLE文件结构；SQL须为文本，DB/SQLite/SQLite3须有SQLite文件头，禁止可执行文件。默认存储通道不可用时409。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        "201":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      id:
+                        type: string
+                        maxLength: 32
+                      url:
+                        type: string
+                        maxLength: 200
+                      name:
+                        type: string
+                        maxLength: 200
+                      type:
+                        type: string
+                        enum:
+                          - image
+                          - document
+                          - video
+                          - audio
+                          - other
+                    required:
+                      - id
+                      - url
+                      - name
+                      - type
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/v1/files/delete:
+    post:
+      operationId: filesDelete
+      summary: 删除一个或批量删除文件
+      description: 需要admin.files.view/delete和同源请求，最多100个ID；先原子校验全部文件无有效引用，不通过则整批不启动。存储逐对象删除，仅确认deleted后记录删除；failed返回待重试ID，不假装成功。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    type: string
+                    pattern: ^[a-f0-9]{32}$
+              required:
+                - ids
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      deleted:
+                        type: array
+                        items:
+                          type: string
+                          maxLength: 32
+                      failed:
+                        type: array
+                        items:
+                          type: string
+                          maxLength: 32
+                    required:
+                      - deleted
+                      - failed
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/public/v1/files/{id}:
+    get:
+      operationId: publicFileShow
+      summary: 读取公开文件的稳定地址
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{32}$
+      responses:
+        "302":
+          description: 跳转存储通道的限时地址
+          headers:
+            Location:
+              schema:
+                type: string
+        "404":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/v1/files/statistics:
+    get:
+      operationId: filesStatistics
+      summary: 读取公开文件分类及上传容量统计
+      description: 需要admin.files.view。数量统计未确认删除的公开记录；容量仅统计stored文件的字节数，不代表存储服务商实时计费容量。分类固定为图片、文档、视频、音频和其他。
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                    maxLength: 1000
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - count
+                      - byte_size
+                      - types
+                    properties:
+                      count:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      byte_size:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      types:
+                        type: array
+                        minItems: 5
+                        maxItems: 5
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            - type
+                            - count
+                            - byte_size
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - image
+                                - document
+                                - video
+                                - audio
+                                - other
+                            count:
+                              type: integer
+                              minimum: 0
+                              maximum: 9007199254740991
+                            byte_size:
+                              type: integer
+                              minimum: 0
+                              maximum: 9007199254740991
+                  request_id:
+                    type: string
+                    maxLength: 128
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: 认证、授权、参数校验或文件状态错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    FileAsset:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          pattern: ^[a-f0-9]{32}$
+        original_name:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        extension:
+          type: string
+          maxLength: 20
+        type:
+          type: string
+          enum:
+            - image
+            - document
+            - video
+            - audio
+            - other
+        namespace:
+          type: string
+          enum:
+            - website
+            - content
+            - files
+        mime_type:
+          type: string
+          maxLength: 128
+        byte_size:
+          type: integer
+          minimum: 0
+        origin:
+          type: string
+          enum:
+            - website
+            - help
+            - news
+            - content
+            - library
+        status:
+          type: string
+          enum:
+            - stored
+            - pending
+            - failed
+            - unknown
+            - deleting
+            - delete_failed
+        created_by:
+          type: integer
+          minimum: 0
+        created_by_name:
+          type: [string, "null"]
+          maxLength: 32
+          description: 上传管理员的当前展示名称，优先昵称、为空时使用账号；账号缺失时为null，原created_by保持不变
+        created_at:
+          type: string
+          maxLength: 32
+        channel_id:
+          type: integer
+          minimum: 1
+          description: 上传时实际使用的存储通道ID；不随默认通道切换
+        channel_revision:
+          type: integer
+          minimum: 1
+          description: 上传时封存的存储配置修订，下载和删除使用此修订
+        channel_name:
+          type: [string, "null"]
+          maxLength: 128
+          description: 上传通道的当前展示名称，包含归档通道；元数据缺失时为null，不返回配置及密钥
+        references:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              scope:
+                type: string
+                maxLength: 16
+              owner:
+                type: string
+                maxLength: 64
+              label:
+                type: string
+                maxLength: 200
+            required:
+              - scope
+              - owner
+              - label
+        url:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        deletable:
+          type: boolean
+      required:
+        - id
+        - original_name
+        - extension
+        - type
+        - namespace
+        - mime_type
+        - byte_size
+        - origin
+        - status
+        - created_by
+        - created_by_name
+        - created_at
+        - channel_id
+        - channel_revision
+        - channel_name
+        - references
+        - url
+        - deletable
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+          maxLength: 1000
+        data:
+          type:
+            - object
+            - array
+            - "null"
+          additionalProperties: true
+        request_id:
+          type: string
+          maxLength: 128
+      required:
+        - code
+        - message
+        - data
+        - request_id
+  securitySchemes:
+    adminBearer:
+      type: http
+      scheme: bearer
+    adminCookie:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token

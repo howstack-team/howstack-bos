@@ -1,74 +1,51 @@
-import { LockOutlined, MobileOutlined } from '@ant-design/icons'
-import { LoginForm, ProConfigProvider, ProFormText } from '@ant-design/pro-components'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Card, Flex, Spin, Statistic, Typography, message } from 'antd'
-import { getMember, getWalletBalance, loginMember, logoutMember } from './memberApi.ts'
+import { Suspense, useEffect, useRef } from 'react'
+import { useConsoleTheme } from './ConsoleThemeContext'
+import { consolePageTitle } from '../../packages/console-theme-runtime'
+import { Button, Message } from '@arco-design/web-react'
+import { Redirect, Route, Switch, useLocation } from 'react-router-dom'
+import { useMemberAuth } from './auth/AuthContext'
+import PageLoading from './components/PageLoading'
+import ConsoleLayout from './layout'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import NotFoundPage from './pages/NotFoundPage'
+import { consoleRoutes, paths } from './routes'
+import { loginReturnPath } from './utils/loginReturnPath'
 import './App.css'
+import OAuthBindPage from './pages/OAuthBindPage'
+import CloudPurchasePage from './pages/CloudPurchasePage'
 
-function MemberLogin() {
-  const queryClient = useQueryClient()
-
-  return <main className="ds-login-page member-login-page">
-    <div className="ds-page-card ds-login-panel member-login-panel">
-      <ProConfigProvider hashed={false}>
-        <LoginForm<{ mobile: string; password: string }>
-          title="皓量云擎"
-          subTitle="会员控制台"
-          containerStyle={{ height: 'auto', overflow: 'hidden', borderRadius: 2 }}
-          contentStyle={{ width: 'min(100%, 328px)', minWidth: 0 }}
-          onFinish={async ({ mobile, password }) => {
-            try {
-              const user = await loginMember(mobile, password)
-              queryClient.setQueryData(['member', 'me'], user)
-              void queryClient.invalidateQueries({ queryKey: ['member', 'wallet'] })
-              return true
-            } catch (error) {
-              message.error(error instanceof Error ? error.message : '登录失败')
-              return false
-            }
-          }}>
-          <ProFormText name="mobile" placeholder="请输入手机号" fieldProps={{ size: 'large', prefix: <MobileOutlined /> }}
-            rules={[{ required: true, message: '请输入手机号' }, { pattern: /^\+?[0-9]{6,20}$/, message: '手机号格式不正确' }]} />
-          <ProFormText.Password name="password" placeholder="请输入密码" fieldProps={{ size: 'large', prefix: <LockOutlined /> }}
-            rules={[{ required: true, message: '请输入密码' }]} />
-        </LoginForm>
-      </ProConfigProvider>
-    </div>
-  </main>
-}
-
-function MemberHome({ nickname }: { nickname: string }) {
-  const queryClient = useQueryClient()
-  const wallet = useQuery({ queryKey: ['member', 'wallet'], queryFn: getWalletBalance })
-
-  return <main className="member-home">
-    <header className="member-home-header">
-      <Typography.Title level={3}>会员控制台</Typography.Title>
-      <Flex align="center" gap={16}>
-        <Typography.Text>{nickname}</Typography.Text>
-        <Button onClick={() => { void logoutMember().then(() => {
-          queryClient.setQueryData(['member', 'me'], null)
-          queryClient.removeQueries({ queryKey: ['member', 'wallet'] })
-        }).catch((error: unknown) => message.error(error instanceof Error ? error.message : '退出失败')) }}>退出登录</Button>
-      </Flex>
-    </header>
-    <Card title="资金账户" className="member-wallet-card">
-      {wallet.isLoading && <Spin />}
-      {wallet.isError && <Alert type="error" message={wallet.error instanceof Error ? wallet.error.message : '余额加载失败'} />}
-      {wallet.data && <div className="member-wallet-values">
-        <Statistic title="可用余额" value={wallet.data.available_minor / 100} precision={2} prefix="¥" />
-        <Statistic title="冻结余额" value={wallet.data.frozen_minor / 100} precision={2} prefix="¥" />
-      </div>}
-    </Card>
-  </main>
-}
-
-/** 会员控制台当前提供手机号密码登录和本人资金余额。 */
+/** 会员会话入口；未登录时保留完整访问路径，成功后恢复。 */
 export default function App() {
-  const member = useQuery({ queryKey: ['member', 'me'], queryFn: getMember, retry: false })
-
-  if (member.isLoading) return <main className="member-loading"><Spin /></main>
-  if (member.isError) return <main className="member-loading"><Alert type="error" message="会员服务暂不可用" /></main>
-  if (!member.data) return <MemberLogin />
-  return <MemberHome nickname={member.data.nickname} />
+  const { member, loading, error, retry } = useMemberAuth()
+  const reportedError = useRef<unknown>(null)
+  useEffect(() => {
+    if (error && !member && reportedError.current !== error) Message.error(error.message)
+    reportedError.current = error
+  }, [error, member])
+  const location = useLocation()
+  const pathname = location.pathname.replace(/\/+$/, '') || '/'
+  const platform = useConsoleTheme()?.site.name ?? ''
+  const pageName = pathname === paths.oauthBind ? '关联平台账号' : pathname === paths.login ? '会员登录' : pathname === paths.register ? '会员注册'
+    : pathname === paths.purchase ? '购买云服务器' : pathname.startsWith(`${paths.orders}/`) ? '订单详情'
+    : pathname === '/' ? '控制台' : consoleRoutes.find(route => route.path === pathname)?.name ?? '页面不存在'
+  useEffect(() => { document.title = consolePageTitle(pageName, platform) }, [pageName, platform])
+  if (loading) return <PageLoading fullPage />
+  if (error && !member) return <main className="member-loading">
+    <Button type="primary" onClick={retry}>重新加载</Button>
+  </main>
+  if (pathname === paths.oauthBind) return <OAuthBindPage />
+  if (pathname === paths.purchase) return member ? <ConsoleLayout><CloudPurchasePage /></ConsoleLayout> : <CloudPurchasePage />
+  if (!member) return pathname === paths.register ? <RegisterPage /> : pathname === paths.login ? <LoginPage /> : <Redirect
+    to={{ pathname: paths.login, state: { from: `${location.pathname}${location.search}${location.hash}` } }} />
+  if (pathname === paths.login || pathname === paths.register) return <Redirect to={loginReturnPath(location.state)} />
+  return <ConsoleLayout>
+    <Suspense fallback={<PageLoading />}>
+      <Switch>
+        <Route exact path="/"><Redirect to={paths.overview} /></Route>
+        {consoleRoutes.map(({ path, component: Page }) => <Route exact key={path} path={path} component={Page} />)}
+        <Route path="*" component={NotFoundPage} />
+      </Switch>
+    </Suspense>
+  </ConsoleLayout>
 }

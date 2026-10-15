@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\member\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use app\modules\member\infrastructure\model\MemberModel;
 use app\modules\member\infrastructure\model\MemberGroupModel;
 use app\modules\member\infrastructure\model\MemberLevelModel;
@@ -14,13 +16,24 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 /** 使用数据库维护会员分组与等级。 */
 final class DatabaseMemberCatalogRepository implements MemberCatalogRepositoryInterface
 {
-    /** {@inheritDoc} */
-    public function groups(string $keyword, ?int $status, int $page, int $pageSize): array
+    /**
+     * {@inheritDoc}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function groups(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
-        return $this->paginate('member_groups', $keyword, $status, $page, $pageSize, ['sort_order', 'id']);
+        return $this->paginate('member_groups', $keyword, $status, $page, $pageSize, ['sort_order', 'id'], $filters);
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     public function group(int $id): ?array
     {
         return $this->find('member_groups', $id);
@@ -50,13 +63,24 @@ final class DatabaseMemberCatalogRepository implements MemberCatalogRepositoryIn
         MemberGroupModel::query()->where('id', $id)->delete();
     }
 
-    /** {@inheritDoc} */
-    public function levels(string $keyword, ?int $status, int $page, int $pageSize): array
+    /**
+     * {@inheritDoc}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function levels(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
-        return $this->paginate('member_levels', $keyword, $status, $page, $pageSize, ['level_order', 'id']);
+        return $this->paginate('member_levels', $keyword, $status, $page, $pageSize, ['level_order', 'id'], $filters);
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     public function level(int $id): ?array
     {
         return $this->find('member_levels', $id);
@@ -97,8 +121,19 @@ final class DatabaseMemberCatalogRepository implements MemberCatalogRepositoryIn
         ];
     }
 
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    private function paginate(string $table, string $keyword, ?int $status, int $page, int $pageSize, array $orders): array
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    private function paginate(
+        string $table,
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $orders,
+        array $filters = [],
+    ): array
     {
         $query = $this->modelQuery($table);
         if ($keyword !== '') {
@@ -110,10 +145,25 @@ final class DatabaseMemberCatalogRepository implements MemberCatalogRepositoryIn
         if ($status !== null) {
             $query->where('status', $status);
         }
-        $total = (clone $query)->count();
-        foreach ($orders as $order) {
-            $query->orderBy($order);
+        foreach ([
+            'name' => 'name',
+            'code' => 'code',
+        ] as $field => $column) {
+            if (isset($filters[$field])) {
+                $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+            }
         }
+        $total = (clone $query)->count();
+        $sortColumns = ['created_at' => 'created_at'];
+        foreach ($orders as $order) {
+            $sortColumns[$order] = $order;
+        }
+        if ($table === 'member_levels') {
+            $sortColumns['growth_threshold'] = 'growth_threshold';
+        }
+        TableQueryOrder::apply($query, $filters, $sortColumns, array_fill_keys($orders, 'asc'));
+
         $rows = $query->forPage($page, $pageSize)->get();
 
         return ['data' => array_map(self::normalize(...), $rows->all()), 'total' => $total];

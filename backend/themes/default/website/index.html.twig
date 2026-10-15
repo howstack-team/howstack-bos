@@ -1,0 +1,20 @@
+{% extends 'layout.html.twig' %}
+{% block content %}
+<section class="hero"><div class="container hero-inner">
+  <div class="hero-copy">
+    <h1>{{ theme.settings.hero_title }}</h1><p class="hero-description">{{ theme.settings.hero_description }}</p>
+    <div class="hero-actions"><a class="primary-action" href="{{ route('products.cloud-server') }}">选购云服务器 <span aria-hidden="true">↗</span></a><a class="secondary-action" href="{{ route('theme.company') }}">了解我们 <span aria-hidden="true">→</span></a></div>
+  </div>
+  <div class="hero-visual" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+    <div class="cloud-panel"><span class="panel-kicker">CLOUD PLATFORM</span><div class="cloud-icon">☁</div><div class="panel-label">连接你的云端业务</div><div class="panel-line"></div><div class="panel-row"><span>资源管理</span><span class="panel-dot"></span></div><div class="panel-row"><span>业务服务</span><span class="panel-dot"></span></div></div>
+    <span class="floating-label label-one">云端资源</span><span class="floating-label label-two">服务与支持</span>
+  </div>
+</div></section>
+{% if page.features %}<section class="section container"><div class="section-heading"><p class="eyebrow">服务与管理</p><h2>从选择资源，到管理业务</h2></div><div class="feature-grid">
+{% for feature in page.features %}<article class="feature-card"><div class="feature-marker" aria-hidden="true">{{ loop.index }}</div><h3>{{ feature.title }}</h3><p>{{ feature.description }}</p></article>{% endfor %}
+</div></section>{% endif %}
+<section class="section container"><div class="section-heading"><p class="eyebrow">产品与服务</p><h2>云服务器</h2></div>{% include 'partials/products.html.twig' %}</section>
+{% if page.banners %}<section class="section container"><div class="banner-grid">{% for banner in page.banners %}<article class="banner-card">{% if banner.image_url %}<img src="{{ banner.image_url }}" alt="{{ banner.title }}" loading="lazy">{% endif %}<h3>{{ banner.title }}</h3><p>{{ banner.description }}</p></article>{% endfor %}</div></section>{% endif %}
+{% if page.announcements %}<section class="section container announcements"><div class="section-heading"><p class="eyebrow">最新动态</p><h2>公告与资讯</h2></div><div class="news-grid">{% for news in page.announcements %}<article class="news-card"><time datetime="{{ news.published_at }}">{{ news.published_at|date('Y.m.d') }}</time><h3>{{ news.title }}</h3><p>{{ news.summary }}</p></article>{% endfor %}</div></section>{% endif %}
+<section class="container callout"><div><h2>你的服务，尽在掌握</h2><p>进入会员中心，查看与管理你的服务。</p></div><a class="primary-action" href="{{ route('console.home') }}">进入会员中心 <span aria-hidden="true">→</span></a></section>
+{% endblock %}

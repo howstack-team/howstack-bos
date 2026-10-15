@@ -31,7 +31,7 @@ final readonly class MemberAuthMiddleware implements MiddlewareInterface
             throw new BusinessException('会员登录状态已失效', ApiErrorCode::UNAUTHENTICATED, 401);
         }
         $memberId = $this->tokens->parse($token);
-        $account = $this->members->findById($memberId);
+        $account = is_int($memberId) ? $this->members->findById($memberId) : $this->members->findByPublicId($memberId);
         if ($account === null || $account->status !== 1 || !$this->tokens->matchesPasswordVersion($token, $account)) {
             throw new BusinessException('会员登录状态已失效', ApiErrorCode::UNAUTHENTICATED, 401);
         }

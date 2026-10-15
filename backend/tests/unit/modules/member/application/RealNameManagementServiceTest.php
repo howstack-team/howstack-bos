@@ -27,7 +27,7 @@ final class RealNameManagementServiceTest extends TestCase
     public function testReviewUsesPendingConditionalUpdate(): void
     {
         $records = $this->createMock(RealNameAuthenticationRepositoryInterface::class);
-        $records->expects(self::exactly(2))->method('find')->with(2)->willReturn(['id' => 2, 'status' => 'pending'], ['id' => 2, 'status' => 'approved']);
+        $records->expects(self::exactly(2))->method('find')->with(2)->willReturn(['id' => 2, 'member_id' => 3, 'status' => 'pending'], ['id' => 2, 'member_id' => 3, 'status' => 'approved']);
         $records->expects(self::once())->method('reviewPending')->with(2, 'approved', 1, '')->willReturn(true);
 
         $result = $this->service($records)->review($this->founder(), 2, 'approved', '不会保存');
@@ -37,7 +37,10 @@ final class RealNameManagementServiceTest extends TestCase
 
     private function service(RealNameAuthenticationRepositoryInterface $records): RealNameManagementService
     {
-        return new RealNameManagementService($records, new AdminAccessControlService($this->createStub(AdminAccessRepositoryInterface::class)));
+        $transactions = $this->createStub(\app\shared\contract\TransactionManagerInterface::class);
+        $transactions->method('run')->willReturnCallback(static fn (callable $operation): mixed => $operation());
+        return new RealNameManagementService($records, new AdminAccessControlService($this->createStub(AdminAccessRepositoryInterface::class)),
+            $this->createStub(\app\modules\message\contract\MessagePublisherInterface::class), $transactions);
     }
 
     private function founder(): AdminAccount { return new AdminAccount(1, 'admin01', '创始人', 'hash', 1, null, true); }

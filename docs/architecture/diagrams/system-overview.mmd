@@ -1,0 +1,58 @@
+---
+title: 皓量云擎云业务运营系统架构
+---
+flowchart LR
+  subgraph clients["访问端"]
+    admin["运营后台 · React 18"]
+    console["会员控制台 · React 19"]
+    install["安装器 · React 19"]
+    docs["受保护 API 文档"]
+    site["官网 · 当前占位首页"]
+  end
+  http["HTTP 入口 / 鉴权 / 同源检查"]
+  subgraph server["PHP 8.4 / Webman 模块化单体"]
+    core["23 个模块的应用用例：产品 / 订单 / 财务 / 会员 / 组织权限 / 服务 / 工单 / 内容 / 消息 / 维护"]
+    host["宿主插件注册与执行门面"]
+    messageWorker["消息补投 Worker / Redis 消费者"]
+    maintenance["软件维护 Worker / 固定 CLI"]
+    fulfillment["待接入：单实例履约 / 支付恢复"]
+  end
+  subgraph persistence["持久化与运行依赖"]
+    mysql[("MySQL · 业务事实 / 快照 / Outbox")]
+    redis[("Redis · 消息队列 / 限流 / OAuth state")]
+    files["私有文件 · 上传 / 身份 / 备份"]
+  end
+  subgraph integration["受控外部集成"]
+    plugins["23 个内置适配器 / 8 类 / 受信 PHP"]
+    external["短信 / 邮件 / 支付 / 实名 / 存储 / 登录 / 验证码"]
+    supplier["魔方云 · 当前认证 / 只读目录"]
+    official["外部官方平台 · 授权 / 应用 / 更新"]
+  end
+  admin --> http
+  console --> http
+  install --> http
+  docs --> http
+  site --> http
+  http --> core
+  core --> mysql
+  core --> redis
+  core --> files
+  core --> host
+  core --> official
+  messageWorker --> mysql
+  messageWorker --> redis
+  messageWorker --> host
+  maintenance --> mysql
+  maintenance --> files
+  maintenance --> official
+  host --> plugins
+  plugins --> external
+  plugins --> supplier
+  core -. "付款后生产尚未接通" .-> fulfillment
+  fulfillment -. "拟增加生产契约" .-> supplier
+  classDef implemented fill:#e8f3ff,stroke:#165dff,color:#1d2129
+  classDef partial fill:#fff7e6,stroke:#d98e04,color:#1d2129
+  classDef planned fill:#f7f8fa,stroke:#86909c,stroke-dasharray:5 4,color:#4e5969
+  class admin,console,install,docs,http,core,host,messageWorker,maintenance,mysql,redis,files,plugins implemented
+  class site,supplier,external,official partial
+  class fulfillment planned

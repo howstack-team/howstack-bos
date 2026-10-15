@@ -1,3 +1,8 @@
+import useTableQuery from '../hooks/useTableQuery'
+import { applyClientTableQuery } from '../utils/clientTableQuery'
+import { IconPlus } from '@arco-design/web-react/icon'
+import { useCompactFormViewport } from '../hooks/useCompactFormLayout'
+import FormDialog from '../components/FormDialog'
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Drawer, Form, Input, InputNumber, Message, Modal, Select, Switch, Table, TreeSelect, Typography } from '@arco-design/web-react'
 import type { TableColumnProps } from '@arco-design/web-react'
@@ -10,7 +15,7 @@ import TableActions from '../components/TableActions.tsx'
 import type { TableAction } from '../components/TableActions.tsx'
 import EnabledStatus from '../components/EnabledStatus.tsx'
 import { tableCellText } from '../utils/tableCellText.ts'
-import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination.ts'
+import { TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination.ts'
 
 const scopeLabels: Record<DataScopeMode, string> = {
   all: '全部数据', department_and_children: '本部门及下级',
@@ -19,6 +24,8 @@ const scopeLabels: Record<DataScopeMode, string> = {
 type RoleFields = Pick<RoleInput, 'name' | 'code' | 'sort_order' | 'description' | 'status' | 'data_scope' | 'department_ids'>
 
 export default function RolesPage() {
+  const { queryParams, sortColumn, filterColumn, onTableChange, page, pageSize, setPage, setPageSize } = useTableQuery({ sortFields: ['sort_order'], statusValues: [0, 1], enumFields: { data_scope: Object.keys(scopeLabels) } })
+  const wideViewport = useCompactFormViewport()
   const { user, permissions } = useAdminAuth()
   const [roleForm] = Form.useForm<RoleFields>()
   const [rows, setRows] = useState<RoleRecord[]>([])
@@ -65,8 +72,13 @@ export default function RolesPage() {
   }
 
   async function saveRole() {
+    let values: RoleFields
     try {
-      const values = await roleForm.validate()
+      values = await roleForm.validate()
+    } catch {
+      return
+    }
+    try {
       setSaving(true)
       const latest = editing ? await accessApi.role(editing.id) : null
       await accessApi.saveRole({
@@ -112,16 +124,17 @@ export default function RolesPage() {
   const columns: TableColumnProps<RoleRecord>[] = [
     { title: '角色名称', dataIndex: 'name', width: 190, ellipsis: true, render: tableCellText },
     { title: '描述', dataIndex: 'description', width: 230, ellipsis: true, render: tableCellText },
-    { title: '数据范围', width: 150, render: (_, row) => tableCellText(scopeLabels[row.data_scope]) },
-    { title: '状态', width: 100, render: (_, row) => <EnabledStatus status={row.status} /> },
-    { title: '操作', width: 190, fixed: 'right', render: (_, row) => {
+    { ...filterColumn('data_scope', scopeLabels), title: '数据范围', width: 150, render: (_, row) => tableCellText(scopeLabels[row.data_scope]) },
+    { ...sortColumn('sort_order'), title: '排序', width: 90 },
+    { ...filterColumn('status', { '0': '禁用', '1': '启用' }), title: '状态', width: 100, render: (_, row) => <EnabledStatus status={row.status} /> },
+    { title: '操作', width: 230, fixed: 'right', render: (_, row) => {
       if (row.is_system) return <Typography.Text type="secondary">不可编辑</Typography.Text>
       const actions: TableAction[] = []
       if (can('update')) {
         actions.push({ key: 'edit', label: '编辑', onClick: () => void edit(row) })
         actions.push({ key: 'permissions', label: '分配权限', sensitive: true, onClick: () => void openPermissions(row) })
       }
-      if (can('delete')) actions.push({ key: 'delete', label: '删除', sensitive: true, danger: true, onClick: () => Modal.confirm({
+      if (can('delete')) actions.push({ key: 'delete', label: '删除', sensitive: true, danger: true, onClick: () => Modal.confirm({ maskClosable: true,
         title: '删除角色？', content: '仅能删除未分配给管理员的角色。',
         onOk: async () => { await accessApi.deleteRole(row.id); Message.success('已删除'); await load() },
       }) })
@@ -130,27 +143,29 @@ export default function RolesPage() {
   ]
 
   return <section className="page-card">
-    <div className="page-toolbar">{can('create') && <Button type="primary" onClick={() => void edit(null)}>新建角色</Button>}</div>
-    <div className="table-scroll"><Table rowKey="id" data={rows} columns={columns} loading={loading}
-      pagination={{ defaultPageSize: DEFAULT_TABLE_PAGE_SIZE, sizeCanChange: true, sizeOptions: TABLE_PAGE_SIZE_OPTIONS, showTotal: true }} scroll={{ x: 860 }} /></div>
-    <Modal title={editing ? '编辑角色' : '新建角色'} visible={basicOpen} onCancel={() => { if (!saving) setBasicOpen(false) }} onOk={() => void saveRole()} confirmLoading={saving} style={{ width: 560, maxWidth: 'calc(100vw - 24px)' }}>
-      <Form form={roleForm} layout="vertical" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
-        <Form.Item field="name" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }, { minLength: 2, message: '角色名称至少 2 个字符' }, { maxLength: 64, message: '角色名称不能超过 64 个字符' }]}><Input /></Form.Item>
-        <Form.Item field="code" label="角色标识" rules={[{ required: true, message: '请输入角色标识' }, { match: /^[a-z][a-z0-9_]{1,63}$/, message: '须以小写字母开头，且只能包含小写字母、数字和下划线' }]}><Input /></Form.Item>
-        <Form.Item field="sort_order" label="排序" rules={[{ type: 'number', min: 0, max: 9999, message: '排序须为 0–9999 的整数' }]}><InputNumber min={0} max={9999} precision={0} style={{ width: '100%' }} /></Form.Item>
-        <Form.Item field="description" label="描述" rules={[{ maxLength: 255, message: '描述不能超过 255 个字符' }]}><Input.TextArea placeholder="选填" maxLength={255} /></Form.Item>
-        <Form.Item field="status" label="状态" triggerPropName="checked" formatter={(value) => value === 1} normalize={(value) => value === true ? 1 : 0}><Switch checkedText="启用" uncheckedText="禁用" /></Form.Item>
+    <div className="page-toolbar">{can('create') && <Button icon={<IconPlus />} type="primary" onClick={() => void edit(null)}>新建角色</Button>}</div>
+    <div className="table-scroll"><Table onChange={onTableChange} rowKey="id" data={applyClientTableQuery(rows, queryParams, ['status', 'data_scope'])} columns={columns} loading={loading}
+      pagination={{ current: page, pageSize, onChange: setPage, onPageSizeChange: setPageSize, sizeCanChange: true, sizeOptions: TABLE_PAGE_SIZE_OPTIONS, showTotal: true }} scroll={{ x: 860 }} /></div>
+    <FormDialog title={editing ? '编辑角色' : '新建角色'} visible={basicOpen} onCancel={() => setBasicOpen(false)} onOk={() => void saveRole()} confirmLoading={saving}>
+      <Form form={roleForm} layout={wideViewport ? 'horizontal' : 'vertical'}
+        labelCol={wideViewport ? { flex: '112px' } : undefined}
+        wrapperCol={wideViewport ? { flex: 'auto' } : undefined}>
+        <Form.Item field="name" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }, { minLength: 2, message: '角色名称至少 2 个字符' }, { maxLength: 64, message: '角色名称不能超过 64 个字符' }]}><Input placeholder="请输入角色名称" /></Form.Item>
+        <Form.Item field="code" label="角色标识" tooltip="2–64 位小写字母、数字或下划线，须以小写字母开头。" rules={[{ required: true, message: '请输入角色标识' }, { match: /^[a-z][a-z0-9_]{1,63}$/, message: '须以小写字母开头，且只能包含小写字母、数字和下划线' }]}><Input placeholder="请输入角色标识" /></Form.Item>
+        <Form.Item field="sort_order" label="排序" rules={[{ type: 'number', min: 0, max: 9999, message: '排序须为 0–9999 的整数' }]}><InputNumber mode="button" placeholder="请输入排序" min={0} max={9999} precision={0} style={{ width: '100%' }} /></Form.Item>
+        <Form.Item field="description" label="描述" rules={[{ maxLength: 255, message: '描述不能超过 255 个字符' }]}><Input.TextArea placeholder="请输入描述（选填）" maxLength={255} /></Form.Item>
+        <Form.Item field="status" label="状态" triggerPropName="checked" formatter={(value) => value === 1} normalize={(value) => value === true ? 1 : 0}><Switch type="round" checkedText="启用" uncheckedText="禁用" /></Form.Item>
         <Form.Item field="data_scope" label="数据权限" rules={[{ required: true, message: '请选择数据范围' }]}>
-          <Select onChange={(value) => setScopeMode(value as DataScopeMode)}
+          <Select placeholder="请选择数据权限" onChange={(value) => setScopeMode(value as DataScopeMode)}
             options={Object.entries(scopeLabels).filter(([value]) => user?.is_founder || value === 'self' || value === 'custom').map(([value, label]) => ({ value, label }))} />
         </Form.Item>
-        {scopeMode === 'custom' && <Form.Item field="department_ids" label="允许查看的部门"
+        {scopeMode === 'custom' && <Form.Item field="department_ids" label="可查看部门"
           formatter={(value) => (value ?? []).map(String)} normalize={(value) => (value ?? []).map(Number)}>
           <TreeSelect multiple treeCheckable treeCheckStrictly showSearch placeholder="请选择部门" treeData={departmentTreeData(departments)} />
         </Form.Item>}
       </Form>
-    </Modal>
-    <Drawer title={target ? `分配权限 · ${target.name}` : '分配权限'} visible={permissionOpen} width="min(1100px, 100vw)" onCancel={() => { if (!saving) setPermissionOpen(false) }}
+    </FormDialog>
+    <Drawer maskClosable title={target ? `分配权限 · ${target.name}` : '分配权限'} visible={permissionOpen} width="min(1100px, calc(100vw - 24px))" onCancel={() => setPermissionOpen(false)}
       footer={<div className="drawer-actions"><Button onClick={() => setPermissionOpen(false)}>取消</Button><Button type="primary" loading={saving} onClick={() => void savePermissions()}>保存</Button></div>}>
       {target && <>
         <RolePermissionEditor catalog={catalog} value={checked} grantable={permissions} isFounder={Boolean(user?.is_founder)} onChange={setChecked} />

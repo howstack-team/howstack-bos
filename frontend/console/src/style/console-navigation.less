@@ -1,0 +1,9 @@
+// 顶部链接通过公开 Token 使用统一文字颜色，只在悬停或按下时显示主题色。
+@scope (.console-top-navigation, .console-top-shortcuts) {
+  @import '@arco-design/web-react/es/Link/style/index.less';
+  @import (reference) '@arco-themes/react-arco-pro/variables.less';
+
+  @link-color-text: var(--color-text-2);
+  @link-color-text_hover: rgb(var(--primary-6));
+  @link-color-text_active: rgb(var(--primary-7));
+}

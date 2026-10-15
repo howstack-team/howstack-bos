@@ -1,0 +1,1 @@
+import{n as e}from"./httpClient-UJbwK5rx.js";var t={list(t){return e({url:`/members`,params:t})},get(t){return e({url:`/members/${t}`})},save(t,n){return e({method:n?`PUT`:`POST`,url:n?`/members/${n}`:`/members`,data:t})},delete(t){return e({method:`DELETE`,url:`/members/${t}`})}};export{t};

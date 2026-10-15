@@ -13,7 +13,8 @@ use app\shared\http\ApiErrorCode;
 /** 公开资金门面，负责支付匹配及来源批次扣减规则，不接触订单持久化。 */
 final readonly class WalletLedgerService
 {
-    public function __construct(private WalletLedgerRepositoryInterface $ledger, private TransactionManagerInterface $transactions)
+    public function __construct(private WalletLedgerRepositoryInterface $ledger, private TransactionManagerInterface $transactions,
+        private \app\modules\message\contract\MessagePublisherInterface $messages)
     {
     }
 
@@ -41,6 +42,8 @@ final readonly class WalletLedgerService
             if ($amount <= 0 || $amount > PHP_INT_MAX - $account['available_minor']) throw self::conflict('充值金额无效或余额超出范围');
             $balance = $account['available_minor'] + $amount;
             $this->ledger->recordCredit($account, $rechargeId, $amount, $balance);
+            $this->messages->publish('recharge.credited.' . $rechargeId, 'recharge_received', 'recharge', $rechargeId, $memberId,
+                ['site_name' => '云业务运营系统', 'amount' => intdiv($amount, 100) . '.' . str_pad((string) ($amount % 100), 2, '0', STR_PAD_LEFT)]);
             return $balance;
         });
     }

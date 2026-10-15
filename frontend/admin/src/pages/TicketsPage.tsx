@@ -1,30 +1,33 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Alert, Button, Descriptions, Drawer, Input, Link, Message, Select, Space, Table, Tag } from '@arco-design/web-react'
+import { StatusBadge } from '../components/TableEnum'
+import { TICKET_STATUSES as STATUSES, TICKET_PRIORITIES } from '../utils/businessEnums'
+import { enumLabels, enumText } from '../utils/tableEnum'
+import useTableQuery from '../hooks/useTableQuery'
+import TableQueryForm from '../components/TableQueryForm'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Form, Alert, Button, Descriptions, Drawer, Input, Link, Message, Select, Table } from '@arco-design/web-react'
 import type { TableColumnProps } from '@arco-design/web-react'
 import { supportApi } from '../api/supportContentApi.ts'
 import type { QuickReply, Ticket, TicketMessage } from '../api/supportContentApi.ts'
 import { useAdminAuth } from '../auth/AuthContext.ts'
 import TableActions from '../components/TableActions.tsx'
 import { tableCellText } from '../utils/tableCellText.ts'
-import { DEFAULT_TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination.ts'
+import { TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination.ts'
 
-const STATUSES: Record<string, { text: string; color: string }> = {
-  open: { text: '待处理', color: 'blue' }, processing: { text: '处理中', color: 'orange' },
-  waiting_member: { text: '等待会员', color: 'purple' }, closed: { text: '已关闭', color: 'gray' },
-}
-const PRIORITIES: Record<string, string> = { low: '低', normal: '普通', high: '高', urgent: '紧急' }
+const PRIORITIES = enumLabels(TICKET_PRIORITIES)
 
 export default function TicketsPage() {
+  const searchFields = [
+    { key: 'ticket_no', label: '工单编号', maxLength: 64 },
+    { key: 'subject', label: '主题', maxLength: 128 },
+    { key: 'member_mobile', label: '会员手机号', maxLength: 20 },
+    { key: 'member_nickname', label: '会员昵称', maxLength: 64 },
+  ]
+  const { queryParams, sortColumn, filterColumn, onTableChange, draftFields, setField, discard, page, pageSize, setPage, setPageSize, search, reset, refreshKey, status, draftStatus, setDraftStatus } = useTableQuery({ sortFields: ['updated_at'], enumFields: { priority: Object.keys(PRIORITIES) }, textFields: searchFields.map(field => field.key), statusValues: Object.keys(STATUSES) })
   const { permissions } = useAdminAuth()
   const canReply = permissions.includes('admin.tickets.list.reply')
   const canUseQuickReply = permissions.includes('admin.tickets.quick-replies.view')
   const [rows, setRows] = useState<Ticket[]>([])
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE)
-  const [input, setInput] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [status, setStatus] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -35,14 +38,20 @@ export default function TicketsPage() {
   const [saving, setSaving] = useState(false)
   const [detailError, setDetailError] = useState('')
 
+  const listRequest = useRef(0)
+  const invalidateList = useCallback(() => { listRequest.current++ }, [])
   const load = useCallback(async () => {
+    const request = ++listRequest.current
     setLoading(true); setError('')
-    try { const result = await supportApi.tickets({ keyword, status, page, page_size: pageSize }); setRows(result.data); setTotal(result.total) }
-    catch (reason) { setError(reason instanceof Error ? reason.message : '工单加载失败') }
-    finally { setLoading(false) }
-  }, [keyword, status, page, pageSize])
+    try { const result = await supportApi.tickets({ ...queryParams, status, page, page_size: pageSize }); if (request !== listRequest.current) return
+      setRows(result.data); setTotal(result.total) }
+    catch (reason) {
+      if (request !== listRequest.current) return
+      setError(reason instanceof Error ? reason.message : '工单加载失败') }
+    finally { if (request === listRequest.current) setLoading(false) }
+  }, [queryParams, status, page, pageSize])
 
-  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer) }, [load])
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => { invalidateList(); window.clearTimeout(timer) } }, [load, refreshKey, invalidateList])
   useEffect(() => {
     if (selectedId === null) return
     let active = true
@@ -72,12 +81,12 @@ export default function TicketsPage() {
     { title: '序号', width: 76, render: (_, __, index) => (page - 1) * pageSize + index + 1 },
     { title: '工单编号', width: 180, ellipsis: true, render: (_, row) => <Link title={row.ticket_no} onClick={() => setSelectedId(row.id)}>{row.ticket_no}</Link> },
     { title: '主题', dataIndex: 'subject', width: 260, ellipsis: true, render: tableCellText },
-    { title: '类型', dataIndex: 'type_name', width: 150, ellipsis: true, render: tableCellText },
+    { title: '类型', dataIndex: 'type_name', width: 150, ellipsis: true, render: (value) => tableCellText(value) },
     { title: '会员', dataIndex: 'member_nickname', width: 150, ellipsis: true, render: tableCellText },
-    { title: '优先级', width: 100, render: (_, row) => PRIORITIES[row.priority] ?? row.priority },
-    { title: '状态', width: 120, render: (_, row) => <Tag color={STATUSES[row.status]?.color ?? 'gray'}>{STATUSES[row.status]?.text ?? row.status}</Tag> },
-    { title: '更新时间', dataIndex: 'updated_at', width: 180, render: tableCellText },
-    { title: '操作', width: 90, fixed: 'right', render: (_, row) => <TableActions actions={[{ key: 'detail', label: '详情', onClick: () => setSelectedId(row.id) }]} /> },
+    { ...filterColumn('priority', PRIORITIES), title: '优先级', width: 100, render: (_, row) => enumText(TICKET_PRIORITIES, row.priority) },
+    { ...filterColumn('status', enumLabels(STATUSES)), title: '状态', width: 120, render: (_, row) => <StatusBadge value={row.status} mapping={STATUSES} /> },
+    { ...sortColumn('updated_at'), title: '更新时间', dataIndex: 'updated_at', width: 180, render: tableCellText },
+    { title: '操作', width: 114, fixed: 'right', render: (_, row) => <TableActions actions={[{ key: 'detail', label: '详情', onClick: () => setSelectedId(row.id) }]} /> },
   ]
 
   const detailRows = ticket ? [
@@ -88,17 +97,18 @@ export default function TicketsPage() {
   ].map(([label, value], index) => ({ key: String(index), label, value: <span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{tableCellText(value)}</span> })) : []
 
   return <section className="page-card">
-    <div className="page-toolbar"><Space wrap>
-      <Input.Search value={input} onChange={setInput} allowClear searchButton="查询" placeholder="搜索编号、主题或会员"
-        onSearch={() => { setPage(1); setKeyword(input.trim()) }} style={{ width: 280, maxWidth: '100%' }} />
-      <Select value={status} allowClear placeholder="全部状态" style={{ width: 140 }} onChange={(value) => { setPage(1); setStatus(value) }}
-        options={Object.entries(STATUSES).map(([value, item]) => ({ value, label: item.text }))} />
-    </Space></div>
+    <TableQueryForm fields={searchFields} values={draftFields} onFieldChange={setField}
+      appliedCount={Object.keys(queryParams).filter(key => !['sort_by', 'sort_order'].includes(key)).length} onCancelFilters={discard}
+      onSearch={search} onReset={reset} loading={loading}>
+
+      <Form.Item label="状态" className="table-query-field" style={{ marginBottom: 0, marginRight: 0, minWidth: 0, maxWidth: '100%' }}><Select value={draftStatus} allowClear placeholder="全部状态" style={{ width: 140 }} onChange={setDraftStatus}
+        options={Object.entries(STATUSES).map(([value, item]) => ({ value, label: item.text }))} /></Form.Item>
+    </TableQueryForm>
     {error && <Alert type="error" content={error} style={{ marginBottom: 16 }} />}
-    <div className="table-scroll"><Table rowKey="id" columns={columns} data={rows} loading={loading} scroll={{ x: 1300 }}
+    <div className="table-scroll"><Table onChange={onTableChange} rowKey="id" columns={columns} data={rows} loading={loading} scroll={{ x: 1300 }}
       pagination={{ current: page, pageSize, total, showTotal: true, sizeCanChange: true, sizeOptions: TABLE_PAGE_SIZE_OPTIONS,
-        onChange: setPage, onPageSizeChange: (size) => { setPage(1); setPageSize(size) } }} /></div>
-    <Drawer title="工单详情" visible={selectedId !== null} width="min(760px, 100vw)" footer={null}
+        onChange: setPage, onPageSizeChange: setPageSize }} /></div>
+    <Drawer maskClosable title="工单详情" visible={selectedId !== null} width="min(760px, calc(100vw - 24px))" footer={null}
       onCancel={() => { setSelectedId(null); setTicket(null); setReply('') }}>
       {detailError && <Alert type="error" content={detailError} />}
       {ticket && <>

@@ -1,0 +1,30 @@
+{
+  "manifest_version": "1.0",
+  "id": "wechat_native",
+  "category": "payment",
+  "name": "微信 Native 支付",
+  "version": "1.0.0",
+  "publisher": "howstack-team",
+  "license": "AGPL-3.0-or-later",
+  "requires": {
+    "core_min": "0.1.0",
+    "core_max_exclusive": "1.0.0",
+    "php_min": "8.4",
+    "plugin_sdk": "1.0",
+    "payment_sdk": "1.0"
+  },
+  "configuration_schema": "configuration.schema.json",
+  "capabilities": {
+    "payment.create": true,
+    "payment.query": true,
+    "payment.close": true,
+    "payment.notify": true
+  },
+  "network": {
+    "transport": "https"
+  },
+  "permissions": [],
+  "frontend": [],
+  "migrations": [],
+  "data_policy": "retain"
+}

@@ -9,10 +9,15 @@ body { margin: 0; min-width: 320px; color: var(--color-text-1); background: var(
 button, input { font: inherit; }
 .app-loading { min-height: 50vh; display: grid; place-items: center; }
 .app-loading-icon { width: 40px; height: 40px; animation: arco-loading-circle 1s infinite cubic-bezier(0, 0, 1, 1); }
+@media (prefers-reduced-motion: reduce) {
+  img.app-loading-icon { animation: none; }
+}
 .page-card { background: var(--color-bg-2); border: 1px solid var(--color-border-2); border-radius: 2px; padding: 20px; }
 .page-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .page-toolbar:empty { display: none; }
-.table-scroll { overflow-x: auto; }
+.table-query-form { min-width: 0; max-width: 100%; gap: 12px; margin-bottom: 16px; }
+/* 横向滚动由 Table 的 scroll.x 管理，外层不再创建第二个滚动容器。 */
+.table-scroll { min-width: 0; }
 .empty-state { text-align: center; padding: 80px 20px; color: var(--color-text-3); }
 .empty-state h2 { color: var(--color-text-1); }
 .inline-tags { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -28,29 +33,6 @@ button, input { font: inherit; }
 .login-options { display: flex; align-items: center; justify-content: space-between; margin: 0 0 22px; }
 .login-options a { color: #165dff; }
 .login-footer { color: var(--color-text-3); font-size: 12px; margin-top: 25px; }
-.dashboard-welcome, .dashboard-stat, .dashboard-card { border: 1px solid var(--color-border-2); border-radius: 2px; }
-.dashboard-welcome { margin-bottom: 16px; }
-.dashboard-stats { margin-bottom: 16px; }
-.dashboard-stat { min-height: 135px; margin-bottom: 16px; }
-.dashboard-stat-head { display: flex; align-items: center; justify-content: space-between; color: var(--color-text-3); font-size: 13px; }
-.dashboard-stat-icon { color: #165dff; font-size: 19px; }
-.dashboard-stat strong { display: block; margin: 8px 0 6px; font-size: 25px; }
-.dashboard-stat small { color: var(--color-text-3); }
-.dashboard-card { min-height: 325px; margin-bottom: 16px; }
-.trend-bars { height: 238px; display: flex; align-items: stretch; justify-content: space-around; gap: 10px; }
-.trend-item { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: center; color: var(--color-text-3); font-size: 11px; }
-.trend-item strong { color: var(--color-text-2); white-space: nowrap; font-weight: 500; }
-.trend-bar-track { flex: 1; width: min(58px, 100%); display: flex; align-items: flex-end; background: var(--color-fill-2); margin: 8px 0; }
-.trend-bar-track > div { width: 100%; background: #165dff; }
-.sales-ranking { display: grid; gap: 19px; padding-top: 5px; }
-.sales-row > div:first-child { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: 12px; }
-.sales-row strong { white-space: nowrap; }
-.sales-track { height: 7px; background: var(--color-fill-2); }
-.sales-track > div { height: 100%; background: #165dff; }
-.quick-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin-bottom: 22px; }
-.quick-action { justify-content: flex-start; }
-.health-line { margin: 17px 0 25px; }
-.health-line div { display: flex; justify-content: space-between; margin-bottom: 10px; }
 .permission-editor { margin-top: 0; }
 .permission-options { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; min-width: 0; }
 .permission-toolbar { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
@@ -62,3 +44,5 @@ button, input { font: inherit; }
   .login-panel { padding: 24px; }
   .page-card { padding: 14px; }
 }
+.table-query-form-mobile .table-query-field { flex: 1 1 100px; }
+.table-query-actions { flex-shrink: 0; }

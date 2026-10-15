@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: 业务插件后台管理 API
+  version: 1.0.0
+  description: 宿主固定管理接口。审核后将本地包放入分类目录，安装登记不下载、不执行脚本。供应连接配置沿用 provider-connections 接口。
+servers:
+  - url: /api/admin/v1
+security:
+  - adminCookie: []
+paths:
+  /business-plugins:
+    get:
+      summary: 查看本地插件包及安装状态
+      operationId: adminBusinessPluginsIndex
+      x-permission: admin.plugins.view
+      responses:
+        '200':
+          description: 安全白名单，不包含内部文件路径、类名、摘要或秘密配置值
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginListResponse'
+        '401':
+          description: 未登录
+        '403':
+          description: 无页面权限
+  /business-plugins/{id}/lifecycle:
+    post:
+      summary: 执行固定生命周期动作
+      operationId: adminBusinessPluginsLifecycle
+      description: install/upgrade/uninstall 分别需要独立权限；enable/drain/disable 使用 admin.plugins.update。验证同源写入；路径 ID 覆盖请求体同名字段。状态与审计同事务提交。
+      x-permissions:
+        - admin.plugins.install
+        - admin.plugins.update
+        - admin.plugins.upgrade
+        - admin.plugins.uninstall
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z][a-z0-9_]{0,63}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, revision]
+              properties:
+                action:
+                  type: string
+                  enum: [install, enable, drain, disable, upgrade, uninstall]
+                revision:
+                  type: integer
+                  minimum: 0
+                  description: 尚未安装为0，已有安装记录必须提交当前版本
+      responses:
+        '200':
+          description: 状态变更成功，data 为安装记录白名单，不代表外部生产成功
+        '400':
+          description: 请求字段或动作无效
+        '401':
+          description: 未登录
+        '403':
+          description: 无动作权限或写入来源无效
+        '404':
+          description: 无安装记录
+        '409':
+          description: 安装版本陈旧、插件不可用、状态不允许、需要审核或业务引用未收敛
+components:
+  securitySchemes:
+    adminCookie:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+  schemas:
+    PluginListResponse:
+      type: object
+      required: [code, message, data, request_id]
+      properties:
+        code:
+          type: integer
+          enum: [0]
+        message:
+          type: string
+        request_id:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessPlugin'
+    BusinessPlugin:
+      type: object
+      additionalProperties: false
+      required: [id, name, category, version, installed_version, publisher, state, revision, available, requires_upgrade, diagnostic, configuration_scope, configuration_fields, capabilities, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum: [provider, payment, identity, sms, mail, storage, oauth, captcha, product, feature]
+        version:
+          type: string
+        installed_version:
+          type: string
+          nullable: true
+        publisher:
+          type: string
+        state:
+          type: string
+          enum: [not_installed, installed, enabled, draining, disabled, uninstalled]
+        revision:
+          type: integer
+        available:
+          type: boolean
+        requires_upgrade:
+          type: boolean
+        diagnostic:
+          type: string
+        configuration_scope:
+          type: string
+          nullable: true
+          enum: [connection]
+        configuration_fields:
+          type: array
+          maxItems: 16
+          items:
+            type: object
+            description: 受限字段声明，支持 text/password/url/integer/boolean/select；不包含客户配置值
+        capabilities:
+          type: object
+          additionalProperties:
+            type: boolean
+        created_at:
+          type: string
+          nullable: true

@@ -12,6 +12,7 @@ return [
         'secure_cookie' => filter_var(getenv('SESSION_SECURE') ?: false, FILTER_VALIDATE_BOOL),
     ],
     'member' => [
+        'remember_ttl' => 2592000,
         'cookie_name' => 'hlyq_member_token',
         'issuer' => getenv('APP_URL') ?: 'hlyq-idcbm',
         'audience' => 'hlyq-member',

@@ -1,0 +1,39 @@
+---
+title: 消息运行时与独立注册验证码
+---
+flowchart LR
+  business["已接入业务事件 · 同一数据库事务"]
+  config["消息场景 / 接收策略 / 通道引用"]
+  publisher["MessagePublisherInterface"]
+  db[("messages / recipients / deliveries / attempts")]
+  scan["10 秒维护扫描 · 补投与过期恢复"]
+  redis[("Redis · 仅 delivery_id")]
+  consumer["Consumer · 原子领取 / 120 秒租约"]
+  inApp["站内消息 · delivered"]
+  transport["邮件 / 短信 / 钉钉 / 企微 / 飞书"]
+  accepted["明确受理 · accepted"]
+  failed["明确失败 · 有限重试"]
+  unknown["结果未知 · unknown · 禁止盲重发"]
+  registration["注册验证码 · 独立即时发送与挑战校验"]
+  challenge[("注册挑战摘要 + Redis 限流")]
+  business --> publisher
+  config --> publisher
+  publisher --> db
+  scan --> db
+  scan --> redis
+  redis --> consumer
+  consumer --> db
+  consumer --> inApp
+  consumer --> transport
+  transport --> accepted
+  transport --> failed
+  transport --> unknown
+  accepted --> db
+  failed --> db
+  unknown --> db
+  registration --> challenge
+  registration --> transport
+  classDef normal fill:#e8f3ff,stroke:#165dff,color:#1d2129
+  classDef caution fill:#fff7e6,stroke:#d98e04,color:#1d2129
+  class business,config,publisher,db,scan,redis,consumer,inApp,transport,accepted,registration,challenge normal
+  class failed,unknown caution

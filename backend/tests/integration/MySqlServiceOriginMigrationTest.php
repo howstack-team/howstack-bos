@@ -32,7 +32,7 @@ final class MySqlServiceOriginMigrationTest extends TestCase
         Db::statement('ALTER TABLE orm_service_instances ADD origin_order_unit_id INT UNSIGNED NULL');
         $runner = new PhinxCoreMigrationRunner(new SystemUpdatePdoFactory(), new PdoSchemaInspector());
         $configuration = MigrationDatabaseConfiguration::fromArray(Db::connection()->getConfig());
-        self::assertSame([20261001000200], $runner->migrate($configuration)->executed);
+        self::assertSame([20261001000200, 20261002000100, 20261002000200, 20261002000300, 20261003000100, 20261003000200, 20261003000300, 20261004000100, 20261004000200, 20261006000100, 20261006000200, 20261006000300, 20261006000400, 20261007000100, 20261007000200, 20261007000300], $runner->migrate($configuration)->executed);
         self::assertSame($unit, (int) Db::table('service_instances')->where('id', $service)->value('origin_order_unit_id'));
         self::assertSame(1200, (int) Db::table('order_item_units')->sum('allocated_minor'));
         $indexes = array_column(Db::select('SHOW INDEX FROM orm_order_item_units'), 'Key_name');
@@ -70,7 +70,7 @@ final class MySqlServiceOriginMigrationTest extends TestCase
         self::assertSame(1200, (int) Db::table('order_item_units')->sum('allocated_minor'));
         self::assertSame(0, (int) Db::selectOne("SELECT COUNT(*) AS aggregate FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'orm_service_instances' AND COLUMN_NAME = 'origin_order_unit_id'", [$configuration->database])->aggregate);
         Db::table('service_instances')->where('id', $service)->update(['member_id' => $owner]);
-        self::assertSame([20261001000200], $runner->migrate($configuration)->executed);
+        self::assertSame([20261001000200, 20261002000100, 20261002000200, 20261002000300, 20261003000100, 20261003000200, 20261003000300, 20261004000100, 20261004000200, 20261006000100, 20261006000200, 20261006000300, 20261006000400, 20261007000100, 20261007000200, 20261007000300], $runner->migrate($configuration)->executed);
         self::assertSame($unit, (int) Db::table('service_instances')->value('origin_order_unit_id'));
     }
 

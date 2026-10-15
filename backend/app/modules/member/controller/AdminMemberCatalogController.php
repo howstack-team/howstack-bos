@@ -10,6 +10,7 @@ use app\modules\member\application\MemberCatalogManagementService;
 use app\modules\member\validation\MemberCatalogValidator;
 use app\modules\member\validation\MemberValidator;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\Delete;
 use support\annotation\route\DisableDefaultRoute;
@@ -35,7 +36,10 @@ final readonly class AdminMemberCatalogController
     public function groups(Request $request): Response
     {
         $query = MemberCatalogValidator::page($request->get());
-        return $this->responses->success($request, $this->management->groups($this->context->account($request), $query['keyword'], $query['status'], $query['page'], $query['page_size']));
+        return $this->responses->success($request, $this->management->groups(
+            $this->context->account($request), $query['keyword'], $query['status'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['name' => 64, 'code' => 64], ['sort_order', 'created_at']),
+        ));
     }
 
     #[Post(path: '/member-groups', name: 'admin.member-groups.store')]
@@ -51,7 +55,10 @@ final readonly class AdminMemberCatalogController
     public function levels(Request $request): Response
     {
         $query = MemberCatalogValidator::page($request->get());
-        return $this->responses->success($request, $this->management->levels($this->context->account($request), $query['keyword'], $query['status'], $query['page'], $query['page_size']));
+        return $this->responses->success($request, $this->management->levels(
+            $this->context->account($request), $query['keyword'], $query['status'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['name' => 64, 'code' => 64], ['level_order', 'growth_threshold', 'created_at']),
+        ));
     }
 
     #[Post(path: '/member-levels', name: 'admin.member-levels.store')]

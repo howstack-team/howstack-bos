@@ -1,0 +1,27 @@
+{
+  "manifest_version": "1.0",
+  "id": "smtp",
+  "category": "mail",
+  "name": "SMTP 邮件",
+  "version": "1.0.1",
+  "publisher": "howstack-team",
+  "license": "AGPL-3.0-or-later",
+  "requires": {
+    "core_min": "0.1.0",
+    "core_max_exclusive": "1.0.0",
+    "php_min": "8.4",
+    "plugin_sdk": "1.0",
+    "mail_sdk": "1.0"
+  },
+  "configuration_schema": "configuration.schema.json",
+  "capabilities": {
+    "mail.send": true
+  },
+  "network": {
+    "transport": "smtp"
+  },
+  "permissions": [],
+  "frontend": [],
+  "migrations": [],
+  "data_policy": "retain"
+}

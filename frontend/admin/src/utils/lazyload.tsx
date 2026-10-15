@@ -2,7 +2,7 @@
 import React from 'react';
 import loadable from '@loadable/component';
 import { Spin } from '@arco-design/web-react';
-import styles from '../style/layout.module.less';
+import styles from '../layouts/styles/frame.module.less';
 
 // https://github.com/gregberge/loadable-components/pull/226
 function load(fn, options) {

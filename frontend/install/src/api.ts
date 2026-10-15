@@ -41,8 +41,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return payload.data
 }
 
-export async function loadBootstrap(): Promise<BootstrapData> {
-  const data = await request<BootstrapData>('/api/install/bootstrap')
+export async function loadBootstrap(key = ''): Promise<BootstrapData> {
+  const data = await request<BootstrapData>('/api/install/bootstrap', { headers: key ? { 'X-Install-Key': key } : {} })
   installToken = data.token
   return data
 }

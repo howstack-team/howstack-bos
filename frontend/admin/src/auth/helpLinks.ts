@@ -15,5 +15,5 @@ function normalizeExternalHelpUrl(value: string | undefined): string {
   }
 }
 
-/** 管理员忘记密码帮助文档地址，未配置时登录页显示待开放提示。 */
+/** 管理员忘记密码帮助文档地址，未配置时登录页隐藏帮助入口。 */
 export const passwordHelpUrl = normalizeExternalHelpUrl(import.meta.env.VITE_PASSWORD_HELP_URL)

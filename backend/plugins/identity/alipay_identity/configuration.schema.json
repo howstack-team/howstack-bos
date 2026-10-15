@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "应用 ID",
+      "type": "text",
+      "required": true,
+      "max_length": 16,
+      "placeholder": "请输入支付宝应用 ID"
+    },
+    {
+      "key": "private_key",
+      "label": "应用私钥",
+      "type": "password",
+      "required": true,
+      "max_length": 2048,
+      "placeholder": "请输入应用 RSA2 私钥",
+      "description": "支持 2048 位 RSA 的 PKCS#1 或 PKCS#8 私钥，输入 Base64 内容；保存后不回显。"
+    },
+    {
+      "key": "alipay_public_key",
+      "label": "支付宝公钥",
+      "type": "text",
+      "required": true,
+      "max_length": 2048,
+      "placeholder": "请输入支付宝 RSA2 公钥",
+      "description": "填写支付宝公钥，不是应用公钥；当前使用公钥模式。"
+    },
+    {
+      "key": "sandbox",
+      "label": "沙箱环境",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "生产与沙箱使用各自的应用及密钥，网关由插件固定选择。"
+    }
+  ]
+}

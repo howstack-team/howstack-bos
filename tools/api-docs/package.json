@@ -1,0 +1,22 @@
+{
+  "name": "@howstack/api-docs",
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.22.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs --check",
+    "test": "node --test tests/*.test.mjs",
+    "lint:spec": "REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint ../../backend/resources/api-docs/specs/admin.json ../../backend/resources/api-docs/specs/console.json ../../backend/resources/api-docs/specs/public.json --config redocly.yaml",
+    "test:responses": "node scripts/check-responses.mjs"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.60.0",
+    "@scalar/api-reference": "1.73.1",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1",
+    "yaml": "2.9.1"
+  }
+}

@@ -1,0 +1,94 @@
+openapi: 3.1.0
+info:
+  title: 会员中心公开展示配置
+  version: 1.0.0
+servers:
+  - url: /
+security: []
+paths:
+  /api/console/v1/bootstrap:
+    get:
+      operationId: consoleThemeBootstrap
+      summary: 读取当前设备选用的主题公开配置，无挂载入口及身份信息
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: &a1
+                    type: string
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - contract
+                      - apiBase
+                      - basePath
+                      - assetBase
+                      - site
+                      - theme
+                      - settings
+                      - capabilities
+                    properties:
+                      contract:
+                        const: "1"
+                        type: string
+                      apiBase:
+                        type: string
+                        const: /api/console/v1
+                      basePath:
+                        type: string
+                        const: /console
+                      assetBase: *a1
+                      site:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - name
+                          - logo
+                          - favicon
+                          - copyright
+                          - icp_record
+                          - public_security_record
+                        properties:
+                          name: *a1
+                          logo: *a1
+                          favicon: *a1
+                          copyright: *a1
+                          icp_record: *a1
+                          public_security_record: *a1
+                      theme:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - id
+                          - version
+                          - type
+                        properties:
+                          id: *a1
+                          version: *a1
+                          type:
+                            type: string
+                            enum:
+                              - pc
+                              - mobile
+                      settings:
+                        type: object
+                        additionalProperties: true
+                        description: 按照该组件的有限JSON Schema声明返回公开展示字段，不含凭据
+                      capabilities:
+                        type: array
+                        items: *a1
+                  request_id: *a1

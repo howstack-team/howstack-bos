@@ -1,0 +1,27 @@
+{
+  "manifest_version": "1.0",
+  "id": "smsbao",
+  "category": "sms",
+  "name": "短信宝",
+  "version": "1.0.0",
+  "publisher": "howstack-team",
+  "license": "AGPL-3.0-or-later",
+  "requires": {
+    "core_min": "0.1.0",
+    "core_max_exclusive": "1.0.0",
+    "php_min": "8.4",
+    "plugin_sdk": "1.0",
+    "sms_sdk": "1.0"
+  },
+  "configuration_schema": "configuration.schema.json",
+  "capabilities": {
+    "sms.send": true
+  },
+  "network": {
+    "transport": "https"
+  },
+  "permissions": [],
+  "frontend": [],
+  "migrations": [],
+  "data_policy": "retain"
+}

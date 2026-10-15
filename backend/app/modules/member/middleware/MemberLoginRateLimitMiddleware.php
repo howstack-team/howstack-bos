@@ -32,9 +32,9 @@ final readonly class MemberLoginRateLimitMiddleware implements MiddlewareInterfa
         try {
             Limiter::check('hlyq-member-login:' . hash('sha256', $this->clientIps->resolve($request)),
                 $security['login_attempts'], $security['login_window']);
-            $mobile = $request->post('mobile');
-            if (is_string($mobile) && preg_match('/^\+?[0-9]{6,20}$/', $mobile) === 1) {
-                Limiter::check('hlyq-member-mobile-login:' . hash('sha256', $mobile),
+            $account = $request->post('account', $request->post('mobile'));
+            if (is_string($account) && strlen($account) <= 254) {
+                Limiter::check('hlyq-member-account-login:' . hash('sha256', strtolower(trim($account))),
                     $security['login_attempts'], $security['login_window']);
             }
         } catch (RateLimitException) {

@@ -1,0 +1,2002 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "后台消息配置",
+    "version": "v1",
+    "description": "固定消息目录、渠道、模板与管理员接收范围；配置保存不发送，实际业务投递见 messages.v1.yaml。 注册验证码支持短信与邮件；登录验证码仍仅支持短信，不接受其邮件单条或批量配置。"
+  },
+  "security": [
+    {
+      "adminCookie": []
+    }
+  ],
+  "paths": {
+    "/api/admin/v1/message-configurations/{audience}": {
+      "parameters": [
+        {
+          "name": "audience",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin"
+            ]
+          }
+        }
+      ],
+      "get": {
+        "operationId": "admin.message-configurations.index",
+        "description": "需要 admin.message-configurations.view。固定事件目录；不存在配置时返回禁用默认状态，读取不写库。",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "与另一个条件 AND 组合"
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "与另一个条件 AND 组合"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MessageList"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无查看/修改权限或同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息类型不存在",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "配置修订冲突",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数、模板变量、渠道或秘密无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端异常，响应不暴露内部数据",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取受众消息配置列表"
+      }
+    },
+    "/api/admin/v1/message-configurations/{audience}/{code}": {
+      "parameters": [
+        {
+          "name": "audience",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "admin.message-configurations.show",
+        "description": "需要查看权限，只返回模板、可用渠道与共享机器人配置状态，不回显任何机器人凭据。",
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MessageDetail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无查看/修改权限或同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息类型不存在",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "配置修订冲突",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "参数、模板变量、渠道或秘密无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端异常，响应不暴露内部数据",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "读取单条消息配置"
+      },
+      "put": {
+        "operationId": "admin.message-configurations.update",
+        "description": "需要 view 与 update，保留 SameOriginWrite 校验。以 revision 原子保存整条消息的所有渠道；仅保存配置，不触发发送。；兼容旧受众配置：场景已保存接收组时返回409，请使用 message-scenes 接口，禁止覆盖新策略。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MessageDetail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无查看/修改权限或同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息类型不存在",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "修订冲突，或旧写入口不可覆盖新接收组策略"
+          },
+          "422": {
+            "description": "参数、模板变量、渠道或秘密无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端异常，响应不暴露内部数据",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "保存单条消息配置"
+      }
+    },
+    "/api/admin/v1/message-configurations/{audience}/batch": {
+      "parameters": [
+        {
+          "name": "audience",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin"
+            ]
+          }
+        }
+      ],
+      "post": {
+        "operationId": "admin.message-configurations.batch",
+        "description": "需要 view 与 update，管理员认证和同源检查。事务内按消息编码排序保存，任一修订冲突或校验失败则整批回滚。仅修改选定渠道引用和状态，保留各自模板及其他渠道配置；不触发发送。；兼容旧受众配置：场景已保存接收组时返回409，请使用 message-scenes 接口，禁止覆盖新策略。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchMessageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BatchMessageResult"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无查看/修改权限或同源校验失败",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "消息类型不存在",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "修订冲突，或旧写入口不可覆盖新接收组策略"
+          },
+          "422": {
+            "description": "参数、模板变量、渠道或秘密无效",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端异常，响应不暴露内部数据",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {},
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "summary": "批量配置消息通道"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "adminCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_admin_token"
+      }
+    },
+    "schemas": {
+      "EmailConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "已配置通道 ID；0 为尚未选择。启用前服务端核验通道可用性。"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "EmailInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "已配置通道 ID；0 为尚未选择。启用前服务端核验通道可用性。"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "SmsConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "已配置通道 ID；0 为尚未选择。启用前服务端核验通道可用性。"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "template_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "variables": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "JSON 对象字符串，最多 30 项，只可使用当前事件允许的占位变量。"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "SmsInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "已配置通道 ID；0 为尚未选择。启用前服务端核验通道可用性。"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "template_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "variables": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "JSON 对象字符串，最多 30 项，只可使用当前事件允许的占位变量。"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "MessageConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "MessageInput": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483646
+          },
+          "configurations": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "$ref": "#/components/schemas/EmailInput"
+              },
+              "sms": {
+                "$ref": "#/components/schemas/SmsInput"
+              },
+              "message": {
+                "$ref": "#/components/schemas/StandaloneMessageInput"
+              },
+              "wechat": {
+                "$ref": "#/components/schemas/WechatInput"
+              },
+              "dingtalk": {
+                "$ref": "#/components/schemas/DingtalkInput"
+              },
+              "wecom": {
+                "$ref": "#/components/schemas/WecomInput"
+              },
+              "feishu": {
+                "$ref": "#/components/schemas/FeishuInput"
+              }
+            },
+            "required": [],
+            "additionalProperties": false,
+            "description": "必须包含当前消息全部支持渠道，不能增加不支持的渠道；跨 Tab 整体保存。"
+          },
+          "recipients": {
+            "$ref": "#/components/schemas/MessageRecipientPolicy"
+          }
+        },
+        "required": [
+          "revision",
+          "configurations"
+        ],
+        "additionalProperties": false
+      },
+      "WechatConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "template_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "variables": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "JSON 对象字符串，最多 30 项，只可使用当前事件允许的占位变量。"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "WechatInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "template_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "variables": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "JSON 对象字符串，最多 30 项，只可使用当前事件允许的占位变量。"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "DingtalkConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "DingtalkInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "WecomConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "WecomInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "FeishuConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "FeishuInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "MessageRow": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "channels": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "boolean"
+              },
+              "sms": {
+                "type": "boolean"
+              },
+              "message": {
+                "type": "boolean"
+              },
+              "wechat": {
+                "type": "boolean"
+              },
+              "dingtalk": {
+                "type": "boolean"
+              },
+              "wecom": {
+                "type": "boolean"
+              },
+              "feishu": {
+                "type": "boolean"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483646
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description",
+          "channels",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "MessageList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageRow"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "channel_labels": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string"
+              },
+              "sms": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "wechat": {
+                "type": "string"
+              },
+              "dingtalk": {
+                "type": "string"
+              },
+              "wecom": {
+                "type": "string"
+              },
+              "feishu": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "channel_labels"
+        ],
+        "additionalProperties": false
+      },
+      "MessageDetail": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483646
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin"
+            ]
+          },
+          "channels": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "email",
+                "sms",
+                "message",
+                "wechat",
+                "dingtalk",
+                "wecom",
+                "feishu"
+              ]
+            }
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "key",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "configurations": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "$ref": "#/components/schemas/EmailConfiguration"
+              },
+              "sms": {
+                "$ref": "#/components/schemas/SmsConfiguration"
+              },
+              "message": {
+                "$ref": "#/components/schemas/MessageConfiguration"
+              },
+              "wechat": {
+                "$ref": "#/components/schemas/WechatConfiguration"
+              },
+              "dingtalk": {
+                "$ref": "#/components/schemas/DingtalkConfiguration"
+              },
+              "wecom": {
+                "$ref": "#/components/schemas/WecomConfiguration"
+              },
+              "feishu": {
+                "$ref": "#/components/schemas/FeishuConfiguration"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "channel_options": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 128
+                    },
+                    "available": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "available"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "sms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 128
+                    },
+                    "available": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "available"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "robot_status": {
+            "type": "object",
+            "properties": {
+              "dingtalk": {
+                "type": "boolean"
+              },
+              "wecom": {
+                "type": "boolean"
+              },
+              "feishu": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false,
+            "description": "当前消息支持的机器人是否已在系统设置中配置 Webhook；不包含凭据。"
+          },
+          "recipients": {
+            "$ref": "#/components/schemas/MessageRecipientPolicy"
+          },
+          "recipient_options": {
+            "type": "object",
+            "required": [],
+            "additionalProperties": false,
+            "properties": {
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "roles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "members": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "管理员返回部门、角色和成员选项；客户返回空对象。"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description",
+          "revision",
+          "audience",
+          "channels",
+          "variables",
+          "configurations",
+          "robot_status",
+          "channel_options",
+          "recipients",
+          "recipient_options"
+        ],
+        "additionalProperties": false
+      },
+      "StandaloneMessageInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "BatchMessageInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "channel"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "code",
+                "revision"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483646
+                }
+              }
+            }
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "message",
+              "wechat",
+              "dingtalk",
+              "wecom",
+              "feishu"
+            ]
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "仅邮件和短信允许；省略保留每条消息原引用。"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "省略保留每条消息原状态。"
+          }
+        },
+        "description": "至少提供 channel_id 或 enabled；消息编码不得重复，全部消息必须支持所选渠道，不允许批量提交模板或机器人凭据。"
+      },
+      "BatchMessageResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "updated",
+          "channel",
+          "items"
+        ],
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "channel": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "code",
+                "revision"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      "MessageRecipientPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "ids"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "founder",
+              "departments",
+              "roles",
+              "members"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        },
+        "description": "仅管理员消息可修改。founder 使用空 ids，其余模式要求至少一个启用对象；不接受任意联系地址。"
+      }
+    }
+  }
+}

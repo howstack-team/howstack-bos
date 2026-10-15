@@ -1,4 +1,5 @@
 import defaultSettings from '../settings.json';
+import { readLayoutPreference } from '../layouts/preferences';
 export interface GlobalState {
   settings?: typeof defaultSettings;
   userInfo?: {
@@ -16,6 +17,7 @@ export interface GlobalState {
 const initialState: GlobalState = {
   settings: {
     ...defaultSettings,
+    layout: readLayoutPreference(defaultSettings.layout),
     watermark: (() => {
       try {
         const saved = localStorage.getItem('admin-watermark-enabled');

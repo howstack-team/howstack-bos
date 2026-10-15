@@ -20,7 +20,8 @@ final class ManageSupportServiceTest extends TestCase
         $grants->method('grantsForAdmin')->willReturn([]);
         $repository = $this->createMock(SupportRepositoryInterface::class);
         $repository->expects(self::never())->method('tickets');
-        $service = new ManageSupportService($repository, new AdminAccessControlService($grants));
+        $service = new ManageSupportService($repository, new AdminAccessControlService($grants), $this->createStub(\app\modules\message\contract\MessagePublisherInterface::class),
+            $this->createStub(\app\shared\contract\TransactionManagerInterface::class));
 
         $this->expectException(BusinessException::class);
         $service->tickets(new AdminAccount(7, 'operator', '运营', 'hash', 1, null), '', null, 1, 10);
@@ -32,7 +33,8 @@ final class ManageSupportServiceTest extends TestCase
         $repository = $this->createMock(SupportRepositoryInterface::class);
         $repository->expects(self::once())->method('catalog')->with('ticket_types', '', null, 1, 10)
             ->willReturn(['data' => [], 'total' => 0]);
-        $service = new ManageSupportService($repository, new AdminAccessControlService($grants));
+        $service = new ManageSupportService($repository, new AdminAccessControlService($grants), $this->createStub(\app\modules\message\contract\MessagePublisherInterface::class),
+            $this->createStub(\app\shared\contract\TransactionManagerInterface::class));
 
         self::assertSame(0, $service->catalog(new AdminAccount(1, 'founder', '创始人', 'hash', 1, null, true),
             'types', '', null, 1, 10)['total']);
@@ -43,7 +45,8 @@ final class ManageSupportServiceTest extends TestCase
         $grants = $this->createStub(AdminAccessRepositoryInterface::class);
         $repository = $this->createMock(SupportRepositoryInterface::class);
         $repository->expects(self::never())->method('reply');
-        $service = new ManageSupportService($repository, new AdminAccessControlService($grants));
+        $service = new ManageSupportService($repository, new AdminAccessControlService($grants), $this->createStub(\app\modules\message\contract\MessagePublisherInterface::class),
+            $this->createStub(\app\shared\contract\TransactionManagerInterface::class));
 
         $this->expectException(BusinessException::class);
         $service->reply(new AdminAccount(1, 'founder', '创始人', 'hash', 1, null, true), 10, '   ');
@@ -57,7 +60,8 @@ final class ManageSupportServiceTest extends TestCase
         ]]);
         $repository = $this->createMock(SupportRepositoryInterface::class);
         $repository->expects(self::never())->method('reply');
-        $service = new ManageSupportService($repository, new AdminAccessControlService($grants));
+        $service = new ManageSupportService($repository, new AdminAccessControlService($grants), $this->createStub(\app\modules\message\contract\MessagePublisherInterface::class),
+            $this->createStub(\app\shared\contract\TransactionManagerInterface::class));
 
         $this->expectException(BusinessException::class);
         $service->reply(new AdminAccount(7, 'operator', '运营', 'hash', 1, null), 10, '处理结果');

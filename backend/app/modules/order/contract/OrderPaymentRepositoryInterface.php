@@ -15,6 +15,9 @@ interface OrderPaymentRepositoryInterface
     /** 每项单位数量、单位序号及总分摊金额必须完整。 */
     public function allocationIsComplete(int $orderId, int $amountMinor): bool;
 
+    /** @return list<array{type:string,configuration:array,unit_ids:list<int>}> 仅新流程带库存办理标识的订单项。 */
+    public function capacityItems(int $orderId): array;
+
     /** 确认已锁定的订单付款。 */
     public function markPaid(int $orderId, int $amountMinor, string $paidAt): void;
 }

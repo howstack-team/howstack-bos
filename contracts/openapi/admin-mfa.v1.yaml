@@ -1,0 +1,1226 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "管理员两步验证 API",
+    "version": "1.0.0",
+    "description": "TOTP六位SHA1、30秒一步、允许前后一步偏差；仅用于运营后台。敏感信息只在必要时返回，不进入日志或浏览器持久存储。"
+  },
+  "security": [
+    {
+      "adminCookie": []
+    },
+    {
+      "adminBearer": []
+    }
+  ],
+  "paths": {
+    "/api/admin/v1/profile/mfa": {
+      "get": {
+        "operationId": "admin.profile.mfa.show",
+        "summary": "查询本人两步验证状态",
+        "description": "仅当前管理员本人；查看需要admin.profile.view，写入需要admin.profile.mfa。写操作每账号5分钟最多10次；绑定确认、关闭或重置恢复码都要求当前密码。变更递增认证修订，撤销旧JWT及所有挑战，并为当前浏览器签发新会话Cookie。",
+        "responses": {
+          "200": {
+            "description": "成功；响应及敏感数据禁止缓存。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "enabled",
+                        "enabled_at",
+                        "recovery_remaining"
+                      ],
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "enabled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "recovery_remaining": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证或挑战已失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "绑定状态冲突或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段验证失败，data.errors供表单定位，不重复弹出提示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "验证次数或安全操作超限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全服务不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/profile/mfa/setup": {
+      "post": {
+        "operationId": "admin.profile.mfa.setup",
+        "summary": "验证密码并生成待绑定验证器密钥",
+        "description": "仅当前管理员本人；查看需要admin.profile.view，写入需要admin.profile.mfa。写操作每账号5分钟最多10次；绑定确认、关闭或重置恢复码都要求当前密码。变更递增认证修订，撤销旧JWT及所有挑战，并为当前浏览器签发新会话Cookie。",
+        "responses": {
+          "200": {
+            "description": "成功；响应及敏感数据禁止缓存。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "setup_id",
+                        "secret",
+                        "uri",
+                        "expires_at"
+                      ],
+                      "properties": {
+                        "setup_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "secret": {
+                          "type": "string",
+                          "description": "Base32绑定密钥，仅本次返回，10分钟后失效；禁止日志、浏览器存储或外部二维码服务"
+                        },
+                        "uri": {
+                          "type": "string",
+                          "description": "otpauth://totp配置URI，用于本地生成二维码"
+                        },
+                        "expires_at": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证或挑战已失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "绑定状态冲突或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段验证失败，data.errors供表单定位，不重复弹出提示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "验证次数或安全操作超限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全服务不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与平台受信源匹配"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "current_password"
+                ],
+                "properties": {
+                  "current_password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "writeOnly": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/profile/mfa/enable": {
+      "post": {
+        "operationId": "admin.profile.mfa.enable",
+        "summary": "确认绑定并首次生成恢复码",
+        "description": "仅当前管理员本人；查看需要admin.profile.view，写入需要admin.profile.mfa。写操作每账号5分钟最多10次；绑定确认、关闭或重置恢复码都要求当前密码。变更递增认证修订，撤销旧JWT及所有挑战，并为当前浏览器签发新会话Cookie。",
+        "responses": {
+          "200": {
+            "description": "成功；响应及敏感数据禁止缓存。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "enabled",
+                        "enabled_at",
+                        "recovery_remaining",
+                        "recovery_codes"
+                      ],
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "enabled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "recovery_remaining": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        "recovery_codes": {
+                          "type": "array",
+                          "maxItems": 10,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{8}(-[a-f0-9]{8}){3}$"
+                          },
+                          "description": "128位随机一次性恢复码，仅生成时返回；关闭MFA返回空数组"
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证或挑战已失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "绑定状态冲突或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段验证失败，data.errors供表单定位，不重复弹出提示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "验证次数或安全操作超限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全服务不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与平台受信源匹配"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "current_password",
+                  "code",
+                  "setup_id"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "current_password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "writeOnly": true
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 35,
+                    "writeOnly": true,
+                    "description": "recovery=false为6位TOTP；true为32位十六进制恢复码，可含每8位间的连字符"
+                  },
+                  "recovery": {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  "setup_id": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/profile/mfa/disable": {
+      "post": {
+        "operationId": "admin.profile.mfa.disable",
+        "summary": "验证密码和第二因素后关闭MFA",
+        "description": "仅当前管理员本人；查看需要admin.profile.view，写入需要admin.profile.mfa。写操作每账号5分钟最多10次；绑定确认、关闭或重置恢复码都要求当前密码。变更递增认证修订，撤销旧JWT及所有挑战，并为当前浏览器签发新会话Cookie。",
+        "responses": {
+          "200": {
+            "description": "成功；响应及敏感数据禁止缓存。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "enabled",
+                        "enabled_at",
+                        "recovery_remaining",
+                        "recovery_codes"
+                      ],
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "enabled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "recovery_remaining": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        "recovery_codes": {
+                          "type": "array",
+                          "maxItems": 10,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{8}(-[a-f0-9]{8}){3}$"
+                          },
+                          "description": "128位随机一次性恢复码，仅生成时返回；关闭MFA返回空数组"
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证或挑战已失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "绑定状态冲突或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段验证失败，data.errors供表单定位，不重复弹出提示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "验证次数或安全操作超限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全服务不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与平台受信源匹配"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "current_password",
+                  "code"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "current_password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "writeOnly": true
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 35,
+                    "writeOnly": true,
+                    "description": "recovery=false为6位TOTP；true为32位十六进制恢复码，可含每8位间的连字符"
+                  },
+                  "recovery": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/profile/mfa/recovery-codes": {
+      "post": {
+        "operationId": "admin.profile.mfa.recovery",
+        "summary": "重新生成恢复码并废止旧码",
+        "description": "仅当前管理员本人；查看需要admin.profile.view，写入需要admin.profile.mfa。写操作每账号5分钟最多10次；绑定确认、关闭或重置恢复码都要求当前密码。变更递增认证修订，撤销旧JWT及所有挑战，并为当前浏览器签发新会话Cookie。",
+        "responses": {
+          "200": {
+            "description": "成功；响应及敏感数据禁止缓存。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "enabled",
+                        "enabled_at",
+                        "recovery_remaining",
+                        "recovery_codes"
+                      ],
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "enabled_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "recovery_remaining": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        "recovery_codes": {
+                          "type": "array",
+                          "maxItems": 10,
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{8}(-[a-f0-9]{8}){3}$"
+                          },
+                          "description": "128位随机一次性恢复码，仅生成时返回；关闭MFA返回空数组"
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证或挑战已失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "绑定状态冲突或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段验证失败，data.errors供表单定位，不重复弹出提示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "验证次数或安全操作超限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全服务不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与平台受信源匹配"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "current_password",
+                  "code"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "current_password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "writeOnly": true
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 35,
+                    "writeOnly": true,
+                    "description": "recovery=false为6位TOTP；true为32位十六进制恢复码，可含每8位间的连字符"
+                  },
+                  "recovery": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/v1/auth/mfa/verify": {
+      "post": {
+        "operationId": "admin.auth.mfa.verify",
+        "summary": "完成管理员第二步验证并签发登录凭证",
+        "description": "仅临时挑战Cookie可定位第二步验证；不能使用挑战访问任何后台API。挑战有效5分钟，最多5次错误尝试；成功即消费。恢复码与TOTP时间步均防重放。",
+        "responses": {
+          "200": {
+            "description": "成功；响应及敏感数据禁止缓存。",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "user",
+                        "permissions",
+                        "expires_at",
+                        "mfa_required"
+                      ],
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "username",
+                            "nickname",
+                            "last_login_at",
+                            "is_founder",
+                            "department_id"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            "username": {
+                              "type": "string"
+                            },
+                            "nickname": {
+                              "type": "string"
+                            },
+                            "last_login_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "is_founder": {
+                              "type": "boolean"
+                            },
+                            "department_id": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ],
+                              "minimum": 1
+                            }
+                          }
+                        },
+                        "permissions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "expires_at": {
+                          "type": "integer",
+                          "description": "登录凭据过期时间，Unix 秒"
+                        },
+                        "mfa_required": {
+                          "type": "boolean",
+                          "const": false
+                        }
+                      }
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证或挑战已失效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限或同源校验失败",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "绑定状态冲突或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "字段验证失败，data.errors供表单定位，不重复弹出提示",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "验证次数或安全操作超限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "安全服务不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "必须与平台受信源匹配"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 35,
+                    "writeOnly": true,
+                    "description": "recovery=false为6位TOTP；true为32位十六进制恢复码，可含每8位间的连字符"
+                  },
+                  "recovery": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "adminCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_admin_token"
+      },
+      "adminBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "data",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "errors": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

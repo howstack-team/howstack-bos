@@ -11,6 +11,7 @@ use app\modules\admin\access\infrastructure\model\AdminUserRoleModel;
 use app\modules\admin\access\infrastructure\model\AdminRolePermissionModel;
 use app\modules\admin\access\infrastructure\model\AdminRoleDepartmentModel;
 use support\Model;
+use app\shared\infrastructure\TableQueryOrder;
 use app\modules\admin\access\contract\AdminAccessRepositoryInterface;
 use app\modules\admin\access\domain\AdminDataScope;
 use app\modules\admin\access\domain\PermissionCatalog;
@@ -62,7 +63,14 @@ final class DatabaseAdminAccessRepository implements AdminAccessRepositoryInterf
      * @param int            $pageSize 每页数量
      * @return array{data: list<array<string, mixed>>, total: int} 管理员列表及总数
      */
-    public function administrators(AdminDataScope $scope, int $actorId, string $keyword, int $page, int $pageSize): array
+    public function administrators(
+        AdminDataScope $scope,
+        int $actorId,
+        string $keyword,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $query = AdminUserModel::query()->with('roleAssignments');
         $this->constrainAdministrators($query, $scope, $actorId);
@@ -73,9 +81,13 @@ final class DatabaseAdminAccessRepository implements AdminAccessRepositoryInterf
                     ->orWhere('employee_no', 'like', '%' . $keyword . '%');
             });
         }
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+        TableQueryOrder::apply($query, $filters, ['last_login_at' => 'last_login_at']);
         $total = (clone $query)->count();
         $rows = $query->select(['id', 'username', 'nickname', 'employee_no', 'mobile', 'email', 'description', 'department_id', 'created_by', 'is_founder', 'status', 'last_login_at', 'created_at'])
-            ->orderBy('id', 'desc')->forPage($page, $pageSize)->get();
+            ->forPage($page, $pageSize)->get();
 
         return ['data' => array_map(fn (Model $row): array => $this->decorateAdministrator($row), $rows->all()), 'total' => $total];
     }

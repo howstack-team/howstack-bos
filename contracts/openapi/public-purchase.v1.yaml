@@ -1,0 +1,491 @@
+openapi: 3.0.3
+info:
+  title: 公开产品与匿名选配接口
+  version: 1.0.0
+  description: 匿名查看产品、联动选项及服务端报价，不创建订单或占用库存。仅开放当前包年包月配置；供应映射和凭据不公开。
+paths:
+  /api/public/v1/products:
+    get:
+      summary: 公开可购买产品目录
+      responses:
+        "200":
+          description: 成功，金额单位为人民币整数分
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: &a1
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Product"
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+        "500": &a3
+          description: 请求无效、会话或权限错误、产品状态或价格冲突
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message: *a1
+                  data:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+  /api/public/v1/products/{id}/options:
+    post:
+      summary: 解析匿名产品联动选项
+      parameters:
+        - &a4
+          name: id
+          in: path
+          required: true
+          schema: &a2
+            type: integer
+            minimum: 1
+          description: 产品配置标识
+      requestBody: &a5
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version_id: *a2
+                selection:
+                  $ref: "#/components/schemas/Selection"
+              required:
+                - version_id
+                - selection
+              additionalProperties: false
+      responses:
+        "200":
+          description: 成功，金额单位为人民币整数分
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/Options"
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+        "400": *a3
+        "404": *a3
+        "409": *a3
+        "422": *a3
+  /api/public/v1/products/{id}/quote:
+    post:
+      summary: 匿名服务端报价并检查当前库存
+      parameters:
+        - *a4
+      requestBody: *a5
+      responses:
+        "200":
+          description: 成功，金额单位为人民币整数分
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/Quote"
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+        "400": *a3
+        "404": *a3
+        "409": *a3
+        "422": *a3
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id: *a2
+        name: *a1
+        version_id: *a2
+        product_type:
+          type: string
+          enum:
+            - cloud_server
+        description: *a1
+        purchase_url: *a1
+      required:
+        - id
+        - name
+        - version_id
+        - product_type
+        - description
+        - purchase_url
+      additionalProperties: false
+    Resource:
+      type: object
+      required:
+        - id
+        - name
+      additionalProperties: false
+      properties:
+        id: *a2
+        name: *a1
+        description: *a1
+        country_code: *a1
+        test_ip: *a1
+        architecture: *a1
+        default_username: *a1
+        icon_url: *a1
+        cpu_model: *a1
+        region_id: &a6
+          type: integer
+          minimum: 0
+        group_id: *a6
+        type_id: *a6
+        cpu: *a6
+        memory_mib: *a6
+        min_cpu: *a6
+        min_memory_mib: *a6
+        min_disk_gib: *a6
+        default_port: *a6
+        min_gib: *a6
+        max_gib: *a6
+        step_gib: *a6
+        max_count: *a6
+        capacity_gbps: *a6
+        base_clock_mhz:
+          type: integer
+          minimum: 0
+          nullable: true
+        boost_clock_mhz:
+          type: integer
+          minimum: 0
+          nullable: true
+    Selection:
+      type: object
+      additionalProperties: false
+      properties:
+        region_id: *a6
+        zone_id: *a6
+        line_id: *a6
+        flavor_group_id: *a6
+        flavor_id: *a6
+        image_type_id: *a6
+        image_id: *a6
+        protection_id: *a6
+        duration_months: *a6
+        quantity: *a6
+        billing_mode:
+          type: string
+          enum:
+            - prepaid
+        login_method:
+          type: string
+          enum:
+            - password
+        system_disk: &a7
+          type: object
+          properties:
+            type_id: *a6
+            size_gib: *a6
+          required:
+            - type_id
+            - size_gib
+          additionalProperties: false
+        data_disks:
+          type: array
+          items: *a7
+          maxItems: 32
+        network:
+          type: object
+          properties:
+            billing_mode:
+              type: string
+              enum:
+                - fixed
+            egress_mbps: *a6
+            ingress_mbps: *a6
+            ipv4_count: *a6
+          required:
+            - egress_mbps
+            - ingress_mbps
+            - ipv4_count
+          additionalProperties: false
+    Options:
+      type: object
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - 2.0.0
+        options:
+          type: object
+          properties:
+            regions:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            zones:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            lines:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            flavor_groups:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            flavors:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            image_types:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            images:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            disk_types:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            protections:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+          required:
+            - regions
+            - zones
+            - lines
+            - flavor_groups
+            - flavors
+            - image_types
+            - images
+            - disk_types
+            - protections
+          additionalProperties: false
+        configuration:
+          $ref: "#/components/schemas/Selection"
+        invalid_fields:
+          type: object
+          additionalProperties: *a1
+        quantity_limit: *a2
+        system_disk_included_gib: *a6
+        durations:
+          type: array
+          items:
+            type: object
+            properties:
+              months: *a2
+              label: *a1
+              discount_kind:
+                type: string
+                enum:
+                  - rate
+                  - billed_months
+              rate_bps: *a6
+              billed_months: *a6
+            required:
+              - months
+              - label
+              - discount_kind
+            additionalProperties: false
+        storage_policy:
+          type: object
+          properties:
+            default_type_id: *a6
+            default_size_gib: *a6
+            max_data_disks: *a6
+          required:
+            - default_type_id
+            - default_size_gib
+            - max_data_disks
+          additionalProperties: false
+        line_network:
+          type: object
+          properties:
+            billing_mode:
+              type: string
+              enum:
+                - fixed
+            egress: &a8
+              type: object
+              properties:
+                min: *a6
+                max: *a6
+                step: *a2
+                default: *a6
+                included: *a6
+                price_minor: *a6
+                pricing_mode:
+                  type: string
+                  enum:
+                    - flat
+                    - graduated
+                    - volume
+                tiers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      up_to_mbps:
+                        type: integer
+                        minimum: 0
+                        nullable: true
+                      price_minor: *a6
+                    required:
+                      - up_to_mbps
+                      - price_minor
+                    additionalProperties: false
+              required:
+                - min
+                - max
+                - step
+                - default
+                - included
+                - price_minor
+                - pricing_mode
+                - tiers
+              additionalProperties: false
+            ingress: *a8
+            ip:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum:
+                    - range
+                    - options
+                min: *a6
+                max: *a6
+                step: *a2
+                default: *a6
+                included: *a6
+                price_minor: *a6
+                options:
+                  type: array
+                  items: *a6
+              required:
+                - mode
+                - min
+                - max
+                - step
+                - default
+                - included
+                - price_minor
+                - options
+              additionalProperties: false
+          required:
+            - billing_mode
+            - egress
+            - ingress
+            - ip
+          additionalProperties: false
+          nullable: true
+      required:
+        - schema_version
+        - options
+        - configuration
+        - invalid_fields
+        - quantity_limit
+        - system_disk_included_gib
+        - durations
+        - storage_policy
+        - line_network
+      additionalProperties: false
+    Quote:
+      type: object
+      properties:
+        configuration:
+          $ref: "#/components/schemas/Selection"
+        currency:
+          type: string
+          enum:
+            - CNY
+        quantity: *a2
+        unit_amount_minor: *a6
+        amount_minor: *a6
+        subtotal_minor: *a6
+        discount_minor: *a6
+        unit_breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              key: *a1
+              label: *a1
+              quantity: *a6
+              unit_price_minor: *a6
+              amount_minor: *a6
+              pricing_mode: *a1
+              recurring:
+                type: boolean
+              subtotal_minor: *a6
+              discount_minor: *a6
+            required:
+              - key
+              - label
+              - quantity
+              - unit_price_minor
+              - amount_minor
+            additionalProperties: false
+      required:
+        - configuration
+        - currency
+        - quantity
+        - unit_amount_minor
+        - amount_minor
+        - subtotal_minor
+        - discount_minor
+        - unit_breakdown
+      additionalProperties: false

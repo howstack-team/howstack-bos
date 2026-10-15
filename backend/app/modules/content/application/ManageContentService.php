@@ -8,6 +8,7 @@ use app\exception\BusinessException;
 use app\modules\admin\access\application\AdminAccessControlService;
 use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\content\contract\ContentRepositoryInterface;
+use app\modules\content\domain\ContentHtml;
 use app\shared\http\ApiErrorCode;
 
 /** 根据固定内容类型维护分类、文档与公告。 */
@@ -15,11 +16,23 @@ final readonly class ManageContentService
 {
     public function __construct(private ContentRepositoryInterface $repository, private AdminAccessControlService $access) {}
 
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function paginate(AdminAccount $actor, string $kind, bool $categories, string $keyword, ?string $status, int $page, int $pageSize): array
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function paginate(
+        AdminAccount $actor,
+        string $kind,
+        bool $categories,
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->authorize($actor, $kind, $categories, 'view');
-        return $this->repository->paginate($kind, $categories, $keyword, $status, $page, $pageSize);
+        return $this->repository->paginate($kind, $categories, $keyword, $status, $page, $pageSize, $filters);
     }
 
     /** @return array<string, mixed> */
@@ -62,6 +75,16 @@ final readonly class ManageContentService
             $status = (string) $input['status'];
             $title = trim((string) $input['title']);
             $body = trim((string) $input['body']);
+            $format = (string) ($input['body_format'] ?? $existing['body_format'] ?? 'markdown');
+            if (!in_array($format, ['markdown', 'html'], true) || ($kind === 'help' && $format !== 'markdown')) {
+                throw new BusinessException('帮助文档使用 Markdown，公告支持 Markdown 或富文本', ApiErrorCode::VALIDATION_FAILED, 422);
+            }
+            if ($format === 'html') {
+                $body = ContentHtml::sanitize($body);
+                if (!ContentHtml::hasContent($body)) {
+                    throw new BusinessException('请输入有效的正文内容', ApiErrorCode::VALIDATION_FAILED, 422);
+                }
+            }
             if ($title === '' || $body === '') throw new BusinessException('标题和正文不能为空', ApiErrorCode::VALIDATION_FAILED, 422);
             if ($status === 'published' && $category['status'] !== 1) {
                 throw new BusinessException('只能发布到启用的分类', ApiErrorCode::CONFLICT, 409);
@@ -75,7 +98,7 @@ final readonly class ManageContentService
             $data += [
                 'category_id' => $categoryId, 'title' => $title,
                 'summary' => trim((string) ($input['summary'] ?? '')),
-                'body' => $body, 'status' => $status,
+                'body' => $body, 'body_format' => $format, 'status' => $status,
                 'published_at' => $status === 'published' ? ($existing['published_at'] ?? date('Y-m-d H:i:s')) : null,
             ];
         }

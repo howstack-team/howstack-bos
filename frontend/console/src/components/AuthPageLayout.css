@@ -1,0 +1,114 @@
+.console-login {
+  position: relative;
+  --console-login-footer-height: 64px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  background-color: #eef5fc;
+  color: var(--color-text-1);
+}
+.console-login-scene {
+  position: absolute;
+  inset: 60px 0 0;
+  z-index: -1;
+  background-position: center;
+  background-size: cover;
+}
+.console-login-top {
+  background: var(--color-bg-2);
+  border-bottom: 1px solid var(--color-border-2);
+}
+.console-login-top-inner {
+  width: min(100%, 1440px);
+  margin: 0 auto;
+  min-height: 60px;
+  padding: 0 56px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+.console-login-brand { display: flex; align-items: center; gap: 12px; color: #10203b; font-size: 20px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.console-login-brand { min-width: 0; }
+.console-login-brand span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.console-login-brand img { width: 32px; height: 32px; flex: none; object-fit: contain; }
+.console-login-top-actions { display: flex; align-items: center; gap: 24px; font-size: 14px; white-space: nowrap; }
+.console-login-main {
+  width: min(100%, 1440px);
+  margin: 0 auto;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 500px);
+  gap: 64px;
+  padding: 48px 56px 72px;
+  align-items: center;
+}
+.console-login-story { position: relative; align-self: stretch; padding: 20px 0 0 36px; min-height: 600px; }
+.console-login-story h2 { margin: 0; color: #10203b; font-size: clamp(28px, 2.65vw, 40px); font-weight: 600; line-height: 1.4; letter-spacing: 1px; }
+.console-login-story p { margin: 18px 0 0; color: #6d7e9c; font-size: 21px; letter-spacing: 3px; }
+.console-login-accent { width: 36px; height: 3px; background: rgb(var(--primary-6)); margin-top: 36px; }
+.console-login-caption { position: absolute; bottom: 8px; color: #8c9cba; font-size: 12px; line-height: 1.8; }
+.console-login-card { min-width: 0; padding: 40px; background: var(--color-bg-2); border: 1px solid #e6edf8; border-radius: var(--app-border-radius); }
+.console-login-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.console-login-heading h1 { margin: 0; color: #10203b; font-size: 28px; font-weight: 600; line-height: 1.4; }
+.console-login-heading > span { color: var(--color-text-3); font-size: 13px; }
+.console-login a { text-decoration: none; }
+.console-login-heading a { color: rgb(var(--primary-6)); margin-left: 4px; }
+.console-login-subtitle { margin: 12px 0 22px; color: var(--color-text-3); font-size: 14px; }
+.console-login-tabs { margin-bottom: 24px; }
+.console-login-code { display: grid; grid-template-columns: minmax(0, 1fr) 128px; gap: 12px; align-items: start; }
+.console-register-code { display: grid; grid-template-columns: minmax(0, 1fr) 128px; gap: 12px; align-items: start; }
+.console-login-send { margin-top: 29px; }
+.console-login-options { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.console-login-reset-hint { margin: 0 0 24px; color: var(--color-text-3); line-height: 1.6; }
+.console-login-security { display: flex; justify-content: center; align-items: center; gap: 6px; color: var(--color-text-3); font-size: 12px; margin: 16px 0 0; }
+.console-login-social { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.console-login-provider-icon { display: inline-block; width: 24px; height: 24px; margin-right: 8px; object-fit: contain; vertical-align: middle; }
+.console-login-footer { flex-shrink: 0; width: 100%; min-height: calc(var(--console-login-footer-height) + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 max(32px, calc((100vw - 1328px) / 2)); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid #e6edf8; background: #f8fbff; color: #7a8caa; font-size: 12px; }
+.console-login-agreements { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+@media (max-width: 1100px) {
+  .console-login-top-inner { padding: 0 32px; }
+  .console-login-main { padding-left: 32px; padding-right: 32px; grid-template-columns: minmax(0, 1fr) 440px; gap: 32px; }
+  .console-login-story { padding-left: 0; }
+  .console-login-card { padding: 32px; }
+}
+@media (min-width: 901px) and (max-height: 900px) {
+  .console-login-main { padding-top: 24px; padding-bottom: 24px; }
+  .console-login-card { padding-top: 32px; padding-bottom: 32px; }
+  .console-login-subtitle { margin: 8px 0 16px; }
+  .console-login-tabs { margin-bottom: 16px; }
+  .console-login-options { margin-bottom: 16px; }
+  .console-login-story { min-height: 0; padding-top: 8px; }
+  .console-register-form { --console-register-field-gap: 12px; }
+  .console-register .console-login-main { padding-top: 16px; padding-bottom: 16px; }
+  .console-register .console-login-card { padding-top: 24px; padding-bottom: 24px; }
+  .console-register .console-login-subtitle { margin-bottom: 12px; }
+  .console-register .console-login-tabs { margin-bottom: 12px; }
+}
+@media (min-width: 901px) and (max-height: 800px) {
+  .console-login-main { padding-top: 16px; padding-bottom: 16px; }
+  .console-login-card { padding-top: 28px; padding-bottom: 28px; }
+  .console-register-form { --console-register-field-gap: 10px; }
+  .console-register .console-login-main { padding-top: 12px; padding-bottom: 12px; }
+  .console-register .console-login-card { padding-top: 16px; padding-bottom: 16px; }
+  .console-register .console-login-subtitle { margin-bottom: 8px; }
+  .console-register .console-login-tabs { margin-bottom: 8px; }
+}
+@media (max-width: 900px) {
+  .console-login-scene { background-position: 65% center; }
+  .console-login-main { padding-top: 40px; padding-bottom: 64px; grid-template-columns: minmax(0, 500px); justify-content: center; }
+  .console-login-story { display: none; }
+}
+@media (max-width: 600px) {
+  .console-login-top-inner { padding: 0 16px; gap: 12px; }
+  .console-login-brand { font-size: 18px; gap: 8px; }
+  .console-login-brand img { width: 28px; height: 28px; }
+  .console-login-top-actions { gap: 12px; font-size: 14px; }
+  .console-login-main { padding: 20px 16px 40px; }
+  .console-login-card { padding: 28px 24px; }
+  .console-login-heading h1 { font-size: 24px; }
+  .console-login-code, .console-register-code { grid-template-columns: minmax(0, 1fr) 116px; gap: 8px; }
+  .console-login-footer { padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); gap: 4px 16px; flex-wrap: wrap; justify-content: center; text-align: center; line-height: 16px; }
+}

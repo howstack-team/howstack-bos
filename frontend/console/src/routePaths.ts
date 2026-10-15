@@ -1,0 +1,10 @@
+/** 两套会员模板共用业务 URL，不依赖具体页面组件。 */
+export const paths = {
+  oauthBind: '/oauth-bind', login: '/login', register: '/register', overview: '/overview', wallet: '/finance/wallet', profile: '/account/profile',
+  cloudServers: '/services/cloud-servers', physicalServers: '/services/physical-servers', colocation: '/services/colocation',
+  recharge: '/finance/recharge', transactions: '/finance/transactions', orders: '/finance/orders',
+  refunds: '/finance/refunds', invoices: '/finance/invoices', tickets: '/support/tickets',
+  renewals: '/services/renewals', coupons: '/finance/coupons', security: '/account/security',
+  verification: '/account/verification', loginHistory: '/account/login-history', messages: '/account/messages',
+  purchase: '/purchase/cloud-server', orderDetail: '/finance/orders/:id',
+} as const

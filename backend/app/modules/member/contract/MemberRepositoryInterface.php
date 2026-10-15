@@ -10,8 +10,15 @@ interface MemberRepositoryInterface
     /**
      * 分页查询会员。
      * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
      */
-    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array;
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array;
 
     /**
      * 查询指定会员的安全资料。

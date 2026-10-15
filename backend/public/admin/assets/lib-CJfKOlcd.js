@@ -1,0 +1,1 @@
+var e=`/admin/assets/index-xtWy8tuI.css`;export{e as default};

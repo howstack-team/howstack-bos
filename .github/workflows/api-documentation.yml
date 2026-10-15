@@ -1,0 +1,36 @@
+name: API 文档检查
+on:
+  pull_request:
+    paths: ['contracts/**', 'tools/api-docs/**', 'backend/**', 'frontend/admin/src/routes.ts', 'frontend/admin/tests/permission-tree.test.ts', '.github/workflows/api-documentation.yml']
+  push:
+    branches: [main]
+    paths: ['contracts/**', 'tools/api-docs/**', 'backend/**', '.github/workflows/api-documentation.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, dom, xml, redis, pdo_mysql
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-scripts
+        working-directory: backend
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.22.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: pnpm install --frozen-lockfile
+        working-directory: tools/api-docs
+      - run: pnpm test && pnpm check
+        working-directory: tools/api-docs
+      - run: vendor/bin/phpunit tests/unit/modules/api_documentation/ApiDocumentationTest.php tests/unit/exception/HandlerTest.php tests/unit/modules/install/domain/InstallationConfigurationTest.php
+        working-directory: backend
+      - run: node --test tests/permission-tree.test.ts
+        working-directory: frontend/admin

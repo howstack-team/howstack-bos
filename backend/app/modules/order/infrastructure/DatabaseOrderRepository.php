@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace app\modules\order\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use app\modules\order\infrastructure\model\OrderModel;
 use app\modules\order\infrastructure\model\OrderItemModel;
+use app\modules\order\infrastructure\model\OrderItemUnitModel;
 use support\Model;
 use app\modules\order\contract\OrderRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -21,8 +24,14 @@ final class DatabaseOrderRepository implements OrderRepositoryInterface
         'payable_minor', 'paid_minor', 'refunded_minor', 'remark', 'paid_at', 'completed_at',
         'cancelled_at', 'created_at', 'updated_at',
     ];
-
-    public function paginate(string $keyword, ?string $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         try {
             $query = OrderModel::query();
@@ -37,8 +46,27 @@ final class DatabaseOrderRepository implements OrderRepositoryInterface
             if ($status !== null) {
                 $query->where('status', $status);
             }
+            foreach ([
+                'order_no' => 'order_no',
+                'member_mobile' => 'member_mobile_snapshot',
+                'member_nickname' => 'member_nickname_snapshot',
+            ] as $field => $column) {
+                if (isset($filters[$field])) {
+                    $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                    $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+                }
+            }
+            foreach (['order_type', 'payment_status'] as $field) {
+                if (isset($filters[$field])) {
+                    $query->where($field, $filters[$field]);
+                }
+            }
             $total = (int) (clone $query)->count();
-            $rows = $query->select(self::ORDER_COLUMNS)->orderBy('id', 'desc')->forPage($page, $pageSize)->get();
+            $rows = TableQueryOrder::apply($query, $filters, [
+                'created_at' => 'created_at',
+                'payable_minor' => 'payable_minor',
+                'paid_minor' => 'paid_minor',
+            ], ['id' => 'desc'], 'id')->select(self::ORDER_COLUMNS)->forPage($page, $pageSize)->get();
 
             return ['data' => array_map(self::normalizeOrder(...), $rows->all()), 'total' => $total];
         } catch (Throwable $exception) {
@@ -65,6 +93,12 @@ final class DatabaseOrderRepository implements OrderRepositoryInterface
                 }
                 return $data;
             }, $items->all());
+
+            $order['units'] = OrderItemUnitModel::query()->whereIn('order_item_id', $items->pluck('id'))
+                ->orderBy('id')->get(['id', 'order_item_id', 'unit_index', 'service_id',
+                    'allocated_minor', 'refunded_minor', 'reserved_refund_minor'])->map(static function (Model $unit): array {
+                    return array_map(static fn ($value) => $value === null ? null : (int) $value, $unit->getAttributes());
+                })->all();
 
             return $order;
         } catch (Throwable $exception) {

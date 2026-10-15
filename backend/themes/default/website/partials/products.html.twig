@@ -1,0 +1,4 @@
+<div class="feature-grid">
+{% for product in page.products %}<article class="feature-card"><p class="eyebrow">云服务器 · 包年包月</p><h3>{{ product.name }}</h3><p>{{ product.description }}</p><p>支持地域、规格、镜像、磁盘及网络选配，价格以选配结果为准。</p><a class="primary-action" href="{{ product.purchase_url }}">立即选配 <span aria-hidden="true">→</span></a></article>{% endfor %}
+</div>
+{% if not page.products %}<p>暂无可购买的云服务器产品，请联系我们了解产品供应情况。</p>{% endif %}

@@ -15,6 +15,9 @@ final class MemberModel extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'public_id',
+        'mobile_verified_at',
+        'email_verified_at',
         'nickname',
         'group_id',
         'level_id',
@@ -32,6 +35,9 @@ final class MemberModel extends Model
 
     protected $casts = [
         'id' => 'integer',
+        'public_id' => 'string',
+        'mobile_verified_at' => 'datetime:Y-m-d H:i:s',
+        'email_verified_at' => 'datetime:Y-m-d H:i:s',
         'nickname' => 'string',
         'group_id' => 'integer',
         'level_id' => 'integer',
@@ -44,6 +50,19 @@ final class MemberModel extends Model
         'created_at' => 'datetime:Y-m-d H:i:s',
         'updated_at' => 'datetime:Y-m-d H:i:s',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(static function (self $member): void {
+            $member->public_id ??= \app\modules\member\domain\PublicMemberId::generate();
+        });
+        static::updating(static function (self $member): void {
+            if ($member->isDirty('public_id')) throw new \LogicException('公开会员编号不得修改');
+            foreach (['mobile', 'email'] as $field) {
+                if ($member->isDirty($field)) $member->{$field . '_verified_at'} = null;
+            }
+        });
+    }
 
     /** group 关系；列表调用必须显式预加载。 */
     public function group(): BelongsTo

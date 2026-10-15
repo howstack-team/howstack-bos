@@ -1,0 +1,25 @@
+---
+title: 后端代码依赖与插件边界
+---
+flowchart LR
+  entry["Controller / Middleware · HTTP 边界"]
+  application["Application · 用例 / 授权 / 事务编排"]
+  domain["Domain · 计价 / 状态 / 金额不变量"]
+  contracts["Contract · Repository / Gateway / 公共门面"]
+  infrastructure["Infrastructure · ORM / Redis / HTTP / 文件"]
+  database[("MySQL / Redis / 私有文件")]
+  sdk["固定插件 SDK / DTO"]
+  plugin["已审核 PHP 插件"]
+  external["外部服务"]
+  bindings["config/dependence.php · 依赖注入"]
+  entry --> application
+  application --> domain
+  application --> contracts
+  infrastructure -. "实现接口" .-> contracts
+  infrastructure --> database
+  infrastructure --> sdk
+  sdk --> plugin
+  plugin --> external
+  bindings -. "绑定接口与实现" .-> infrastructure
+  classDef normal fill:#e8f3ff,stroke:#165dff,color:#1d2129
+  class entry,application,domain,contracts,infrastructure,database,sdk,plugin,external,bindings normal

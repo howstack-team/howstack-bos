@@ -1,0 +1,10 @@
+.personal-settings-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.personal-settings-form {
+  width: 100%;
+  max-width: 560px;
+}

@@ -35,11 +35,17 @@ final readonly class AdminAccessManagementService
      * @param int          $pageSize 每页数量
      * @return array{data: list<array<string, mixed>>, total: int} 账号分页
      */
-    public function administrators(AdminAccount $actor, string $keyword, int $page, int $pageSize): array
+    public function administrators(
+        AdminAccount $actor,
+        string $keyword,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->access->requirePermission($actor, 'admin.administrators.view');
 
-        return $this->repository->administrators($this->access->scope($actor), $actor->id, $keyword, $page, $pageSize);
+        return $this->repository->administrators($this->access->scope($actor), $actor->id, $keyword, $page, $pageSize, $filters);
     }
 
     /**

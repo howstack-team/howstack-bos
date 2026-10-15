@@ -1,0 +1,83 @@
+openapi: 3.0.3
+info:
+  title: 内容正文格式与图片扩展
+  version: v1
+  description: 内容新增/修改沿用既有分类、标题、摘要、排序及发布状态校验。本契约描述新增的正文格式和公开图片入口。
+paths:
+  /api/admin/v1/content/{kind}/images:
+    parameters:
+      - name: kind
+        in: path
+        required: true
+        schema: { type: string, enum: [help, news] }
+    get:
+      summary: 检查默认存储通道是否可用于内容图片
+      description: 需要该内容的新增或修改权限；只返回可用状态，不输出通道凭据。
+      responses:
+        '200':
+          description: 统一响应 data.available 为布尔值，data.message 为无通道时的提示。
+        '401': { description: 未登录 }
+        '403': { description: 缺少内容编辑权限 }
+    post:
+      summary: 上传公开正文图片
+      description: 需要该内容的新增或修改权限。图片最大5MiB、1600万像素。只使用已启用、配置有效的默认存储通道。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: 统一响应 data 为公开固定地址与图片说明
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, enum: [0] }
+                  message: { type: string }
+                  request_id: { type: string }
+                  data:
+                    type: object
+                    required: [url, alt]
+                    properties:
+                      url: { type: string, pattern: '^/api/public/v1/content/images/[a-f0-9]{32}$' }
+                      alt: { type: string, maxLength: 200 }
+        '401': { description: 未登录 }
+        '403': { description: 缺少内容编辑权限 }
+        '409': { description: 无默认通道、通道变化或写入未完成 }
+        '422': { description: 图片内容、类型、扩展名、大小或尺寸不符 }
+  /api/public/v1/content/images/{id}:
+    get:
+      summary: 访问公开内容图片
+      description: 只读取已保存且上传完成的图片引用，按封存通道签发只读地址，不接受任意对象键。图片地址可公开访问。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[a-f0-9]{32}$' }
+      responses:
+        '302':
+          description: 重新获取有效的短期读取地址，响应 Cache-Control 为 no-store
+          headers:
+            Location: { schema: { type: string } }
+        '404': { description: 图片不存在或尚未完成 }
+        '409': { description: 原通道配置变化或不可用 }
+components:
+  schemas:
+    ContentBody:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          maxLength: 100000
+          description: 正文；HTML 在服务端清理后保存，清理后的空正文不能保存。
+        body_format:
+          type: string
+          enum: [markdown, html]
+          description: 帮助文档仅支持markdown。新公告显式传html；更新时省略则保持原格式，新记录省略为markdown。历史记录迁移后为markdown。

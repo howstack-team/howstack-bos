@@ -8,6 +8,7 @@ use app\modules\admin\auth\application\AdminAuthenticationContext;
 use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\modules\admin\operation\application\ListAdminOperationLogsService;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\DisableDefaultRoute;
 use support\annotation\route\Get;
@@ -50,6 +51,7 @@ final readonly class OperationLogsController
             $query['status'] === null ? null : (int) $query['status'],
             (int) $query['page'],
             (int) $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['operator_username' => 64, 'operator_nickname' => 64, 'module' => 64, 'operation' => 128, 'client_ip' => 64], ['operated_at', 'duration_ms']),
         ));
     }
 

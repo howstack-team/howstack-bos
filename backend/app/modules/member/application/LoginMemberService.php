@@ -12,23 +12,21 @@ use app\shared\http\ApiErrorCode;
 /** 校验会员凭据并签发与后台权限隔离的令牌。 */
 final readonly class LoginMemberService
 {
-    private const string DUMMY_PASSWORD_HASH = '$2y$12$yQV9LRqZiZ713M/aLmGQtulk/tMe2T2A5496vpdz/AUUeijRMjlX6';
-
     public function __construct(
         private MemberAuthRepositoryInterface $members,
         private MemberTokenServiceInterface $tokens,
     ) {
     }
 
-    /** @return array{user: array{id: int, mobile: string, nickname: string}, token: string} */
-    public function login(string $mobile, string $password): array
+    /** @return array{user: array{id: string, mobile: ?string, email: ?string, nickname: string}, token: string} */
+    public function login(string $identifier, string $password, bool $remember = false): array
     {
-        $account = $this->members->findByMobile($mobile);
-        $matches = password_verify($password, $account?->passwordHash ?? self::DUMMY_PASSWORD_HASH);
-        if ($account === null || !$matches || $account->status !== 1) {
+        $identifier = trim($identifier);
+        $account = str_contains($identifier, '@') ? $this->members->findByEmail(strtolower($identifier)) : $this->members->findByMobile($identifier);
+        if (!\app\modules\member\domain\MemberPassword::matches($account, $password)) {
             throw new BusinessException('账号或密码错误', ApiErrorCode::UNAUTHENTICATED, 401);
         }
-        $token = $this->tokens->issue($account);
+        $token = $this->tokens->issue($account, $remember);
         $this->members->recordLogin($account->id);
 
         return ['user' => $account->profile(), 'token' => $token];

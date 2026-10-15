@@ -26,6 +26,24 @@ use Throwable;
 /** 固定设置契约、权限、异常响应和实时配置读取的回归验证。 */
 final class SystemSettingsTest extends TestCase
 {
+    public function testRegistrationSettingsRemainCompleteAndPermissionControlled(): void
+    {
+        $reader = $this->createStub(SystemSettingsRepositoryInterface::class);
+        $reader->method('values')->willReturn(['registration.mobile_enabled' => '1', 'registration.email_enabled' => '1', 'registration.mobile_verification' => '0', 'registration.email_verification' => '1']);
+        $values = ['mobile_enabled' => 1, 'email_enabled' => 1, 'mobile_verification' => 0, 'email_verification' => 1];
+        self::assertSame($values, $this->service($reader)->get($this->actor(true), 'registration'));
+        $validator = new SystemSettingsValidator();
+        self::assertSame($values, $validator->values('registration', $values));
+        foreach ([$values + ['public_id' => '11111111'], array_replace($values, ['email_enabled' => true]), ['mobile_enabled' => 1]] as $invalid) {
+            try { $validator->values('registration', $invalid); self::fail('应拒绝非法开关或不完整设置'); }
+            catch (BusinessException $error) { self::assertSame(422, $error->httpStatus()); }
+        }
+        $repository = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $repository->expects(self::never())->method('save');
+        $this->expectException(BusinessException::class);
+        $this->service($repository)->save($this->actor(), 'registration', $values);
+    }
+
     /**
      * 基础设置允许清空可选字段，且只保存约定的原始键。
      * @return void
@@ -34,17 +52,31 @@ final class SystemSettingsTest extends TestCase
     {
         $repository = $this->createMock(SystemSettingsRepositoryInterface::class);
         $repository->expects(self::once())->method('save')->with('base', [
-            'site.title' => '测试网站', 'site.subtitle' => '', 'site.keywords' => '云计算,服务器',
-            'site.description' => '', 'site.url' => 'https://example.com', 'site.copyright' => '',
+            'site.title' => '测试网站',
+            'site.url' => 'https://example.com', 'site.copyright' => '',
             'site.icp_record' => '', 'site.public_security_record' => '', 'site.business_license' => '',
         ]);
         $values = $this->service($repository)->save($this->actor(true), 'base', [
-            'site_title' => ' 测试网站 ', 'site_subtitle' => '', 'site_keywords' => ' 云计算,服务器 ',
-            'site_description' => '', 'site_url' => 'https://example.com', 'copyright' => '',
+            'site_title' => ' 测试网站 ',
+            'site_url' => 'https://example.com', 'copyright' => '',
             'icp_record' => '', 'public_security_record' => '', 'business_license' => '',
         ]);
         self::assertSame('测试网站', $values['site_title']);
-        self::assertSame('云计算,服务器', $values['site_keywords']);
+        self::assertArrayNotHasKey('site_keywords', $values);
+        self::assertArrayNotHasKey('site_subtitle', $values);
+    }
+
+    /** 已删除的副标题不能通过旧请求重新写回设置表。 */
+    public function testRemovedSubtitleIsNotReturnedAndCannotBeSaved(): void
+    {
+        $repository = $this->createMock(SystemSettingsRepositoryInterface::class);
+        $repository->method('values')->willReturn(['site.title' => '测试平台', 'site.url' => 'https://example.test', 'site.subtitle' => '旧副标题']);
+        $repository->expects(self::never())->method('save');
+        $service = $this->service($repository);
+        $base = $service->get($this->actor(true), 'base');
+        self::assertArrayNotHasKey('site_subtitle', $base);
+        $this->expectException(BusinessException::class);
+        $service->save($this->actor(true), 'base', $base + ['site_subtitle' => '不能写入']);
     }
 
     /**

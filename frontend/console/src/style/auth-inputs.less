@@ -1,0 +1,24 @@
+// 使用 Input 公开主题变量，保留原生聚焦、错误和禁用状态。
+@import '@arco-design/web-react/es/Input/style/index.less';
+@import '@arco-themes/react-arco-pro/variables.less';
+
+@input-color-bg: var(--color-bg-2);
+@input-color-bg_hover: var(--color-bg-2);
+@input-color-border: var(--color-border-2);
+@input-color-border_hover: var(--color-border-3);
+
+// 第三方登录使用完整文字按钮；公开 Token 保留悬停、按下、聚焦及禁用状态。
+.console-login-social {
+  @import '@arco-design/web-react/es/Button/style/index.less';
+  @import (reference) '@arco-themes/react-arco-pro/variables.less';
+
+  @btn-size-large-height: 48px;
+  @btn-size-large-font-size: 14px;
+  @btn-outline-color-text: var(--color-text-2);
+  @btn-outline-color-bg: var(--color-bg-2);
+  @btn-outline-color-bg_hover: var(--color-fill-1);
+  @btn-outline-color-bg_active: var(--color-fill-2);
+  @btn-outline-color-border: var(--color-border-2);
+  @btn-outline-color-text_disabled: var(--color-text-4);
+  @btn-outline-color-border_disabled: var(--color-border-1);
+}

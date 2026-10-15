@@ -39,6 +39,18 @@ final class DatabaseOrderPaymentRepository implements OrderPaymentRepositoryInte
         return $sum === $amountMinor;
     }
 
+    public function capacityItems(int $orderId): array
+    {
+        $items = OrderItemModel::query()->where('order_id', $orderId)->orderBy('id')->with(['units' => static fn ($q) => $q->orderBy('id')])->get();
+        $result = [];
+        foreach ($items as $item) {
+            $snapshot = json_decode($item->configuration_snapshot ?? '{}', true, flags: JSON_THROW_ON_ERROR);
+            if (($snapshot['checkout_version'] ?? null) !== 1) continue;
+            $result[] = ['type' => $item->product_type, 'configuration' => $snapshot['configuration'], 'unit_ids' => $item->units->pluck('id')->all()];
+        }
+        return $result;
+    }
+
     public function markPaid(int $orderId, int $amountMinor, string $paidAt): void
     {
         $changed = OrderModel::query()->whereKey($orderId)->where('status', 'pending_payment')

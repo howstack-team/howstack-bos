@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "AccessKey ID",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入AccessKey ID",
+      "max_length": 128
+    },
+    {
+      "key": "access_key_secret",
+      "label": "AccessKey Secret",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入AccessKey Secret",
+      "max_length": 128
+    },
+    {
+      "key": "region",
+      "label": "地域",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入地域",
+      "max_length": 128,
+      "default": "cn-hangzhou"
+    },
+    {
+      "key": "bucket",
+      "label": "存储桶",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入存储桶",
+      "max_length": 128
+    }
+  ]
+}

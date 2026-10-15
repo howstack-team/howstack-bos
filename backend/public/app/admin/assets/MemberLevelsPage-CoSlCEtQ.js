@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-runtime-BCgKTDjy.js";import{t}from"./MemberCatalogPage-DGu4RfoK.js";var n=e();function r(){return(0,n.jsx)(t,{kind:`level`})}export{r as default};
