@@ -1,0 +1,1354 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "消息场景与接收组配置",
+    "version": "v1",
+    "description": "固定业务场景→多个接收组→渠道与模板。用途及各组支持渠道/变量由服务器目录约束，不支持自由新增场景或发送代理。 注册验证码支持短信与邮件；登录验证码仍仅支持短信，不接受其邮件单条或批量配置。"
+  },
+  "security": [
+    {
+      "adminCookie": []
+    }
+  ],
+  "paths": {
+    "/api/admin/v1/message-scenes": {
+      "get": {
+        "operationId": "admin.message-scenes.index",
+        "description": "固定场景目录；view权限；不写入空配置。",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SceneList"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "场景不存在"
+          },
+          "409": {
+            "description": "修订冲突或旧入口不可覆盖新结构"
+          },
+          "422": {
+            "description": "接收组、范围、渠道或模板无效"
+          }
+        },
+        "summary": "读取消息场景列表"
+      }
+    },
+    "/api/admin/v1/message-scenes/{code}": {
+      "get": {
+        "operationId": "admin.message-scenes.show",
+        "description": "只返回脱敏模板和对象选项；按需兼容旧受众配置。",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SceneDetail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "场景不存在"
+          },
+          "409": {
+            "description": "修订冲突或旧入口不可覆盖新结构"
+          },
+          "422": {
+            "description": "接收组、范围、渠道或模板无效"
+          }
+        },
+        "summary": "读取消息场景与接收组"
+      },
+      "put": {
+        "operationId": "admin.message-scenes.update",
+        "description": "view/update权限及同源写检查；双受众修订同一事务；完整组列表；保存不发送。",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SceneInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SceneDetail"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "场景不存在"
+          },
+          "409": {
+            "description": "修订冲突或旧入口不可覆盖新结构"
+          },
+          "422": {
+            "description": "接收组、范围、渠道或模板无效"
+          }
+        },
+        "summary": "保存场景接收组与渠道"
+      }
+    },
+    "/api/admin/v1/message-scenes/batch": {
+      "post": {
+        "operationId": "admin.message-scenes.batch",
+        "description": "view/update权限及同源写检查；仅修改匹配接收组渠道，所有场景原子提交，保留模板及范围。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SceneBatchInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "统一成功响应",
+            "headers": {
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SceneBatchResult"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "无权限"
+          },
+          "404": {
+            "description": "场景不存在"
+          },
+          "409": {
+            "description": "修订冲突或旧入口不可覆盖新结构"
+          },
+          "422": {
+            "description": "接收组、范围、渠道或模板无效"
+          }
+        },
+        "summary": "批量配置消息场景"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "adminCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_admin_token"
+      }
+    },
+    "schemas": {
+      "EmailInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "已配置通道 ID；0 为尚未选择。启用前服务端核验通道可用性。"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "SmsInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "已配置通道 ID；0 为尚未选择。启用前服务端核验通道可用性。"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "template_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "variables": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "JSON 对象字符串，最多 30 项，只可使用当前事件允许的占位变量。"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "MessageInput": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483646
+          },
+          "configurations": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "$ref": "#/components/schemas/EmailInput"
+              },
+              "sms": {
+                "$ref": "#/components/schemas/SmsInput"
+              },
+              "message": {
+                "$ref": "#/components/schemas/StandaloneMessageInput"
+              },
+              "wechat": {
+                "$ref": "#/components/schemas/WechatInput"
+              },
+              "dingtalk": {
+                "$ref": "#/components/schemas/DingtalkInput"
+              },
+              "wecom": {
+                "$ref": "#/components/schemas/WecomInput"
+              },
+              "feishu": {
+                "$ref": "#/components/schemas/FeishuInput"
+              }
+            },
+            "required": [],
+            "additionalProperties": false,
+            "description": "必须包含当前消息全部支持渠道，不能增加不支持的渠道；跨 Tab 整体保存。"
+          },
+          "recipients": {
+            "$ref": "#/components/schemas/MessageRecipientPolicy"
+          }
+        },
+        "required": [
+          "revision",
+          "configurations"
+        ],
+        "additionalProperties": false
+      },
+      "WechatInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "template_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "variables": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "JSON 对象字符串，最多 30 项，只可使用当前事件允许的占位变量。"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "DingtalkInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "WecomInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "FeishuInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "MessageRecipientPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "ids"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "founder",
+              "departments",
+              "roles",
+              "members"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        },
+        "description": "仅管理员消息可修改。founder 使用空 ids，其余模式要求至少一个启用对象；不接受任意联系地址。"
+      },
+      "RecipientGroup": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin",
+              "robot"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "recipients": {
+            "$ref": "#/components/schemas/MessageRecipientPolicy"
+          },
+          "configurations": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "email": {
+                "$ref": "#/components/schemas/EmailInput"
+              },
+              "sms": {
+                "$ref": "#/components/schemas/SmsInput"
+              },
+              "message": {
+                "$ref": "#/components/schemas/MessageInput"
+              },
+              "wechat": {
+                "$ref": "#/components/schemas/WechatInput"
+              },
+              "dingtalk": {
+                "$ref": "#/components/schemas/DingtalkInput"
+              },
+              "wecom": {
+                "$ref": "#/components/schemas/WecomInput"
+              },
+              "feishu": {
+                "$ref": "#/components/schemas/FeishuInput"
+              }
+            },
+            "required": []
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "enabled",
+          "recipients",
+          "configurations"
+        ]
+      },
+      "RecipientGroupSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin",
+              "robot"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "email",
+                "sms",
+                "message",
+                "wechat",
+                "dingtalk",
+                "wecom",
+                "feishu"
+              ]
+            }
+          },
+          "available_channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "email",
+                "sms",
+                "message",
+                "wechat",
+                "dingtalk",
+                "wecom",
+                "feishu"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "enabled",
+          "channels",
+          "available_channels"
+        ]
+      },
+      "SceneRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "verification",
+              "notification",
+              "marketing",
+              "system"
+            ]
+          },
+          "revisions": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "customer": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483646
+              },
+              "admin": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483646
+              }
+            },
+            "required": [],
+            "minProperties": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientGroupSummary"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "customer": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "channels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "email",
+                        "sms",
+                        "message",
+                        "wechat",
+                        "dingtalk",
+                        "wecom",
+                        "feishu"
+                      ]
+                    }
+                  },
+                  "variables": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "description",
+                  "channels",
+                  "variables"
+                ]
+              },
+              "admin": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "channels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "email",
+                        "sms",
+                        "message",
+                        "wechat",
+                        "dingtalk",
+                        "wecom",
+                        "feishu"
+                      ]
+                    }
+                  },
+                  "variables": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "description",
+                  "channels",
+                  "variables"
+                ]
+              }
+            },
+            "required": []
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description",
+          "purpose",
+          "revisions",
+          "enabled",
+          "groups",
+          "metadata"
+        ]
+      },
+      "SceneDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "verification",
+              "notification",
+              "marketing",
+              "system"
+            ]
+          },
+          "revisions": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "customer": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483646
+              },
+              "admin": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483646
+              }
+            },
+            "required": [],
+            "minProperties": 1
+          },
+          "groups": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/RecipientGroup"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "customer": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "channels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "email",
+                        "sms",
+                        "message",
+                        "wechat",
+                        "dingtalk",
+                        "wecom",
+                        "feishu"
+                      ]
+                    }
+                  },
+                  "variables": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "description",
+                  "channels",
+                  "variables"
+                ]
+              },
+              "admin": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "channels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "email",
+                        "sms",
+                        "message",
+                        "wechat",
+                        "dingtalk",
+                        "wecom",
+                        "feishu"
+                      ]
+                    }
+                  },
+                  "variables": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "description",
+                  "channels",
+                  "variables"
+                ]
+              }
+            },
+            "required": []
+          },
+          "group_templates": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "customer": {
+                "$ref": "#/components/schemas/RecipientGroup"
+              },
+              "admin": {
+                "$ref": "#/components/schemas/RecipientGroup"
+              },
+              "robot": {
+                "$ref": "#/components/schemas/RecipientGroup"
+              }
+            },
+            "required": []
+          },
+          "channel_options": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "available": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "available"
+                ]
+              }
+            }
+          },
+          "recipient_options": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ]
+                }
+              },
+              "roles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ]
+                }
+              },
+              "members": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ]
+                }
+              }
+            },
+            "required": []
+          },
+          "robot_status": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "dingtalk": {
+                "type": "boolean"
+              },
+              "wecom": {
+                "type": "boolean"
+              },
+              "feishu": {
+                "type": "boolean"
+              }
+            },
+            "required": []
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description",
+          "purpose",
+          "revisions",
+          "groups",
+          "metadata",
+          "group_templates",
+          "channel_options",
+          "recipient_options",
+          "robot_status"
+        ]
+      },
+      "SceneList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SceneRow"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "SceneInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revisions": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "customer": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483646
+              },
+              "admin": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483646
+              }
+            },
+            "required": [],
+            "minProperties": 1
+          },
+          "groups": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/RecipientGroup"
+            }
+          }
+        },
+        "required": [
+          "revisions",
+          "groups"
+        ]
+      },
+      "SceneBatchInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                },
+                "revisions": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "customer": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483646
+                    },
+                    "admin": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483646
+                    }
+                  },
+                  "required": [],
+                  "minProperties": 1
+                }
+              },
+              "required": [
+                "code",
+                "revisions"
+              ]
+            }
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "admin",
+              "robot"
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "message",
+              "wechat",
+              "dingtalk",
+              "wecom",
+              "feishu"
+            ]
+          },
+          "channel_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "kind",
+          "channel"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "channel_id"
+            ]
+          },
+          {
+            "required": [
+              "enabled"
+            ]
+          }
+        ]
+      },
+      "SceneBatchResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          }
+        },
+        "required": [
+          "updated"
+        ]
+      },
+      "StandaloneMessageInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

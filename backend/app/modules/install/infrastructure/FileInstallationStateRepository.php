@@ -7,16 +7,39 @@ namespace app\modules\install\infrastructure;
 use app\modules\install\contract\InstallationStateRepositoryInterface;
 use app\modules\install\domain\InstallationConfiguration;
 use app\modules\install\exception\InstallationException;
+use app\exception\BusinessException;
+use app\modules\system_settings\contract\AdminEntryRepositoryInterface;
+use app\shared\http\ApiErrorCode;
 use Closure;
 use Throwable;
 
 /**
  * 使用受控文件和文件锁保存在线安装状态及运行配置。
  */
-final class FileInstallationStateRepository implements InstallationStateRepositoryInterface
+final class FileInstallationStateRepository implements InstallationStateRepositoryInterface, AdminEntryRepositoryInterface
 {
     private const LOCK_TTL_SECONDS = 1800;
     private const PHASES = ['database', 'system', 'configuration', 'finalize'];
+
+    /** 可注入隔离安装目录，生产环境沿用 Webman 项目目录。 */
+    public function __construct(private readonly ?string $directory = null)
+    {
+    }
+
+    /** @inheritDoc */
+    public function changeAdminPath(string $expected, string $path): void
+    {
+        if (!preg_match('/^[a-z][a-z0-9-]{2,31}$/D', $path)) {
+            throw new BusinessException('后台访问路径格式无效', ApiErrorCode::VALIDATION_FAILED, 422);
+        }
+        $this->withLock(function () use ($expected, $path): void {
+            if (!$this->isInstalled()) throw new BusinessException('请先完成系统安装', ApiErrorCode::CONFLICT, 409);
+            if (!hash_equals($this->adminPath(), $expected)) {
+                throw new BusinessException('后台路径已被其他管理员修改，请重新加载后再保存', ApiErrorCode::CONFLICT, 409);
+            }
+            if ($path !== $expected) $this->writeEnvironment(['ADMIN_PATH' => $path]);
+        });
+    }
 
     /**
      * 判断 .env 是否已标记系统安装完成。
@@ -211,23 +234,24 @@ final class FileInstallationStateRepository implements InstallationStateReposito
      */
     private function writeEnvironment(array $values): void
     {
-        $path = base_path(false) . '/.env';
+        $path = ($this->directory ?? base_path(false)) . '/.env';
         $existing = is_file($path) ? file_get_contents($path) : '';
         if ($existing === false) {
             throw new InstallationException('系统配置文件读取失败，请检查文件权限后重试', 500);
         }
 
         $remaining = $values;
-        $lines = $existing === '' ? [] : (preg_split('/\R/', rtrim($existing)) ?: []);
+        // 仅拆分真实换行；无 UTF-8 标记的 \R 会将中文里的 0x85 字节误当换行。
+        $lines = $existing === '' ? [] : (preg_split('/\r\n|\n|\r/', rtrim($existing)) ?: []);
         foreach ($lines as $index => $line) {
             if (!preg_match('/^\s*([A-Z][A-Z0-9_]*)\s*=/', $line, $matches)) {
                 continue;
             }
             $key = $matches[1];
-            if (!array_key_exists($key, $remaining)) {
+            if (!array_key_exists($key, $values)) {
                 continue;
             }
-            $lines[$index] = $key . '=' . $this->encodeEnvironmentValue((string) $remaining[$key]);
+            $lines[$index] = $key . '=' . $this->encodeEnvironmentValue((string) $values[$key]);
             unset($remaining[$key]);
         }
 
@@ -249,7 +273,7 @@ final class FileInstallationStateRepository implements InstallationStateReposito
      */
     private function readEnvironmentValue(string $key): string
     {
-        $path = base_path(false) . '/.env';
+        $path = ($this->directory ?? base_path(false)) . '/.env';
         if (!is_file($path)) {
             return '';
         }
@@ -309,7 +333,7 @@ final class FileInstallationStateRepository implements InstallationStateReposito
      */
     private function installRuntimePath(): string
     {
-        $path = runtime_path() . '/install';
+        $path = ($this->directory === null ? runtime_path() : $this->directory . '/runtime') . '/install';
         if (!is_dir($path) && !mkdir($path, 0700, true) && !is_dir($path)) {
             throw new InstallationException('无法创建安装运行目录，请检查系统目录写入权限', 500);
         }

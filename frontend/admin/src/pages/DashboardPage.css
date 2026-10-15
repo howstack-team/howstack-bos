@@ -1,0 +1,62 @@
+.workplace-page { display: grid; gap: 16px; min-width: 0; }
+.workplace-page section { min-width: 0; }
+.workplace-card { border: 1px solid var(--color-border-2); border-radius: var(--border-radius-small); }
+.workplace-welcome { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.workplace-user { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.workplace-user > div { min-width: 0; overflow-wrap: anywhere; }
+.workplace-date { display: flex; align-items: center; gap: 8px; flex: none; color: var(--color-text-3); font-size: 13px; }
+.workplace-welcome-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-border-2); color: var(--color-text-3); font-size: 13px; overflow-wrap: anywhere; }
+.workplace-welcome-footer > a { margin-left: auto; }
+.workplace-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 4px 0 12px; }
+.workplace-section-heading > div { display: grid; gap: 6px; min-width: 0; }
+.workplace-section-heading > button { flex: none; }
+.workplace-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.workplace-metric-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--color-text-2); }
+.workplace-metric-icon { font-size: 20px; color: rgb(var(--primary-6)); }
+.workplace-metric-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--color-text-3); }
+.workplace-load-error { margin-bottom: 12px; }
+.workplace-columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(290px, 1fr); align-items: start; gap: 16px; }
+.workplace-main, .workplace-aside { display: grid; gap: 16px; min-width: 0; }
+.workplace-tasks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+.workplace-task, .workplace-product { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 64px; padding: 12px 8px; box-sizing: border-box; color: var(--color-text-1); text-decoration: none; border-radius: var(--border-radius-small); }
+.workplace-task { border-bottom: 1px solid var(--color-border-1); }
+.workplace-task:nth-last-child(-n+2) { border-bottom-color: transparent; }
+.workplace-task:hover, .workplace-product:hover { background: var(--color-fill-1); }
+.workplace-task:focus-visible, .workplace-product:focus-visible { outline: 2px solid rgb(var(--primary-6)); outline-offset: -2px; }
+.workplace-task-icon { display: inline-flex; flex: none; font-size: 18px; color: var(--color-text-3); }
+.workplace-task-info, .workplace-product-info { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.workplace-row-note { font-size: 12px; color: var(--color-text-3); }
+.workplace-row-count { display: flex; align-items: baseline; gap: 4px; margin-left: auto; flex: none; }
+.workplace-row-count > span { color: var(--color-text-3); font-size: 12px; }
+.workplace-row-arrow { flex: none; font-size: 12px; color: var(--color-text-4); }
+.workplace-task:hover .workplace-task-icon, .workplace-task:hover .workplace-row-arrow, .workplace-product:hover .workplace-row-arrow { color: rgb(var(--primary-6)); }
+.workplace-shortcuts-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.workplace-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.workplace-shortcut { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; padding: 12px; border: 0; background: transparent; cursor: pointer; }
+.workplace-shortcut-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-bottom: 4px; font-size: 18px; color: var(--color-text-2); background: var(--color-fill-2); border-radius: var(--border-radius-small); }
+.workplace-shortcut-label { font-size: 12px; line-height: 20px; color: var(--color-text-1); text-align: center; overflow-wrap: anywhere; }
+.workplace-shortcut:hover .workplace-shortcut-label, .workplace-shortcut:focus-visible .workplace-shortcut-label { color: rgb(var(--primary-6)); }
+.workplace-shortcut:hover .workplace-shortcut-icon, .workplace-shortcut:focus-visible .workplace-shortcut-icon { background: var(--color-primary-light-1); color: rgb(var(--primary-6)); }
+.workplace-shortcut:focus-visible { outline: 2px solid rgb(var(--primary-6)); outline-offset: -2px; }
+.workplace-products { display: grid; }
+.workplace-product { min-height: 72px; border-bottom: 1px solid var(--color-border-1); }
+.workplace-product:last-child { border-bottom-color: transparent; }
+.workplace-product-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: none; font-size: 20px; color: rgb(var(--primary-6)); background: var(--color-primary-light-1); border-radius: var(--border-radius-small); }
+@media (max-width: 1200px) {
+  .workplace-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workplace-columns { grid-template-columns: minmax(0, 1fr); }
+  .workplace-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .workplace-welcome { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .workplace-welcome-footer { align-items: flex-start; flex-direction: column; }
+  .workplace-welcome-footer > a { margin-left: 0; }
+  .workplace-section-heading { align-items: flex-start; }
+  .workplace-aside { grid-template-columns: minmax(0, 1fr); }
+  .workplace-tasks { grid-template-columns: minmax(0, 1fr); }
+  .workplace-task:nth-last-child(-n+2) { border-bottom-color: var(--color-border-1); }
+  .workplace-task:last-child { border-bottom-color: transparent; }
+}
+@media (max-width: 360px) {
+  .workplace-metrics { grid-template-columns: minmax(0, 1fr); }
+}

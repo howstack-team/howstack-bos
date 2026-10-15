@@ -10,6 +10,7 @@ use app\modules\member\application\RealNameManagementService;
 use app\modules\member\validation\MemberValidator;
 use app\modules\member\validation\RealNameAuthenticationValidator;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\DisableDefaultRoute;
 use support\annotation\route\Get;
@@ -30,7 +31,10 @@ final readonly class AdminRealNameAuthenticationController
     public function index(Request $request): Response
     {
         $query = RealNameAuthenticationValidator::page($request->get());
-        return $this->responses->success($request, $this->management->paginate($this->context->account($request), $query['keyword'], $query['type'], $query['status'], $query['page'], $query['page_size']));
+        return $this->responses->success($request, $this->management->paginate(
+            $this->context->account($request), $query['keyword'], $query['type'], $query['status'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['mobile' => 20, 'nickname' => 64, 'subject' => 128], ['submitted_at', 'reviewed_at']),
+        ));
     }
 
     #[Get(path: '/{id:\d+}', name: 'admin.real-name-authentications.show')]

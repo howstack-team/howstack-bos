@@ -1,3 +1,5 @@
+import type { ComputeSelection, PreviewOptions, PricePreview } from './cloudProductApi'
+import type { TableSortQuery } from './tableQuery'
 import { ApiRequestError, request } from './httpClient.ts'
 
 export interface OrderSummary {
@@ -35,7 +37,16 @@ export interface OrderItem {
   total_minor: number
 }
 
-export interface OrderDetail extends OrderSummary { items: OrderItem[] }
+export interface OrderUnit {
+  id: number
+  order_item_id: number
+  unit_index: number
+  service_id: number | null
+  allocated_minor: number
+  refunded_minor: number
+  reserved_refund_minor: number
+}
+export interface OrderDetail extends OrderSummary { items: OrderItem[]; units?: OrderUnit[] }
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -55,7 +66,7 @@ function invalid(): never {
   throw new ApiRequestError('订单响应格式无效', 500, 50000)
 }
 
-export async function listOrders(params: { keyword?: string; status?: string; page: number; page_size: number }): Promise<{ data: OrderSummary[]; total: number }> {
+export async function listOrders(params: TableSortQuery & { order_no?: string; member_mobile?: string; member_nickname?: string; keyword?: string; status?: string; order_type?: string; payment_status?: string; page: number; page_size: number }): Promise<{ data: OrderSummary[]; total: number }> {
   const result = await request<unknown>({ url: '/orders', params })
   if (!isObject(result) || !Array.isArray(result.data) || !result.data.every(isOrder)
     || typeof result.total !== 'number') return invalid()
@@ -69,5 +80,18 @@ export async function getOrder(id: number): Promise<OrderDetail> {
       && typeof item.line_no === 'number' && typeof item.product_name === 'string'
       && typeof item.quantity === 'number' && typeof item.unit_price_minor === 'number'
       && typeof item.total_minor === 'number')) return invalid()
+  if (result.units !== undefined && (!Array.isArray(result.units) || !result.units.every((unit: unknown) =>
+    isObject(unit) && ['id', 'order_item_id', 'unit_index', 'allocated_minor', 'refunded_minor', 'reserved_refund_minor'].every(key => Number.isSafeInteger(unit[key]))
+    && (unit.service_id === null || Number.isSafeInteger(unit.service_id))))) return invalid()
   return result as unknown as OrderDetail
+}
+
+export interface OrderProduct { id: number; name: string; product_type: string; version_id: number }
+export const orderManagementApi = {
+  products: () => request<OrderProduct[]>({ url: '/orders/products' }),
+  members: (search: string) => request<Array<{ id: number; label: string }>>({ url: '/orders/members', params: { search } }),
+  options: (offerId: number, selection: ComputeSelection, versionId?: number) => request<PreviewOptions>({ url: '/orders/preview', method: 'POST', data: { offer_id: offerId, version_id: versionId, selection, mode: 'options' } }),
+  price: (offerId: number, selection: ComputeSelection, versionId?: number) => request<PricePreview>({ url: '/orders/preview', method: 'POST', data: { offer_id: offerId, version_id: versionId, selection, mode: 'price' } }),
+  create: (input: { request_key: string; member_id: number; offer_id: number; version_id: number; selection: ComputeSelection; expected_amount_minor: number; remark: string }) => request<{ id: number }>({ url: '/orders', method: 'POST', data: input }),
+  act: (id: number, action: 'pay' | 'cancel' | 'update', data: { remark?: string; expected_remark?: string } = {}) => request<{ id: number }>({ url: `/orders/${id}/${action}`, method: 'POST', data }),
 }

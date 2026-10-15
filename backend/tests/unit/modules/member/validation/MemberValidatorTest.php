@@ -17,6 +17,12 @@ final class MemberValidatorTest extends TestCase
         MemberValidator::member($this->validInput(password: null), true);
     }
 
+    public function testOversizedPasswordIsRejectedByAdminInput(): void
+    {
+        $this->expectException(ValidationException::class);
+        MemberValidator::member($this->validInput(str_repeat('a', 73)), true);
+    }
+
     public function testUpdateAcceptsMissingPasswordAndDropsUnknownFields(): void
     {
         $validated = MemberValidator::member($this->validInput(password: null) + ['balance' => 999999], false);

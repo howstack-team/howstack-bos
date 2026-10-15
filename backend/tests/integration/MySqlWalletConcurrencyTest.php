@@ -26,7 +26,7 @@ final class MySqlWalletConcurrencyTest extends TestCase
     {
         $member = $this->member();
         $order = $this->order($member);
-        (new WalletLedgerService(new DatabaseWalletLedgerRepository(), new DatabaseTransactionManager()))
+        (new WalletLedgerService(new DatabaseWalletLedgerRepository(), new DatabaseTransactionManager(), \tests\support\MessageRuntimeFactory::publisher()))
             ->creditConfirmedRecharge($member, $this->recharge($member));
         $results = $this->race($member, [$order, $order]);
         self::assertSame([['balance' => 300], ['balance' => 300]], $results);
@@ -40,7 +40,7 @@ final class MySqlWalletConcurrencyTest extends TestCase
         $member = $this->member();
         $first = $this->order($member, 'ORDER-ONE');
         $second = $this->order($member, 'ORDER-TWO');
-        (new WalletLedgerService(new DatabaseWalletLedgerRepository(), new DatabaseTransactionManager()))
+        (new WalletLedgerService(new DatabaseWalletLedgerRepository(), new DatabaseTransactionManager(), \tests\support\MessageRuntimeFactory::publisher()))
             ->creditConfirmedRecharge($member, $this->recharge($member));
         $results = $this->race($member, [$first, $second]);
         self::assertCount(1, array_filter($results, static fn (array $result): bool => isset($result['balance'])));
@@ -62,7 +62,7 @@ final class MySqlWalletConcurrencyTest extends TestCase
         foreach (array_unique($orders) as $order) Db::table('orders')->where('id', $order)->lockForUpdate()->first();
         try {
             foreach ($orders as $order) {
-                $process = proc_open([PHP_BINARY, dirname(__DIR__) . '/support/pay_order_worker.php'],
+                $process = proc_open([PHP_BINARY, '-d', 'display_errors=stderr', dirname(__DIR__) . '/support/pay_order_worker.php'],
                     [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
                 self::assertIsResource($process);
                 $processes[] = [$process, $pipes];
@@ -80,7 +80,8 @@ final class MySqlWalletConcurrencyTest extends TestCase
                 fclose($pipes[1]);
                 $errors = stream_get_contents($pipes[2]);
                 fclose($pipes[2]);
-                self::assertSame('', $errors);
+                // 子进程 stderr 不得包含启动警告或业务异常。
+                self::assertSame('', trim($errors));
                 self::assertSame(0, proc_close($process));
             }
             return $results;

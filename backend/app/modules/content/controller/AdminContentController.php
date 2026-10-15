@@ -9,6 +9,7 @@ use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\modules\content\application\ManageContentService;
 use app\modules\content\validation\ContentValidator;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\Delete;
 use support\annotation\route\DisableDefaultRoute;
@@ -31,8 +32,11 @@ final readonly class AdminContentController
     {
         $categories = $resource === 'categories';
         $query = ContentValidator::page($request->get(), $categories);
-        return $this->responses->success($request, $this->service->paginate($this->context->account($request), $kind, $categories,
-            $query['keyword'], $query['status'], $query['page'], $query['page_size']));
+        return $this->responses->success($request, $this->service->paginate(
+            $this->context->account($request), $kind, $categories,
+            $query['keyword'], $query['status'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['name' => 64, 'title' => 128], ['sort_order', 'created_at']),
+        ));
     }
 
     #[Get(path: '/content/{kind:help|news}/{resource:categories|entries}/{id:\d+}', name: 'admin.content.show')]

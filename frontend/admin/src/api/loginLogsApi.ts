@@ -1,3 +1,4 @@
+import type { TableSortQuery } from './tableQuery'
 import { ApiRequestError, request } from './httpClient.ts'
 
 /** 一次管理员登录尝试的展示快照。 */
@@ -28,7 +29,7 @@ function isLoginLogRecord(value: unknown): value is LoginLogRecord {
 }
 
 /** 分页读取当前账号有权限查看的登录日志。 */
-export async function listLoginLogs(params: { keyword?: string; status?: 0 | 1; page: number; page_size: number }): Promise<{ data: LoginLogRecord[]; total: number }> {
+export async function listLoginLogs(params: TableSortQuery & { username?: string; nickname?: string; client_ip?: string; client_ip_location?: string; keyword?: string; status?: 0 | 1; page: number; page_size: number }): Promise<{ data: LoginLogRecord[]; total: number }> {
   const value = await request<unknown>({ url: '/login-logs', params })
   if (typeof value !== 'object' || value === null) throw new ApiRequestError('登录日志响应格式无效', 500, 50000)
   const result = value as Record<string, unknown>

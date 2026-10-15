@@ -1,0 +1,33 @@
+---
+title: 已实现余额付款与待接入履约
+---
+flowchart TB
+  input["管理员代下单 · 已发布产品版本与配置"]
+  price["产品类型契约 · 服务端校验 / 整数分计价"]
+  create["创建事务 · 订单 / 项 / 单元 / 快照 / 幂等键"]
+  pending["pending_payment · 待付款"]
+  cancel["未支付取消"]
+  payment["余额付款事务 · 订单 → 钱包来源 → 库存"]
+  commit["提交 · 扣款 / 流水 / 库存 / paid / Outbox"]
+  rollback["余额或库存不足 · 整笔回滚"]
+  finance["单元退款 / 开票额度 · 保留原金额归属"]
+  notification["消息任务 · 已独立接入付款通知"]
+  event["finance_outbox · 当前只写入"]
+  fulfillment["待接入 · 单实例履约任务"]
+  provider["待接入 · 供应商开通 / 查单 / 补偿"]
+  result["待接入 · 服务绑定 / 部分交付 / 重试恢复"]
+  input --> price --> create --> pending
+  pending --> cancel
+  pending --> payment
+  payment --> commit
+  payment --> rollback
+  commit --> finance
+  commit --> notification
+  commit --> event
+  event -.-> fulfillment -.-> provider -.-> result
+  classDef normal fill:#e8f3ff,stroke:#165dff,color:#1d2129
+  classDef partial fill:#fff7e6,stroke:#d98e04,color:#1d2129
+  classDef planned fill:#f7f8fa,stroke:#86909c,stroke-dasharray:5 4,color:#4e5969
+  class input,price,create,pending,cancel,payment,commit,rollback,finance,notification normal
+  class event partial
+  class fulfillment,provider,result planned

@@ -33,7 +33,11 @@ const i18n = {
     'settings.themeColor': 'Theme Color',
     'settings.content': 'Content Setting',
     'settings.navbar': 'Navbar',
-    'settings.menuWidth': 'Menu Width (px)',
+    'settings.menuWidth': 'Secondary Menu Width (px)',
+    'settings.classicMenuWidth': 'Menu Width (px)',
+    'settings.layout': 'Layout',
+    'settings.layout.classic': 'Classic',
+    'settings.layout.doubleColumn': 'Double column',
     'settings.navbar.theme.toLight': 'Click to use light mode',
     'settings.navbar.theme.toDark': 'Click to use dark mode',
     'settings.menu': 'Menu',
@@ -42,7 +46,7 @@ const i18n = {
     'settings.colorWeek': 'Color Week',
     'settings.watermark': 'Watermark',
     'settings.alertContent':
-      'The watermark switch is saved in this browser. Other changes are temporary; to make them permanent, copy the settings into settings.json.',
+      'Layout and watermark preferences are saved in this browser. Other changes are temporary; to make them permanent, copy the settings into settings.json.',
     'settings.copySettings': 'Copy Settings',
     'settings.copySettings.message':
       'Copy succeeded, please paste to file src/settings.json.',
@@ -92,7 +96,11 @@ const i18n = {
     'settings.themeColor': '主题色',
     'settings.content': '内容区域',
     'settings.navbar': '导航栏',
-    'settings.menuWidth': '菜单宽度 (px)',
+    'settings.menuWidth': '二级菜单宽度 (px)',
+    'settings.classicMenuWidth': '菜单宽度 (px)',
+    'settings.layout': '布局样式',
+    'settings.layout.classic': '经典布局',
+    'settings.layout.doubleColumn': '双列布局',
     'settings.navbar.theme.toLight': '点击切换为亮色模式',
     'settings.navbar.theme.toDark': '点击切换为暗黑模式',
     'settings.menu': '菜单栏',
@@ -101,7 +109,7 @@ const i18n = {
     'settings.colorWeek': '色弱模式',
     'settings.watermark': '水印',
     'settings.alertContent':
-      '水印开关会保存在当前浏览器；其他配置仅临时生效，如需长期生效可复制配置并更新 settings.json。',
+      '布局样式和水印开关会保存在当前浏览器；其他配置仅临时生效，如需长期生效可复制配置并更新 settings.json。',
     'settings.copySettings': '复制配置',
     'settings.copySettings.message':
       '复制成功，请粘贴到 src/settings.json 文件中',

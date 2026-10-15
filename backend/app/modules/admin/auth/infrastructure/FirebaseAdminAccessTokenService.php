@@ -66,6 +66,7 @@ final readonly class FirebaseAdminAccessTokenService implements AdminAccessToken
             'exp' => $expiresAt,
             'jti' => $tokenId,
             'typ' => self::TOKEN_TYPE,
+            'credential_proof' => $this->credentialProof($account),
         ], $this->secret, self::ALGORITHM);
 
         return new IssuedAccessToken($token, $expiresAt);
@@ -94,6 +95,7 @@ final readonly class FirebaseAdminAccessTokenService implements AdminAccessToken
         $issuedAt = filter_var($payload->iat ?? null, FILTER_VALIDATE_INT);
         $expiresAt = filter_var($payload->exp ?? null, FILTER_VALIDATE_INT);
         $tokenId = is_string($payload->jti ?? null) ? $payload->jti : '';
+        $proof = is_string($payload->credential_proof ?? null) ? $payload->credential_proof : '';
 
         if (($payload->iss ?? null) !== $this->issuer
             || ($payload->aud ?? null) !== $this->audience
@@ -101,11 +103,26 @@ final readonly class FirebaseAdminAccessTokenService implements AdminAccessToken
             || $adminId === false
             || $issuedAt === false
             || $expiresAt === false
-            || !preg_match('/^[a-f0-9]{32}$/', $tokenId)) {
+            || !preg_match('/^[a-f0-9]{32}$/', $tokenId)
+            || !preg_match('/^[a-f0-9]{64}$/', $proof)) {
             throw AdminAuthenticationException::invalidToken();
         }
 
-        return new AccessTokenClaims($adminId, $tokenId, $issuedAt, $expiresAt);
+        return new AccessTokenClaims($adminId, $tokenId, $issuedAt, $expiresAt, $proof);
+    }
+
+    public function matchesAccount(AccessTokenClaims $claims, AdminAccount $account): bool
+    {
+        $this->assertConfigured();
+
+        return $claims->adminId === $account->id
+            && hash_equals($this->credentialProof($account), $claims->credentialProof);
+    }
+
+    /** 不在令牌中暴露密码哈希；签名密钥派生的证明随密码哈希变更。 */
+    private function credentialProof(AdminAccount $account): string
+    {
+        return hash_hmac('sha256', 'admin-credential:' . $account->id . ':' . $account->passwordHash . ':' . $account->authVersion, $this->secret);
     }
 
     /**

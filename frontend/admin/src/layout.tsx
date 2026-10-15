@@ -1,23 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Switch, Route, Redirect, useHistory, useLocation } from 'react-router-dom';
-import { Layout, Menu, Breadcrumb, Watermark } from '@arco-design/web-react';
-import cs from 'classnames';
-import {
-  IconDashboard,
-  IconUserGroup,
-  IconStamp,
-  IconStorage,
-  IconCustomerService,
-  IconBook,
-  IconSettings,
-  IconHistory,
-  IconMenuFold,
-  IconMenuUnfold,
-} from '@arco-design/web-react/icon';
+import { Breadcrumb, Watermark } from '@arco-design/web-react';
 import { useSelector } from 'react-redux';
 import NProgress from 'nprogress';
 import Navbar from './components/NavBar';
 import Footer from './components/Footer';
+import SoftwareUpdateNotice from './components/SoftwareUpdateNotice';
+import useSoftwareUpdateNotice from './hooks/useSoftwareUpdateNotice';
 import useRoute, { IRoute, toUserPermission } from '@/routes';
 import { useAdminAuth } from './auth/AuthContext';
 import { isArray } from './utils/is';
@@ -25,45 +14,28 @@ import useLocale from './utils/useLocale';
 import getUrlParams from './utils/getUrlParams';
 import lazyload from './utils/lazyload';
 import { GlobalState } from './store';
-import styles from './style/layout.module.less';
+import AdminLayout from './layouts';
+import { cloudSectionFromPath } from './components/cloud-server/navigation';
+import { normalizeLayoutVariant } from './layouts/preferences';
 
-const MenuItem = Menu.Item;
-const SubMenu = Menu.SubMenu;
+const CloudConfigurationPage = lazyload(() => import('./pages/ProductManagementPage'));
+const ForbiddenPage = lazyload(() => import('./pages/exception/403'));
 
-const Sider = Layout.Sider;
-const Content = Layout.Content;
-
-function getIconFromKey(key) {
-  switch (key) {
-    case 'dashboard':
-      return <IconDashboard className={styles.icon} />;
-    case 'customers':
-      return <IconUserGroup className={styles.icon} />;
-    case 'system':
-      return <IconSettings className={styles.icon} />;
-    case 'audit':
-      return <IconHistory className={styles.icon} />;
-    case 'finance':
-      return <IconStamp className={styles.icon} />;
-    case 'services':
-      return <IconStorage className={styles.icon} />;
-    case 'support':
-      return <IconCustomerService className={styles.icon} />;
-    case 'content':
-      return <IconBook className={styles.icon} />;
-    default:
-      return null;
-  }
-}
-
-function getFlattenRoutes(routes) {
-  const mod = {
+const routeLoaders = {
+    'system/profile': () => import('./pages/PersonalSettingsPage'),
     'dashboard/workplace': () => import('./pages/DashboardPage'),
+    'dashboard/analysis': () => import('./pages/BusinessAnalysisPage'),
     'customers/members': () => import('./pages/MembersPage'),
     'customers/member-groups': () => import('./pages/MemberGroupsPage'),
     'customers/member-levels': () => import('./pages/MemberLevelsPage'),
     'customers/real-name-authentications': () => import('./pages/RealNameAuthenticationsPage'),
     'finance/orders': () => import('./pages/OrdersPage'),
+    'products/cloud-servers/deployment': () => import('./pages/ProductManagementPage'),
+    'products/cloud-servers/specification': () => import('./pages/ProductManagementPage'),
+    'products/cloud-servers/network': () => import('./pages/ProductManagementPage'),
+    'products/cloud-servers/storage': () => import('./pages/ProductManagementPage'),
+    'products/cloud-servers/purchase': () => import('./pages/ProductManagementPage'),
+    'products/provider-connections': () => import('./pages/ProviderConnectionsPage'),
     'services/cloud-servers': () => import('./pages/ServiceInstancesPage').then(({ default: Page }) => ({ default: () => <Page productType="cloud_server" /> })),
     'services/physical-servers': () => import('./pages/ServiceInstancesPage').then(({ default: Page }) => ({ default: () => <Page productType="physical_server" /> })),
     'services/server-colocations': () => import('./pages/ServiceInstancesPage').then(({ default: Page }) => ({ default: () => <Page productType="server_colocation" /> })),
@@ -71,6 +43,11 @@ function getFlattenRoutes(routes) {
     'support/tickets': () => import('./pages/TicketsPage'),
     'support/quick-replies': () => import('./pages/TicketCatalogPage').then(({ default: Page }) => ({ default: () => <Page kind="quick-replies" /> })),
     'content/help': () => import('./pages/ContentManagementPage').then(({ default: Page }) => ({ default: () => <Page kind="help" resource="entries" /> })),
+    'content/files': () => import('./pages/FileManagementPage'),
+    'content/website-base': () => import('./pages/WebsiteSettingsPage'),
+    'content/website-navigation': () => import('./pages/WebsiteSettingsPage'),
+    'content/website-seo': () => import('./pages/WebsiteSeoPage'),
+    'content/themes': () => import('./pages/ThemeManagementPage'),
     'content/help-categories': () => import('./pages/ContentManagementPage').then(({ default: Page }) => ({ default: () => <Page kind="help" resource="categories" /> })),
     'content/news': () => import('./pages/ContentManagementPage').then(({ default: Page }) => ({ default: () => <Page kind="news" resource="entries" /> })),
     'content/news-categories': () => import('./pages/ContentManagementPage').then(({ default: Page }) => ({ default: () => <Page kind="news" resource="categories" /> })),
@@ -83,21 +60,36 @@ function getFlattenRoutes(routes) {
     'system/administrators': () => import('./pages/AdministratorsPage'),
     'system/departments': () => import('./pages/DepartmentsPage'),
     'system/roles': () => import('./pages/RolesPage'),
+    'system/message-configurations': () => import('./pages/message-configurations/MessageConfigurationsPage'),
     'system/settings': () => import('./pages/SettingsPage'),
+    'system/channels/payment': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="payment" /> })),
+    'system/channels/sms': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="sms" /> })),
+    'system/channels/mail': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="mail" /> })),
+    'system/channels/identity': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="identity" /> })),
+    'system/channels/storage': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="storage" /> })),
+    'system/channels/oauth': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="oauth" /> })),
+    'system/channels/captcha': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="captcha" /> })),
     'system/maintenance': () => import('./pages/SystemMaintenancePage'),
+    'system/application-center': () => import('./pages/ApplicationCenterPage'),
+    'audit/messages': () => import('./pages/MessageLogsPage'),
     'audit/operations': () => import('./pages/OperationLogsPage'),
     'audit/logins': () => import('./pages/LoginLogsPage'),
-  };
-  const res = [];
-  function travel(_routes) {
+};
+
+// 权限刷新会重算可访问路由，复用组件类型以保留当前页面和弹层状态。
+const routeComponents = Object.fromEntries(
+  Object.entries(routeLoaders).map(([key, loader]) => [key, lazyload(loader)])
+);
+
+function getFlattenRoutes(routes: IRoute[]) {
+  const res: IRoute[] = [];
+  function travel(_routes: IRoute[]) {
     _routes.forEach((route) => {
-      const visibleChildren = (route.children || []).filter(
-        (child) => !child.ignore
-      );
-      if (route.key && (!route.children || !visibleChildren.length)) {
+      if (route.external) return;
+      if (route.key && !route.children?.length) {
         try {
-          route.component = lazyload(mod[route.key]);
-          res.push(route);
+          const component = routeComponents[route.key];
+          if (component) res.push({ ...route, component });
         } catch (e) {
           console.log(route.key);
           console.error(e);
@@ -125,13 +117,26 @@ function findRoutePath(routes: IRoute[], key?: string, ancestors: IRoute[] = [])
   return [];
 }
 
+/** 只为导航保留可见入口，不改变个人设置等隐藏页面的路由。 */
+function getMenuRoutes(routes: IRoute[]): IRoute[] {
+  return routes.flatMap((route) => {
+    if (route.ignore) return [];
+    if (!route.children?.length) return [route];
+    const children = getMenuRoutes(route.children);
+    return children.length ? [{ ...route, children }] : [];
+  });
+}
+
 function PageLayout() {
   const urlParams = getUrlParams();
   const history = useHistory();
   const pathname = useLocation().pathname;
   const locale = useLocale();
   const { permissions, user } = useAdminAuth();
+  const { notice, hidden: updateNoticeHidden, remindLater } = useSoftwareUpdateNotice();
+  const updateAvailable = Boolean(notice?.available && notice.latest_version);
   const settings = useSelector((state: GlobalState) => state.settings);
+  const variant = normalizeLayoutVariant(settings.layout);
 
   const userPermission = useMemo(() => toUserPermission(permissions), [permissions]);
   const [routes, defaultRoute] = useRoute(userPermission);
@@ -143,12 +148,19 @@ function PageLayout() {
   const selectedKeys = currentRoute ? [currentRoute.key] : [];
   const breadcrumb = currentRoute && currentRoute.breadcrumb !== false
     ? routePath.map((route) => route.name) : [];
-  const [collapsed, setCollapsed] = useState<boolean>(false);
+  const [collapsedVariant, setCollapsedVariant] = useState<typeof variant | null>(null);
+  const collapsed = collapsedVariant === variant;
   const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 768px)').matches);
   const [mobileMenuPath, setMobileMenuPath] = useState<string | null>(null);
   const mobileMenuOpen = mobileMenuPath === pathname;
+  const menuRoutes = useMemo(() => getMenuRoutes(routes), [routes]);
+  const [menuGroup, setMenuGroup] = useState<{ pathname: string; key: string } | null>(null);
+  // 浏览其他分类时保留当前页面，路由变化后恢复目标页面所属分类。
+  const groupKey = menuGroup?.pathname === pathname ? menuGroup.key : routePath[0]?.key;
+  const activeGroup = menuRoutes.find((route) => route.key === groupKey) || menuRoutes[0];
 
   useEffect(() => history.listen((location) => {
+    setMenuGroup(null);
     const route = flattenRoutes.find((item) => (item.path || `/${item.key}`) === location.pathname);
     const nextAncestorKeys = findRoutePath(routes, route?.key).slice(0, -1).map((item) => item.key);
     // 路由跳转只补充目标菜单，保留用户已经展开的其他分组。
@@ -165,15 +177,21 @@ function PageLayout() {
       setIsNarrow(nextNarrow);
       if (!nextNarrow) {
         setMobileMenuPath(null);
-        setCollapsed(false);
+        setCollapsedVariant(null);
       }
     };
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, []);
 
-  const navbarHeight = 60;
-  const menuWidth = collapsed ? 48 : settings.menuWidth;
+  useEffect(() => {
+    if (!isNarrow || !mobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileMenuPath(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isNarrow, mobileMenuOpen]);
 
   const showNavbar = settings.navbar && urlParams.navbar !== false;
   const showMenu = settings.menu && urlParams.menu !== false;
@@ -181,136 +199,82 @@ function PageLayout() {
 
   function onClickMenuItem(key) {
     const currentRoute = flattenRoutes.find((r) => r.key === key);
+    if (!currentRoute) return;
     setMobileMenuPath(null);
     const component = currentRoute.component;
     const preload = component.preload();
     NProgress.start();
     preload.then(() => {
-      history.push(currentRoute.path ? currentRoute.path : `/${key}`);
+      const nextPath = currentRoute.path || `/${key}`;
+      const search = new URLSearchParams();
+      if (cloudSectionFromPath(history.location.pathname) && cloudSectionFromPath(nextPath)) {
+        const current = new URLSearchParams(history.location.search);
+        for (const key of ['configuration', 'zone']) {
+          const value = current.get(key);
+          if (value) search.set(key, value);
+        }
+      }
+      history.push({ pathname: nextPath, search: search.toString() });
       NProgress.done();
     });
   }
 
+  function onClickMenuGroup(key: string) {
+    const group = menuRoutes.find((route) => route.key === key);
+    if (!group) return;
+    setMenuGroup({ pathname, key });
+    if (!isNarrow) setCollapsedVariant(null);
+    if (!group.children?.length) onClickMenuItem(key);
+  }
+
   function toggleCollapse() {
-    setCollapsed((collapsed) => !collapsed);
+    setCollapsedVariant(collapsed ? null : variant);
   }
 
-  const paddingLeft = showMenu && !isNarrow ? { paddingLeft: menuWidth } : {};
-  const paddingTop = showNavbar ? { paddingTop: navbarHeight } : {};
-  const paddingStyle = { ...paddingLeft, ...paddingTop };
-
-  function renderRoutes(locale) {
-    return function travel(_routes: IRoute[], depth = 0) {
-      return _routes.map((route) => {
-        const { ignore } = route;
-        const title = locale[route.name] || route.name;
-        const titleDom = <>
-          {depth === 0 ? getIconFromKey(route.key) : <span className={styles['icon-empty']} aria-hidden="true" />}
-          {title}
-        </>;
-
-        const visibleChildren = (route.children || []).filter((child) => !child.ignore);
-
-        if (ignore) {
-          return '';
-        }
-        if (visibleChildren.length) {
-          return (
-            <SubMenu key={route.key} title={titleDom}>
-              {travel(visibleChildren, depth + 1)}
-            </SubMenu>
-          );
-        }
-        return <MenuItem key={route.key}>{titleDom}</MenuItem>;
-      });
-    };
-  }
-
-  const layout = (
-    <Layout className={styles.layout}>
-      <div
-        className={cs(styles['layout-navbar'], {
-          [styles['layout-navbar-hidden']]: !showNavbar,
-        })}
-      >
-        <Navbar show={showNavbar} showMenu={showMenu} mobileMenuOpen={mobileMenuOpen}
-          onMobileMenuToggle={() => setMobileMenuPath((current) => current === pathname ? null : pathname)} />
-      </div>
-        <Layout>
-          {showMenu && isNarrow && mobileMenuOpen && <button type="button" className={styles['mobile-backdrop']}
-            style={{ top: showNavbar ? navbarHeight : 0 }} aria-label="关闭导航菜单" onClick={() => setMobileMenuPath(null)} />}
-          {showMenu && (
-            <Sider
-              className={cs(styles['layout-sider'], {
-                [styles['layout-sider-open']]: isNarrow && mobileMenuOpen,
-                [styles['layout-sider-with-navbar']]: showNavbar,
-              })}
-              width={isNarrow ? 260 : menuWidth}
-              collapsed={isNarrow ? false : collapsed}
-              trigger={null}
-              collapsible
-              style={isNarrow ? {} : paddingTop}
-            >
-              <div className={styles['menu-wrapper']}>
-                <Menu
-                  collapse={isNarrow ? false : collapsed}
-                  accordion={false}
-                  levelIndent={0}
-                  onClickMenuItem={onClickMenuItem}
-                  selectedKeys={selectedKeys}
-                  openKeys={openKeys}
-                  onClickSubMenu={(_key, keys) => setOpenKeys(keys)}
-                >
-                  {renderRoutes(locale)(routes)}
-                </Menu>
-              </div>
-              <div className={styles['collapse-btn']} onClick={toggleCollapse}>
-                {collapsed ? <IconMenuUnfold /> : <IconMenuFold />}
-              </div>
-            </Sider>
-          )}
-          <Layout className={styles['layout-content']} style={paddingStyle}>
-            <div className={styles['layout-content-wrapper']}>
-              {!!breadcrumb.length && (
-                <div className={styles['layout-breadcrumb']}>
-                  <Breadcrumb>
-                    {breadcrumb.map((node, index) => (
-                      <Breadcrumb.Item key={index}>
-                        {typeof node === 'string' ? locale[node] || node : node}
-                      </Breadcrumb.Item>
-                    ))}
-                  </Breadcrumb>
-                </div>
-              )}
-              <Content>
-                <Switch>
-                  {flattenRoutes.map((route, index) => {
-                    return (
-                      <Route
-                        key={index}
-                        exact
-                        path={route.path || `/${route.key}`}
-                        component={route.component}
-                      />
-                    );
-                  })}
-                  <Route exact path="/license"><Redirect to="/maintenance" /></Route>
-                  <Route exact path="/updates"><Redirect to="/maintenance?tab=updates" /></Route>
-                  <Route exact path="/">
-                    {defaultRoute ? <Redirect to={defaultRoute} /> : <div>暂无访问权限</div>}
-                  </Route>
-                  <Route
-                    path="*"
-                    component={lazyload(() => import('./pages/exception/403'))}
-                  />
-                </Switch>
-              </Content>
-            </div>
-            {showFooter && <Footer />}
-          </Layout>
-        </Layout>
-    </Layout>
-  );
+  const layout = <AdminLayout variant={variant} routes={menuRoutes} locale={locale}
+    selectedKeys={selectedKeys} openKeys={openKeys} activeGroup={activeGroup}
+    updateVersion={updateAvailable ? notice.latest_version : undefined}
+    collapsed={collapsed} isNarrow={isNarrow} mobileMenuOpen={mobileMenuOpen}
+    showNavbar={showNavbar} showMenu={showMenu}
+    classicMenuWidth={Math.max(180, settings.classicMenuWidth || 220)}
+    secondaryMenuWidth={Math.max(160, settings.menuWidth || 168)}
+    onMenuItemClick={onClickMenuItem} onGroupClick={onClickMenuGroup}
+    onOpenKeysChange={setOpenKeys} onToggleCollapse={toggleCollapse} onCloseMobileMenu={() => setMobileMenuPath(null)}
+    navbar={<Navbar show={showNavbar} showMenu={showMenu} mobileMenuOpen={mobileMenuOpen} notice={notice}
+      onMobileMenuToggle={() => setMobileMenuPath(current => current === pathname ? null : pathname)} />}
+    breadcrumb={breadcrumb.length ? <Breadcrumb>
+      {breadcrumb.map((node, index) => <Breadcrumb.Item key={index}>
+        {typeof node === 'string' ? locale[node] || node : node}
+      </Breadcrumb.Item>)}
+    </Breadcrumb> : null}
+    footer={showFooter ? <Footer /> : null}>
+    <SoftwareUpdateNotice notice={notice} hidden={updateNoticeHidden} onRemindLater={remindLater} />
+    <Switch>
+      <Route path="/products/cloud-servers">
+        {pathname === '/products/cloud-servers' || flattenRoutes.some(route => route.path === pathname && pathname.startsWith('/products/cloud-servers/'))
+          ? <CloudConfigurationPage /> : <ForbiddenPage />}
+      </Route>
+      {flattenRoutes.map((route) => {
+        return (
+          <Route
+            key={route.key}
+            exact
+            path={route.path || `/${route.key}`}
+            component={route.component}
+          />
+        );
+      })}
+      <Route exact path="/license"><Redirect to="/maintenance" /></Route>
+      <Route exact path="/updates"><Redirect to="/maintenance" /></Route>
+      <Route exact path="/">
+        {defaultRoute ? <Redirect to={defaultRoute} /> : <div>暂无访问权限</div>}
+      </Route>
+      <Route
+        path="*"
+        component={ForbiddenPage}
+      />
+    </Switch>
+  </AdminLayout>;
 
   return settings.watermark && user?.nickname
     ? <Watermark content={user.nickname}>{layout}</Watermark>

@@ -1,0 +1,400 @@
+openapi: 3.1.0
+info:
+  title: 云服务器包年包月配置与库存
+  version: 1.0.0
+  description: 后台配置及预览契约，不创建订单、不执行供应商生产。销售快照使用 cloud-server.v2.schema.json。
+servers:
+  - url: /api/admin/v1
+security:
+  - adminCookie: []
+paths:
+  /compute-resources:
+    get:
+      operationId: listComputeResources
+      summary: 读取云服务器配置资源
+      description: 需要 admin.compute-resources.view。Envelope.data 按资源种类分组；地域包含 country_code，线路包含 test_ip，未配置时均为空字符串。
+      responses:
+        '200':
+          description: 资源目录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '403':
+          description: 无资源查看权限
+  /compute-resources/{kind}:
+    post:
+      operationId: createComputeResource
+      summary: 新建云服务器配置资源
+      description: 需要 admin.compute-resources.create 和同源写入校验。资源字段按 kind 白名单校验；新增地域可填写 country_code，新增线路可填写 test_ip。
+      parameters:
+        - $ref: '#/components/parameters/ResourceKind'
+      requestBody:
+        $ref: '#/components/requestBodies/ComputeResourceInput'
+      responses:
+        '201':
+          description: Envelope.data 为新建资源，包括规范化后的国家代码或测试 IP。
+        '403':
+          description: 无新增权限
+        '409':
+          description: 编码重复或关联资源不存在
+        '422':
+          description: 字段无效，data.errors 包含字段错误
+  /compute-resources/{kind}/{id}:
+    put:
+      operationId: updateComputeResource
+      summary: 更新云服务器配置资源
+      description: 需要 admin.compute-resources.update 和同源写入校验。country_code、test_ip 缺省时保留原值，显式空字符串或 null 清空；仅修改资源目录，不改写历史销售或订单快照。
+      parameters:
+        - $ref: '#/components/parameters/ResourceKind'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        $ref: '#/components/requestBodies/ComputeResourceInput'
+      responses:
+        '200':
+          description: Envelope.data 为更新后的资源
+        '403':
+          description: 无修改权限
+        '404':
+          description: 资源不存在
+        '409':
+          description: 编码重复或关联资源不存在
+        '422':
+          description: 字段无效，data.errors 包含字段错误
+  /cloud-servers/sections/{section}:
+    get:
+      operationId: getCloudConfigurationSection
+      summary: 读取云服务器三级菜单配置页面
+      description: 同时需要 admin.cloud-configuration.{section}.view 和既有数据查看权限；purchase 依赖 admin.cloud-products.view，其他页面依赖 admin.compute-resources.view。GET 不初始化或修改数据。返回共用配置数据，写入仍使用独立操作权限。
+      parameters:
+        - name: section
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [deployment, specification, network, storage, purchase]
+      responses:
+        '200':
+          description: Envelope.data 包含 configuration、choices、default_configuration_id、references（resources、connections、delivery_rules）与 inventory；只返回已授权的数据范围，不暴露凭据。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '401':
+          description: 未登录
+        '403':
+          description: 无页面访问权限或数据查看权限
+        '422':
+          description: 未知配置页面
+  /cloud-servers/configuration/live:
+    put:
+      operationId: saveAndApplyCloudConfiguration
+      summary: 社区云服务器配置保存后自动生效
+      description: 新增需要 create，已有配置需要 update，无须 publish 权限；同源写入、默认指针及 revision 并发校验。完整配置自动保存不可变生效版本，首次完整配置启用，既有停用配置保持停用。422 配置缺项仍保留输入并返回 configuration_ready=false 和 configuration_notice；权限、并发、系统错误整笔回滚。
+      requestBody:
+        $ref: '#/paths/~1cloud-servers~1configuration/put/requestBody'
+      responses:
+        '200':
+          description: 配置详情，附 configuration_ready 和 configuration_notice；不创建订单，不执行供应商生产。
+        '403':
+          description: 无新增或修改权限
+        '409':
+          description: 默认配置或 revision 并发冲突
+        '422':
+          description: 表单基础格式无效，不能保存
+  /cloud-servers/configuration:
+    get:
+      operationId: getCloudWorkspaceConfiguration
+      summary: 读取固定云服务器配置入口
+      description: 需要 admin.cloud-products.view。GET 不初始化或修改数据；单份历史配置可直接显示，多份且未指定默认时返回 configuration 为 NULL 及 choices，不自动合并。
+      responses:
+        '200':
+          description: Envelope.data 包含 configuration（配置详情或 NULL）、choices（已有配置列表）及 default_configuration_id（显式默认指针或 NULL）。详情包含 has_unpublished_changes。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '401':
+          description: 未登录
+        '403':
+          description: 缺少查看权限
+    put:
+      operationId: saveCloudWorkspaceConfiguration
+      summary: 保存当前云服务器配置并指定为默认入口
+      description: configuration_id 为 NULL 时需要 create，否则需要 update；同源写入校验。已有配置不允许再次隐式创建，revision 与 expected_configuration_id 分别校验草稿和默认指针并发冲突，整笔事务回滚。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [configuration_id, expected_configuration_id, name, code, description, revision, draft]
+              properties:
+                configuration_id:
+                  type: [integer, 'null']
+                  minimum: 1
+                expected_configuration_id:
+                  type: [integer, 'null']
+                  minimum: 1
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                code:
+                  type: string
+                  maxLength: 64
+                description:
+                  type: string
+                  maxLength: 1000
+                revision:
+                  type: integer
+                  minimum: 0
+                draft:
+                  $ref: '../products/cloud-server.v2.schema.json#/$defs/draft'
+      responses:
+        '200':
+          description: 已保存配置详情；仅保存草稿，不发布、不创建订单或实例。
+        '403':
+          description: 缺少权限或同源校验失败
+        '409':
+          description: 已有配置、默认指针或草稿版本冲突
+        '422':
+          description: 配置字段错误
+  /cloud-products/{id}/publish:
+    post:
+      operationId: publishCloudWorkspaceConfiguration
+      summary: 校验并封存配置版本，可同时启用
+      description: 始终需要 publish，enable 为 true 时还需要 update；校验、封存、启用在同一事务中完成。供应绑定按可用区封存，不改写历史单连接版本，不执行生产。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision]
+              properties:
+                revision:
+                  type: integer
+                  minimum: 1
+                enable:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: 发布后的配置详情
+        '403':
+          description: 缺少发布或同时启用权限
+        '422':
+          description: 资源、价格、组合或提供者对应不完整
+  /cloud-servers/inventory:
+    get:
+      operationId: listCloudInventory
+      summary: 查询实时共享库存
+      description: 需要 admin.compute-resources.view。可用区与规格构成共享部署键，多个销售方案不复制库存。
+      responses:
+        '200':
+          description: 库存列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InventoryPool'
+        '401':
+          description: 未登录
+        '403':
+          description: 缺少查看权限
+    put:
+      operationId: configureCloudInventory
+      summary: 修改部署规格的总库存配额
+      description: 需要 admin.compute-resources.update 及同源写入校验。NULL为不限、0为售罄。revision乐观锁；配额不能低于预占与占用之和。尚未配置时revision为0。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [zone_id, flavor_id, capacity, revision]
+              properties:
+                zone_id:
+                  type: integer
+                  minimum: 1
+                flavor_id:
+                  type: integer
+                  minimum: 1
+                capacity:
+                  type: [integer, 'null']
+                  minimum: 0
+                  maximum: 100000000
+                revision:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: 已保存的库存状态
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InventoryPool'
+        '401':
+          description: 未登录
+        '403':
+          description: 缺少修改权限或同源校验失败
+        '409':
+          description: 配额小于使用量或revision冲突
+        '422':
+          description: 参数错误或规格不属于可用区
+  /cloud-products/{id}/preview:
+    post:
+      operationId: previewPrepaidCloudConfiguration
+      summary: v2配置联动、费用或供应参数预览
+      description: 需要admin.cloud-products.preview及同源写入校验。options接受未完成选择，durations仅返回选中有效可用区的付费周期，未选择可用区时为空；price和delivery要求完整选择，并校验周期属于选中可用区。version_id读取不可变历史版本，省略则预览当前草稿。高级计费及密钥登录当前拒绝；密码和令牌不进入快照或返回值。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode, selection]
+              properties:
+                mode:
+                  enum: [options, price, delivery]
+                version_id:
+                  type: [integer, 'null']
+                  minimum: 1
+                selection:
+                  $ref: '../products/cloud-server.v2.schema.json#/$defs/partialSelection'
+              allOf:
+                - if:
+                    properties:
+                      mode:
+                        enum: [price, delivery]
+                  then:
+                    properties:
+                      selection:
+                        $ref: '../products/cloud-server.v2.schema.json#/$defs/selection'
+      responses:
+        '200':
+          description: 联动选项、整数分费用明细或未执行生产的供应参数。preview始终为true，不能作为交易报价令牌使用。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '401':
+          description: 未登录
+        '403':
+          description: 缺少预览权限或同源校验失败
+        '404':
+          description: 销售方案或所属历史版本不存在
+        '422':
+          description: 组合、容量、步长、价格、周期或供应参数不满足规则
+components:
+  parameters:
+    ResourceKind:
+      name: kind
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [regions, zones, lines, flavor_groups, flavors, image_types, images, disk_types, protections, network_policies]
+  requestBodies:
+    ComputeResourceInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, code, status]
+            description: 基础字段以外按资源种类填写；线路需要 zone_ids，可用区需要 region_id。
+            properties:
+              name:
+                type: string
+                maxLength: 128
+              code:
+                type: string
+                maxLength: 64
+                pattern: '^[a-zA-Z0-9_-]+$'
+              status:
+                type: integer
+                enum: [0, 1]
+              country_code:
+                type: [string, 'null']
+                description: 仅地域支持；两位英文字母，服务端去除首尾空格并转大写。空值表示未配置。
+                examples: [CN, US, '']
+              test_ip:
+                type: [string, 'null']
+                description: 仅线路支持；去除首尾空格后须为 IPv4 或 IPv6 地址，不接受域名、端口或 CIDR。空值表示未配置。
+                examples: ['192.0.2.1', '2001:db8::1', '']
+  securitySchemes:
+    adminCookie:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+  schemas:
+    Envelope:
+      type: object
+      required: [code, message, data, request_id]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data: {}
+        request_id:
+          type: string
+    InventoryPool:
+      type: object
+      additionalProperties: false
+      required: [id, zone_id, flavor_id, capacity, reserved, occupied, available, revision]
+      properties:
+        id:
+          type: integer
+        zone_id:
+          type: integer
+        flavor_id:
+          type: integer
+        capacity:
+          type: [integer, 'null']
+        reserved:
+          type: integer
+          minimum: 0
+        occupied:
+          type: integer
+          minimum: 0
+        available:
+          type: [integer, 'null']
+          minimum: 0
+        revision:
+          type: integer
+          minimum: 0

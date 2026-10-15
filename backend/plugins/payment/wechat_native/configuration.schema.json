@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "应用 AppID",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入应用 AppID",
+      "max_length": 128
+    },
+    {
+      "key": "mch_id",
+      "label": "商户号",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入商户号",
+      "max_length": 128
+    },
+    {
+      "key": "merchant_serial",
+      "label": "商户证书序列号",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入商户证书序列号",
+      "max_length": 128
+    },
+    {
+      "key": "private_key",
+      "label": "商户私钥",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入商户私钥",
+      "max_length": 2048,
+      "description": "填写 RSA 2048 位密钥，支持完整 PEM 或去除头尾的 Base64 内容；不接受文件路径。"
+    },
+    {
+      "key": "platform_serial",
+      "label": "微信支付公钥 ID / 证书序列号",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入微信支付公钥 ID / 证书序列号",
+      "max_length": 128
+    },
+    {
+      "key": "platform_public_key",
+      "label": "微信支付公钥",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入微信支付公钥",
+      "max_length": 2048,
+      "description": "填写 RSA 2048 位密钥，支持完整 PEM 或去除头尾的 Base64 内容；不接受文件路径。"
+    },
+    {
+      "key": "api_v3_key",
+      "label": "API v3 密钥",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入API v3 密钥",
+      "max_length": 32
+    }
+  ]
+}

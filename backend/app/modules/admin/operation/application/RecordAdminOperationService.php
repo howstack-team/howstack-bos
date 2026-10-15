@@ -42,25 +42,105 @@ final readonly class RecordAdminOperationService
         $segments = explode('/', trim($path, '/'));
         $resource = $segments[3] ?? '';
         $targetId = $segments[4] ?? null;
+        if ($resource === 'message-logs' && $targetId === 'deliveries') {
+            $targetId = $segments[5] ?? null;
+        }
+        if ($resource === 'message-configurations') {
+            $targetId = $segments[5] ?? null;
+        }
+        if ($resource === 'channels') {
+            $targetId = ($segments[5] ?? '') === 'platforms' ? ($segments[6] ?? null) : ($segments[5] ?? null);
+        }
+        if ($resource === 'cloud-servers' && $targetId === 'delivery-rules') {
+            $resource = 'cloud-delivery-rules';
+            $targetId = $segments[5] ?? null;
+        }
+        if ($resource === 'finance') {
+            $targetId = $segments[5] ?? null;
+        }
+        if ($resource === 'website' && ($segments[4] ?? '') === 'themes') {
+            $targetId = ($segments[5] ?? '') === 'install' ? ($request->context['website.installed_theme_id'] ?? null) : ($segments[5] ?? null);
+        }
+        if ($resource === 'website' && ($segments[4] ?? '') === 'seo') {
+            $resource = 'website-seo';
+            $targetId = ($segments[5] ?? '') === 'pages' ? ($segments[6] ?? null) : 'defaults';
+        }
         $module = match ($resource) {
+            'finance' => '财务管理',
+            'orders' => '订单管理',
+            'profile' => '个人设置',
             'administrators' => '系统用户',
             'roles' => '角色权限',
             'departments' => '部门管理',
             'settings' => '系统设置',
+            'themes' => '主题管理',
+            'website' => '官网设置',
+            'website-seo' => '页面 SEO',
+            'files' => '文件管理',
+            'channels' => '通道管理',
+            'message-configurations', 'message-scenes' => '消息配置',
+            'message-logs' => '消息日志',
             'members' => '会员管理',
             'member-groups' => '会员分组',
             'member-levels' => '会员等级',
             'real-name-authentications' => '实名认证',
+            'cloud-products' => '云服务器销售方案',
+            'cloud-delivery-rules' => '云服务器交付规则',
+            'cloud-servers' => '云服务器配置',
+            'compute-resources' => '云服务器配置资源',
+            'provider-connections' => '资源供应商',
+            'business-plugins' => '插件管理',
+            'official-platform' => '官网连接与授权',
+            'system-updates' => '系统在线更新',
+            'application-center' => '应用中心',
             default => '后台管理',
         };
         $verb = match ($request->method()) {
             'POST' => '新增', 'PUT', 'PATCH' => '编辑', 'DELETE' => '删除',
             default => '操作',
         };
+        if ($resource === 'website' && ($segments[4] ?? '') === 'themes') {
+            $verb = match ($segments[6] ?? $segments[5] ?? '') { 'install' => '安装主题', 'activate' => '切换主题', 'previews' => '预览主题', default => $verb };
+        }
+        if ($resource === 'message-logs' && ($segments[6] ?? '') === 'retry') {
+            $verb = '重试失败消息：';
+        }
+        if (in_array($resource, ['message-configurations', 'message-scenes'], true) && $targetId === 'batch') {
+            $verb = '批量编辑';
+        }
+        if ($resource === 'profile') {
+            $verb = match ($targetId) { 'password' => '修改密码：', 'mfa' => '管理两步验证：', default => '修改资料：' };
+        }
+        if (in_array($resource, ['cloud-products', 'provider-connections'], true)) {
+            $verb = match ($segments[5] ?? '') {
+                'publish' => '发布', 'status' => '启停', 'preview' => '预览', 'test' => '测试',
+                'catalog' => '获取供应商资源', 'mappings' => '设置资源对应', default => $verb,
+            };
+        }
+        if ($resource === 'channels' && ($segments[6] ?? '') === 'test') {
+            $verb = '测试发送';
+        }
+        if ($resource === 'business-plugins') {
+            $verb = match ($request->post('action')) {
+                'install' => '安装', 'enable' => '启用', 'drain' => '停止接单',
+                'disable' => '停用', 'upgrade' => '审核更新', 'uninstall' => '卸载',
+                default => '管理',
+            };
+        }
+        if ($resource === 'orders') {
+            $verb = match ($segments[5] ?? 'create') { 'pay' => '余额付款：', 'cancel' => '取消订单：', 'update' => '编辑备注：', 'preview' => '计算订单费用：', default => '创建订单：' };
+        }
+        if ($resource === 'finance') {
+            $verb = match ($segments[6] ?? 'create') {
+                'approve' => '审核通过：', 'reject' => '审核驳回：', 'execute' => '执行余额退款：',
+                'issue' => '登记开票：', 'red' => '登记红冲：', 'payout' => '登记打款：',
+                default => '创建财务单据：',
+            };
+        }
         $ip = $this->ips->resolve($request);
         $agent = UserAgentSummary::parse((string) $request->header('user-agent', ''));
         $httpStatus = $response?->getStatusCode() ?? $this->failureStatus($failure);
-        $auditInput = in_array($resource, ['administrators', 'roles', 'departments', 'settings', 'members', 'member-groups', 'member-levels', 'real-name-authentications'], true) ? $request->post() : [];
+        $auditInput = in_array($resource, ['files', 'administrators', 'roles', 'departments', 'settings', 'themes', 'website', 'website-seo', 'members', 'member-groups', 'member-levels', 'real-name-authentications', 'cloud-products', 'compute-resources', 'cloud-delivery-rules', 'business-plugins', 'channels', 'message-configurations', 'message-scenes'], true) ? $request->post() : [];
         $this->logs->append([
             'admin_user_id' => $actor->id,
             'operator_username' => $actor->username,

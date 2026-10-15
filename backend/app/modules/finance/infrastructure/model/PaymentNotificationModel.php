@@ -14,6 +14,7 @@ final class PaymentNotificationModel extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'client_ip', 'client_ip_location', 'content_hash',
         'channel',
         'notification_id',
         'payment_id',

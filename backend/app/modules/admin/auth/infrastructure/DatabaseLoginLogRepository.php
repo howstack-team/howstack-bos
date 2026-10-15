@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\admin\auth\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use app\modules\admin\auth\infrastructure\model\AdminLoginLogModel;
 use support\Model;
 use app\modules\admin\auth\contract\LoginLogRepositoryInterface;
@@ -37,8 +39,15 @@ final class DatabaseLoginLogRepository implements LoginLogRepositoryInterface
      * @param int      $pageSize 每页条数
      * @return array{data: list<array<string, mixed>>, total: int} 分页记录及总数
      * @throws RuntimeException 数据库查询失败时抛出
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
      */
-    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         try {
             $query = AdminLoginLogModel::query();
@@ -54,9 +63,23 @@ final class DatabaseLoginLogRepository implements LoginLogRepositoryInterface
             if ($status !== null) {
                 $query->where('status', $status);
             }
+            foreach ([
+                'username' => 'username',
+                'nickname' => 'nickname',
+                'client_ip' => 'client_ip',
+                'client_ip_location' => 'client_ip_location',
+            ] as $field => $column) {
+                if (isset($filters[$field])) {
+                    $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                    $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+                }
+            }
+            TableQueryOrder::apply($query, $filters, [
+                'logged_at' => 'logged_at',
+            ], ['id' => 'desc'], 'id');
             $total = (int) (clone $query)->count();
             $rows = $query->select(['id', 'logged_at', 'nickname', 'status', 'client_ip', 'client_ip_location', 'browser', 'operating_system'])
-                ->orderBy('id', 'desc')->forPage($page, $pageSize)->get();
+                ->forPage($page, $pageSize)->get();
 
             return ['data' => array_map(static fn (Model $row): array => [
                 'id' => (int) $row->id,

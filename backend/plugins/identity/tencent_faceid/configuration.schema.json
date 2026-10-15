@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "secret_id",
+      "label": "SecretId",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入SecretId",
+      "max_length": 128
+    },
+    {
+      "key": "secret_key",
+      "label": "SecretKey",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入SecretKey",
+      "max_length": 128
+    },
+    {
+      "key": "region",
+      "label": "地域",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入地域",
+      "max_length": 128,
+      "default": "ap-guangzhou"
+    },
+    {
+      "key": "rule_id",
+      "label": "业务流程 RuleId",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入业务流程 RuleId",
+      "max_length": 128
+    }
+  ]
+}

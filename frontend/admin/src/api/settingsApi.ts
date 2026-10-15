@@ -1,7 +1,7 @@
 import { ApiRequestError, request } from './httpClient.ts'
 
 /** 当前后台有固定表单实现的设置分类。 */
-export type SettingsCategoryCode = 'base' | 'security'
+export type SettingsCategoryCode = 'base' | 'security' | 'notifications' | 'registration'
 
 /** 分类仅控制标签名称与排序，不承载表单定义。 */
 export interface SettingsCategory {
@@ -14,9 +14,6 @@ export interface SettingsCategory {
 /** 网站基础信息。 */
 export interface BaseSettings {
   site_title: string
-  site_subtitle: string
-  site_keywords: string
-  site_description: string
   site_url: string
   copyright: string
   icp_record: string
@@ -40,6 +37,24 @@ export const settingsPermissions = {
   update: 'admin.page.settings.update',
 } as const
 
+/** 实際生效的后台首级路径，不含斜线；API 和静态资源路径不随之变更。 */
+export interface AdminEntrySettings { admin_path: string }
+
+function adminEntrySettings(value: unknown): AdminEntrySettings {
+  if (!isRecord(value) || typeof value.admin_path !== 'string' || !/^[a-z][a-z0-9-]{2,31}$/.test(value.admin_path)) return invalidResponse()
+  return { admin_path: value.admin_path }
+}
+
+export async function getAdminEntrySettings(signal?: AbortSignal): Promise<AdminEntrySettings> {
+  return adminEntrySettings(await request<unknown>({ url: '/settings/admin-entry', signal }))
+}
+
+/** 以读取时的入口做并发校验，失败不改变当前页面或丢弃输入。 */
+export async function saveAdminEntrySettings(adminPath: string, currentAdminPath: string): Promise<AdminEntrySettings> {
+  return adminEntrySettings(await request<unknown>({ url: '/settings/admin-entry', method: 'PUT',
+    data: { admin_path: adminPath, current_admin_path: currentAdminPath } }))
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -50,15 +65,14 @@ function invalidResponse(): never {
 
 function baseSettings(value: unknown): BaseSettings {
   if (!isRecord(value)
-    || typeof value.site_title !== 'string' || typeof value.site_subtitle !== 'string'
-    || typeof value.site_keywords !== 'string'
-    || typeof value.site_description !== 'string' || typeof value.site_url !== 'string'
+    || typeof value.site_title !== 'string'
+    || typeof value.site_url !== 'string'
     || typeof value.copyright !== 'string' || typeof value.icp_record !== 'string'
     || typeof value.public_security_record !== 'string' || typeof value.business_license !== 'string') return invalidResponse()
 
   return {
-    site_title: value.site_title, site_subtitle: value.site_subtitle, site_keywords: value.site_keywords,
-    site_description: value.site_description, site_url: value.site_url, copyright: value.copyright,
+    site_title: value.site_title,
+    site_url: value.site_url, copyright: value.copyright,
     icp_record: value.icp_record, public_security_record: value.public_security_record,
     business_license: value.business_license,
   }
@@ -85,7 +99,7 @@ export async function listSettingsCategories(signal?: AbortSignal): Promise<Sett
     if (!isRecord(row) || typeof row.id !== 'number' || !Number.isInteger(row.id) || row.id < 1
       || typeof row.code !== 'string' || typeof row.name !== 'string' || !row.name.trim()
       || typeof row.sort_order !== 'number' || !Number.isInteger(row.sort_order)) return invalidResponse()
-    if (row.code !== 'base' && row.code !== 'security') continue
+    if (row.code !== 'base' && row.code !== 'security' && row.code !== 'notifications' && row.code !== 'registration') continue
     if (categories.some((category) => category.code === row.code)) return invalidResponse()
     categories.push({ id: row.id, code: row.code, name: row.name, sort_order: row.sort_order })
   }
@@ -100,9 +114,8 @@ export async function getBaseSettings(signal?: AbortSignal): Promise<BaseSetting
 /** 完整保存基础设置，返回服务器实际保存后的值。 */
 export async function saveBaseSettings(values: BaseSettings): Promise<BaseSettings> {
   const data: BaseSettings = {
-    site_title: values.site_title.trim(), site_subtitle: values.site_subtitle?.trim() ?? '',
-    site_keywords: values.site_keywords?.trim() ?? '',
-    site_description: values.site_description?.trim() ?? '', site_url: values.site_url.trim(),
+    site_title: values.site_title.trim(),
+    site_url: values.site_url.trim(),
     copyright: values.copyright?.trim() ?? '',
     icp_record: values.icp_record?.trim() ?? '',
     public_security_record: values.public_security_record?.trim() ?? '',
@@ -134,4 +147,23 @@ export function settingsFieldErrors(error: unknown): Record<string, string> {
     if (typeof message === 'string') result[key.replace(/^settings\./, '')] = message
   }
   return result
+}
+
+/** 各注册方式及其独立的验证码要求；0 禁用，1 启用。 */
+export interface RegistrationSettings {
+  mobile_enabled: 0 | 1
+  email_enabled: 0 | 1
+  mobile_verification: 0 | 1
+  email_verification: 0 | 1
+}
+function registrationSettings(value: unknown): RegistrationSettings {
+  if (!isRecord(value) || !['mobile_enabled', 'email_enabled', 'mobile_verification', 'email_verification'].every(key => value[key] === 0 || value[key] === 1)) return invalidResponse()
+  return { mobile_enabled: value.mobile_enabled as 0 | 1, email_enabled: value.email_enabled as 0 | 1,
+    mobile_verification: value.mobile_verification as 0 | 1, email_verification: value.email_verification as 0 | 1 }
+}
+export async function getRegistrationSettings(signal?: AbortSignal): Promise<RegistrationSettings> {
+  return registrationSettings(await request<unknown>({ url: '/settings/registration', signal }))
+}
+export async function saveRegistrationSettings(values: RegistrationSettings): Promise<RegistrationSettings> {
+  return registrationSettings(await request<unknown>({ url: '/settings/registration', method: 'PUT', data: values }))
 }

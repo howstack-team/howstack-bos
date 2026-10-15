@@ -15,12 +15,14 @@ final readonly class AccessTokenClaims
      * @param string $tokenId   令牌唯一标识
      * @param int    $issuedAt  签发时间戳
      * @param int    $expiresAt 过期时间戳
+     * @param string $credentialProof 当前密码的不可逆会话绑定证明，不包含密码哈希
      */
     public function __construct(
         public int $adminId,
         public string $tokenId,
         public int $issuedAt,
         public int $expiresAt,
+        public string $credentialProof = '',
     ) {
     }
 }

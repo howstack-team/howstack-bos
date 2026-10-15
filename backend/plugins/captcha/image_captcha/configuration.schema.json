@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "length",
+      "label": "字符数量",
+      "type": "integer",
+      "required": true,
+      "minimum": 4,
+      "maximum": 8,
+      "default": 5,
+      "placeholder": "请输入字符数量"
+    },
+    {
+      "key": "width",
+      "label": "图像宽度",
+      "type": "integer",
+      "required": true,
+      "minimum": 120,
+      "maximum": 320,
+      "default": 160,
+      "placeholder": "请输入图像宽度",
+      "unit": "px"
+    },
+    {
+      "key": "height",
+      "label": "图像高度",
+      "type": "integer",
+      "required": true,
+      "minimum": 40,
+      "maximum": 120,
+      "default": 50,
+      "placeholder": "请输入图像高度",
+      "unit": "px"
+    }
+  ]
+}

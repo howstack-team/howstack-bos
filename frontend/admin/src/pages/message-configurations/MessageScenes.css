@@ -1,0 +1,29 @@
+.message-scene-summary { padding: 0 0 16px; }
+.message-scene-summary > div { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.message-scene-summary .arco-typography { margin-bottom: 0; }
+.message-scenes-editor { display: grid; grid-template-columns: 220px minmax(0, 1fr); border: 1px solid var(--color-border-2); border-radius: 4px; }
+.message-group-navigation { padding: 16px 12px; border-right: 1px solid var(--color-border-2); background: var(--color-fill-1); }
+.message-group-navigation-heading, .message-group-content-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+.message-group-navigation-item { width: 100%; border: 0; background: transparent; text-align: left; padding: 12px; border-radius: 4px; cursor: pointer; color: var(--color-text-1); margin-bottom: 6px; }
+.message-group-navigation-item > span { display: block; overflow-wrap: anywhere; font-size: 14px; line-height: 22px; }
+.message-group-navigation-item small { display: block; margin-top: 3px; color: var(--color-text-3); }
+.message-group-navigation-item:hover { background: var(--color-fill-2); }
+.message-group-navigation-item.is-active { background: rgb(var(--primary-1)); color: rgb(var(--primary-6)); }
+.message-group-navigation-item.is-active small { color: rgb(var(--primary-6)); }
+.message-group-order-hint { padding: 12px; font-size: 12px; line-height: 20px; margin-top: 12px; }
+.message-group-content { padding: 24px; min-width: 0; }
+.message-group-basics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, .65fr); gap: 24px; }
+.message-template-variables { background: var(--color-fill-1); padding: 16px; border-radius: 4px; }
+.message-template-variables > .arco-space { margin-top: 10px; display: flex; }
+.message-scene-group-summary { display: flex; flex-direction: column; gap: 4px; padding: 2px 0; }
+@media (max-width: 768px) {
+  .message-scenes-editor { grid-template-columns: minmax(0, 1fr); }
+  .message-group-navigation { border-right: 0; border-bottom: 1px solid var(--color-border-2); }
+  .message-group-navigation-item { display: inline-block; width: auto; max-width: 100%; margin-right: 8px; padding: 8px 12px; }
+  .message-group-order-hint { margin: 8px 0 0; padding: 0; }
+  .message-group-content { padding: 16px; }
+  .message-group-content-heading { flex-wrap: wrap; }
+  .message-group-content-heading > .arco-typography { flex-basis: 100%; }
+  .message-group-content-heading > .arco-space { width: 100%; }
+  .message-group-basics { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}

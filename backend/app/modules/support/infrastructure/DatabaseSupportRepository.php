@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\support\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use app\modules\support\infrastructure\model\TicketTypeModel;
 use app\modules\support\infrastructure\model\TicketModel;
 use app\modules\support\infrastructure\model\TicketMessageModel;
@@ -20,19 +22,41 @@ final class DatabaseSupportRepository implements SupportRepositoryInterface
     {
     }
 
-    public function catalog(string $table, string $keyword, ?int $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function catalog(
+        string $table,
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
+        $filters = array_intersect_key($filters, array_flip($table === 'ticket_types' ? ['name', 'code', 'sort_by', 'sort_order'] : ['title', 'content', 'sort_by', 'sort_order']));
         $query = $this->modelQuery($table);
         if ($keyword !== '') {
             $column = $table === 'ticket_types' ? 'name' : 'title';
             $query->where($column, 'like', '%' . $keyword . '%');
         }
         if ($status !== null) $query->where('status', $status);
+        foreach ([
+            'name' => 'name',
+            'code' => 'code',
+            'title' => 'title',
+            'content' => 'content',
+        ] as $field => $column) {
+            if (isset($filters[$field])) {
+                $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+            }
+        }
         $total = (int) (clone $query)->count();
-        $rows = $query->orderBy('sort_order')->orderBy('id', 'desc')->forPage($page, $pageSize)->get();
+        $rows = TableQueryOrder::apply(
+            $query, $filters, ['sort_order' => 'sort_order', 'created_at' => 'created_at'],
+            ['sort_order' => 'asc', 'id' => 'desc'],
+        )->forPage($page, $pageSize)->get();
         return ['data' => array_map(self::normalize(...), $rows->all()), 'total' => $total];
     }
-
     public function catalogRow(string $table, int $id): ?array
     {
         $row = $this->modelQuery($table)->where('id', $id)->first();
@@ -63,9 +87,16 @@ final class DatabaseSupportRepository implements SupportRepositoryInterface
         return TicketModel::query()->where('type_id', $id)->exists();
     }
 
-    public function tickets(string $keyword, ?string $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function tickets(
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
-        return $this->reads->tickets($keyword, $status, $page, $pageSize);
+        return $this->reads->tickets($keyword, $status, $page, $pageSize, $filters);
     }
 
     public function ticket(int $id): ?array
@@ -79,18 +110,18 @@ final class DatabaseSupportRepository implements SupportRepositoryInterface
             ->where('ticket_id', $ticketId)->orderBy('id')->get()->all());
     }
 
-    public function reply(int $ticketId, int $adminId, string $content): bool
+    public function reply(int $ticketId, int $adminId, string $content): ?int
     {
-        return Db::connection()->transaction(static function () use ($ticketId, $adminId, $content): bool {
+        return Db::connection()->transaction(static function () use ($ticketId, $adminId, $content): ?int {
             $ticket = TicketModel::query()->where('id', $ticketId)->lockForUpdate()->first();
-            if (!$ticket instanceof Model || $ticket->status === 'closed') return false;
+            if (!$ticket instanceof Model || $ticket->status === 'closed') return null;
             $now = date('Y-m-d H:i:s');
-            TicketMessageModel::query()->create([
+            $reply = TicketMessageModel::query()->create([
                 'ticket_id' => $ticketId, 'author_type' => 'admin', 'author_id' => $adminId,
                 'content' => $content, 'created_at' => $now,
             ]);
             $ticket->fill(['status' => 'waiting_member'])->save();
-            return true;
+            return (int) $reply->id;
         });
     }
 

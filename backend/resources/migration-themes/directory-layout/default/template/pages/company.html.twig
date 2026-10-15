@@ -1,0 +1,7 @@
+{% extends 'layout.html.twig' %}
+{% block content %}
+<section class="page-hero"><div class="container"><p class="eyebrow">关于我们</p><h1>{{ page.title }}</h1><p>{{ site.name }}</p></div></section>
+<section class="container company-content"><div class="company-introduction"><h2>公司简介</h2><p class="preserve-lines">{{ site.company.introduction }}</p>{% if site.company.image_url %}<img class="company-image" src="{{ site.company.image_url }}" alt="{{ page.title }}" loading="lazy">{% endif %}</div>
+{% if site.company.contact_phone or site.company.contact_email or site.company.address %}{% if page.settings.show_contact %}<aside class="contact-card"><h2>联系我们</h2><dl>{% if site.company.contact_phone %}<dt>联系电话</dt><dd>{{ site.company.contact_phone }}</dd>{% endif %}{% if site.company.contact_email %}<dt>联系邮箱</dt><dd>{{ site.company.contact_email }}</dd>{% endif %}{% if site.company.address %}<dt>联系地址</dt><dd>{{ site.company.address }}</dd>{% endif %}</dl></aside>{% endif %}{% endif %}
+</section>
+{% endblock %}

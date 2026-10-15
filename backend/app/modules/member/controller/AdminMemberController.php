@@ -9,6 +9,7 @@ use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\modules\member\application\MemberManagementService;
 use app\modules\member\validation\MemberValidator;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\Delete;
 use support\annotation\route\DisableDefaultRoute;
@@ -41,6 +42,7 @@ final readonly class AdminMemberController
 
         return $this->responses->success($request, $this->management->paginate(
             $this->context->account($request), $query['keyword'], $query['status'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['nickname' => 64, 'mobile' => 20, 'email' => 254], ['created_at', 'last_login_at']),
         ));
     }
 

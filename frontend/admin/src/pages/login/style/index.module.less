@@ -1,157 +1,117 @@
 .container {
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
-  height: 100vh;
-
-  .banner {
-    width: 550px;
-    background: linear-gradient(163.85deg, #1d2129 0%, #00308f 100%);
-  }
-
-  .content {
-    flex: 1;
-    position: relative;
-    padding-bottom: 40px;
-  }
-
-  .footer {
-    width: 100%;
-    position: absolute;
-    bottom: 0;
-    right: 0;
-  }
-}
-
-.logo {
-  position: fixed;
-  top: 24px;
-  left: 22px;
-  display: inline-flex;
   align-items: center;
-  z-index: 1;
-
-  &-text {
-    margin-left: 4px;
-    margin-right: 4px;
-    font-size: 20px;
-    color: var(--color-fill-1);
-  }
-}
-
-.banner {
-  display: flex;
   justify-content: center;
-  align-items: center;
+  padding: 40px 24px;
+  box-sizing: border-box;
+  background: var(--color-fill-1);
+}
 
-  &-inner {
-    height: 100%;
-    flex: 1;
+@media (min-width: 601px) {
+  .container {
+    background-image: url('../../../assets/login-scene.webp');
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
   }
 }
 
 .content {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 420px;
+  max-width: 100%;
+  min-width: 0;
 }
 
-.carousel {
-  height: 100%;
+.panel {
+  padding: 36px 32px 32px;
+}
 
-  &-item {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-  }
+.heading {
+  margin-bottom: 28px;
+  text-align: center;
+}
 
-  &-title {
-    font-weight: 500;
-    font-size: 20px;
-    line-height: 28px;
-    color: var(--color-fill-1);
-  }
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 34px;
+  color: var(--color-text-1);
+}
 
-  &-sub-title {
-    margin-top: 8px;
-    font-size: 14px;
-    line-height: 22px;
-    color: var(--color-text-3);
-  }
-
-  &-image {
-    margin-top: 30px;
-    width: 320px;
-  }
+.subtitle {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--color-text-3);
 }
 
 .login-form {
   &-wrapper {
-    width: 320px;
+    width: 100%;
+    min-width: 0;
   }
 
-  &-title {
-    font-size: 24px;
-    font-weight: 500;
-    color: var(--color-text-1);
-    line-height: 32px;
+  &-input {
+    height: 44px;
   }
 
-  &-sub-title {
-    font-size: 16px;
-    line-height: 24px;
-    color: var(--color-text-3);
+  &-submit {
+    height: 44px;
   }
 
-  &-error-msg {
-    height: 32px;
-    line-height: 32px;
-    color: rgb(var(--red-6));
+  &-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
 
   &-password-actions {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-  }
-
-  &-register-btn {
-    color: var(--color-text-3) !important;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .container {
-    min-height: 100dvh;
-    height: auto;
-
-    .banner {
-      display: none;
-    }
-
-    .content {
-      min-width: 0;
-      min-height: 100dvh;
-      padding: 96px 20px 20px;
-      flex-direction: column;
-    }
-
-    .footer {
-      position: static;
-      margin-top: auto;
-    }
+    padding: 24px 20px;
   }
 
-  .logo-text {
-    color: var(--color-text-1);
-  }
-
-  .content-inner {
+  .content {
     width: 100%;
-    display: flex;
-    justify-content: center;
+    max-width: 380px;
   }
 
-  .login-form-wrapper {
-    width: min(320px, 100%);
+  .panel {
+    padding: 32px 24px 28px;
+  }
+
+  .title {
+    font-size: 22px;
+    line-height: 32px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    line-height: 20px;
+  }
+}
+
+@media (max-width: 359px) {
+  .container {
+    padding: 20px 16px;
+  }
+
+  .panel {
+    padding: 28px 20px 24px;
+  }
+
+  .title {
+    font-size: 20px;
   }
 }

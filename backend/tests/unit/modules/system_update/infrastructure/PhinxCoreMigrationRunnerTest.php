@@ -40,6 +40,21 @@ final class PhinxCoreMigrationRunnerTest extends TestCase
         20260927000700,
         20261001000100,
         20261001000200,
+        20261002000100,
+        20261002000200,
+        20261002000300,
+        20261003000100,
+        20261003000200,
+        20261003000300,
+        20261004000100,
+        20261004000200,
+        20261006000100,
+        20261006000200,
+        20261006000300,
+        20261006000400,
+        20261007000100,
+        20261007000200,
+        20261007000300,
     ];
 
     /**
@@ -92,7 +107,7 @@ final class PhinxCoreMigrationRunnerTest extends TestCase
         self::assertContains('test_system_settings', $tables);
         self::assertContains('test_system_setting_categories', $tables);
         self::assertSame(
-            [['code' => 'base', 'name' => '基础设置', 'sort_order' => 10], ['code' => 'security', 'name' => '安全设置', 'sort_order' => 20]],
+            [['code' => 'base', 'name' => '基础设置', 'sort_order' => 10], ['code' => 'security', 'name' => '安全设置', 'sort_order' => 20], ['code' => 'notifications', 'name' => '消息通知', 'sort_order' => 30]],
             $pdo->query('SELECT code, name, sort_order FROM test_system_setting_categories ORDER BY sort_order')->fetchAll(PDO::FETCH_ASSOC),
         );
         self::assertSame(12, (int) $pdo->query('SELECT COUNT(*) FROM test_system_settings WHERE category_id IS NOT NULL')->fetchColumn());
@@ -186,7 +201,7 @@ final class PhinxCoreMigrationRunnerTest extends TestCase
         // 模拟 DDL 完成、版本记录尚未落盘时重试，已有设置仍不可被默认值覆盖。
         $pdo->exec('DELETE FROM test_migration_versions WHERE version = 20260926000600');
         self::assertSame([20260926000600], $runner->migrate($configuration)->executed);
-        self::assertSame(2, (int) $pdo->query('SELECT COUNT(*) FROM test_system_setting_categories')->fetchColumn());
+        self::assertSame(3, (int) $pdo->query('SELECT COUNT(*) FROM test_system_setting_categories')->fetchColumn());
         self::assertSame(14, (int) $pdo->query('SELECT COUNT(*) FROM test_system_settings')->fetchColumn());
         self::assertSame('客户已设置的名称', $pdo->query("SELECT setting_value FROM test_system_settings WHERE setting_key = 'site.title'")->fetchColumn());
         self::assertSame(0, (int) $pdo->query("SELECT COUNT(*) FROM test_system_settings WHERE setting_key = 'site.name'")->fetchColumn());

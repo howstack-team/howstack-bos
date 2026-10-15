@@ -1,0 +1,285 @@
+openapi: 3.0.3
+info:
+  title: 会员购买与订单接口
+  version: 1.0.0
+  description: 会员归属由 Cookie
+    认证确定。匿名选配在登录后重新报价，提交订单重新校验销售版本、金额及库存。同一会员同一请求键只能创建一次订单；不同内容使用相同键返回409。未付款不占用库存，钱包付款在事务中正式占用。
+security:
+  - memberSession: []
+paths:
+  /api/console/v1/orders:
+    get:
+      summary: 分页查询本人订单
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            maximum: 100000
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: 成功，金额单位为人民币整数分
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: &a1
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Order"
+                      total: &a4
+                        type: integer
+                        minimum: 0
+                    required:
+                      - data
+                      - total
+                    additionalProperties: false
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+        "400": &a2
+          description: 请求无效、会话或权限错误、产品状态或价格冲突
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  message: *a1
+                  data:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+        "401": *a2
+    post:
+      summary: 创建本人待付款订单
+      description: 要求同源 Origin；member_id、订单状态、提供者字段等不接受客户端设置。服务端计算金额并核对
+        expected_amount_minor。不自动付款或开通实例。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offer_id: &a3
+                  type: integer
+                  minimum: 1
+                version_id: *a3
+                selection:
+                  $ref: "#/components/schemas/Selection"
+                expected_amount_minor:
+                  type: integer
+                  minimum: 1
+                  maximum: 100000000
+                request_key:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{16,64}$
+              required:
+                - offer_id
+                - version_id
+                - selection
+                - expected_amount_minor
+                - request_key
+              additionalProperties: false
+      responses:
+        "200":
+          description: 成功，金额单位为人民币整数分
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    properties:
+                      id: *a3
+                    required:
+                      - id
+                    additionalProperties: false
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/console/v1/orders/{id}:
+    get:
+      summary: 查询本人订单详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a3
+          description: 订单标识
+      responses:
+        "200":
+          description: 成功，金额单位为人民币整数分
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/Order"
+                  request_id:
+                    type: string
+                    minLength: 1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                additionalProperties: false
+        "400": *a2
+        "401": *a2
+        "404": *a2
+components:
+  securitySchemes:
+    memberSession:
+      type: apiKey
+      in: cookie
+      name: hlyq_member_token
+      description: HttpOnly 会员会话，不在浏览器存储令牌
+  schemas:
+    Order:
+      type: object
+      properties:
+        id: *a3
+        order_no: *a1
+        status: *a1
+        payment_status: *a1
+        currency:
+          type: string
+          enum:
+            - CNY
+        payable_minor: *a4
+        paid_minor: *a4
+        created_at: *a1
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_name: *a1
+              quantity: *a3
+              total_minor: *a4
+            required:
+              - product_name
+              - quantity
+              - total_minor
+            additionalProperties: false
+      required:
+        - id
+        - order_no
+        - status
+        - payment_status
+        - currency
+        - payable_minor
+        - paid_minor
+        - created_at
+      additionalProperties: false
+    Selection:
+      type: object
+      additionalProperties: false
+      properties:
+        region_id: *a4
+        zone_id: *a4
+        line_id: *a4
+        flavor_group_id: *a4
+        flavor_id: *a4
+        image_type_id: *a4
+        image_id: *a4
+        protection_id: *a4
+        duration_months: *a4
+        quantity: *a4
+        billing_mode:
+          type: string
+          enum:
+            - prepaid
+        login_method:
+          type: string
+          enum:
+            - password
+        system_disk: &a5
+          type: object
+          properties:
+            type_id: *a4
+            size_gib: *a4
+          required:
+            - type_id
+            - size_gib
+          additionalProperties: false
+        data_disks:
+          type: array
+          items: *a5
+          maxItems: 32
+        network:
+          type: object
+          properties:
+            billing_mode:
+              type: string
+              enum:
+                - fixed
+            egress_mbps: *a4
+            ingress_mbps: *a4
+            ipv4_count: *a4
+          required:
+            - egress_mbps
+            - ingress_mbps
+            - ipv4_count
+          additionalProperties: false

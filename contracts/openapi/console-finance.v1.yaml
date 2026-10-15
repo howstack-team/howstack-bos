@@ -1,43 +1,313 @@
 openapi: 3.0.3
 info:
   title: 会员身份与资金账户基础接口
-  version: 1.0.0
-  description: 当前只提供会员登录、本人余额查询以及满足订单实例金额归属条件的余额支付。充值申请、在线支付、退款及续费接口尚未开放。
+  version: 1.1.0
+  description: 支持可配置手机号/邮箱注册、独立验证码、会员登录、本人余额查询以及满足订单实例金额归属条件的余额支付。充值申请、在线支付、退款及续费接口尚未开放。
 paths:
   /api/console/v1/auth/login:
     post:
-      summary: 会员手机号密码登录
+      summary: 会员手机号或邮箱加密码登录
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [mobile, password]
+              required:
+                - account
+                - password
               properties:
-                mobile: { type: string, pattern: '^\+?[0-9]{6,20}$' }
-                password: { type: string, minLength: 1, maxLength: 1024 }
+                account:
+                  type: string
+                  maxLength: 254
+                  description: 手机号或邮箱
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 72
+                remember_me:
+                  type: boolean
+                  default: false
+                  description: false签发2小时会话Cookie；true签发最长30天的持久登录Cookie。退出及密码变更可撤销。
       responses:
-        '200': { description: 返回会员资料并设置 HttpOnly 会话 Cookie }
-        '401': { description: 账号或密码错误 }
-        '429': { description: 登录尝试超过限额 }
+        "200":
+          description: 返回会员资料并设置可撤销 HttpOnly Cookie；SameSite=Strict，Token不进入响应JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: &a1
+                    type: string
+                  data:
+                    type: object
+                    required:
+                      - user
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/MemberProfile"
+                  request_id:
+                    type: string
+                    minLength: 1
+        "401":
+          description: 账号或密码错误
+        "429":
+          description: 登录尝试超过限额
   /api/console/v1/auth/me:
     get:
       summary: 查询当前会员资料
       responses:
-        '200': { description: 统一响应 data.user 为会员资料 }
-        '401': { description: 未登录或会话失效 }
+        "200":
+          description: 统一响应 data.user 为 MemberProfile；id 是九位公开编号字符串，兼容历史八位编号，mobile 和 email 可为 null
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - user
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/MemberProfile"
+                  request_id:
+                    type: string
+                    minLength: 1
+        "401":
+          description: 未登录或会话失效
   /api/console/v1/auth/logout:
     post:
       summary: 清除会员会话 Cookie
       responses:
-        '200': { description: 已清除当前浏览器的会员会话 Cookie }
+        "200":
+          description: 已清除当前浏览器的会员会话 Cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: "null"
+                  request_id:
+                    type: string
+                    minLength: 1
+  /api/console/v1/auth/registration:
+    get:
+      summary: 读取注册方式及验证码要求，建立临时注册 Cookie
+      responses:
+        "200":
+          description: 统一响应 data 为 RegistrationOptions；no-store；HttpOnly、SameSite=Strict 临时 Cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/RegistrationOptions"
+                  request_id:
+                    type: string
+                    minLength: 1
+        "500":
+          description: 注册配置未迁移或损坏，不开放注册
+  /api/console/v1/auth/registration-code:
+    post:
+      summary: 发送绑定账号和浏览器的注册验证码
+      description: 要求同源 Origin 和临时注册 Cookie；仅在当前方式开启且要求验证码时发送。有效期300秒，接收账号每60秒限一次，同IP十分钟限10次。邮件/短信未配置或厂商未知结果不绕过验证。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationTarget"
+      responses:
+        "200":
+          description: data 包含 challenge_id（32位随机hex挑战标识）、expires_in=300、retry_after=60，不返回验证码
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - challenge_id
+                      - expires_in
+                      - retry_after
+                    properties:
+                      challenge_id:
+                        type: string
+                        pattern: ^[a-f0-9]{32}$
+                      expires_in:
+                        type: integer
+                        enum:
+                          - 300
+                      retry_after:
+                        type: integer
+                        enum:
+                          - 60
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 方式/验证码关闭、会话失效或不同源
+        "422":
+          description: 账号格式不正确
+        "429":
+          description: 请求频率超限
+        "503":
+          description: 通道未配置、发送失败或注册安全服务不可用
+  /api/console/v1/auth/register:
+    post:
+      summary: 使用手机号或邮箱注册账号
+      description: 要求同源 Origin 和临时注册 Cookie，方式及验证码要求再次读取服务端设置。开启验证时 code 与 challenge_id 必填，单次消费。密码至少8个字符且最多72字节；只写允许的字段，忽略调用者的status和public_id。注册成功不自动登录。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/RegistrationTarget"
+                - type: object
+                  required:
+                    - password
+                  properties:
+                    password:
+                      type: string
+                      minLength: 8
+                      maxLength: 72
+                      writeOnly: true
+                    code:
+                      type: string
+                      pattern: ^(?:[0-9]{6})?$
+                      writeOnly: true
+                    challenge_id:
+                      type: string
+                      pattern: ^(?:[a-f0-9]{32})?$
+      responses:
+        "200":
+          description: data.user 为 MemberProfile；不签发登录 Cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - user
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/MemberProfile"
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 注册方式关闭、会话失效或不同源
+        "409":
+          description: 账号已注册
+        "422":
+          description: 输入非法、验证码不匹配、已消费、超过5次错误或已过期
+        "429":
+          description: 同IP十分钟超过30次注册尝试
+        "503":
+          description: 注册安全服务不可用
   /api/console/v1/wallet:
     get:
       summary: 查询本人资金账户余额
       responses:
-        '200': { description: 统一响应 data 包含 currency、available_minor 和 frozen_minor，金额单位为分 }
-        '401': { description: 未登录 }
+        "200":
+          description: 统一响应 data 包含 currency、available_minor 和 frozen_minor，金额单位为分
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - currency
+                      - available_minor
+                      - frozen_minor
+                    properties:
+                      currency: *a1
+                      available_minor: &a2
+                        type: integer
+                      frozen_minor: *a2
+                  request_id:
+                    type: string
+                    minLength: 1
+        "401":
+          description: 未登录
   /api/console/v1/orders/{id}/pay-wallet:
     post:
       summary: 使用余额支付本人待付款订单
@@ -46,9 +316,107 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
       responses:
-        '200': { description: 返回扣款后的 available_minor }
-        '401': { description: 未登录 }
-        '404': { description: 订单不存在或不属于当前会员 }
-        '409': { description: 订单状态、分摊数据或余额不满足支付条件 }
+        "200":
+          description: 返回扣款后的 available_minor
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - available_minor
+                    properties:
+                      available_minor: *a2
+                  request_id:
+                    type: string
+                    minLength: 1
+        "401":
+          description: 未登录
+        "404":
+          description: 订单不存在或不属于当前会员
+        "409":
+          description: 订单状态、分摊数据或余额不满足支付条件
+components:
+  schemas:
+    MemberProfile:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - nickname
+        - mobile
+        - email
+      properties:
+        id:
+          type: string
+          pattern: ^[1-9][0-9]{7,8}$
+          example: "728461935"
+          description: 新编号为九位随机数字，兼容历史八位编号；不是内部会员主键
+        nickname:
+          type: string
+        mobile:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+    RegistrationOptions:
+      type: object
+      additionalProperties: false
+      required:
+        - mobile_enabled
+        - email_enabled
+        - mobile_verification
+        - email_verification
+      properties:
+        mobile_enabled:
+          type: integer
+          enum:
+            - 0
+            - 1
+        email_enabled:
+          type: integer
+          enum:
+            - 0
+            - 1
+        mobile_verification:
+          type: integer
+          enum:
+            - 0
+            - 1
+        email_verification:
+          type: integer
+          enum:
+            - 0
+            - 1
+    RegistrationTarget:
+      type: object
+      required:
+        - method
+        - account
+      properties:
+        method:
+          type: string
+          enum:
+            - mobile
+            - email
+        account:
+          type: string
+          maxLength: 254
+          description: 手机号为11位大陆手机号；邮箱转小写并去除首尾空白

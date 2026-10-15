@@ -35,6 +35,7 @@ final class AdminUserModel extends Model
 
     protected $casts = [
         'id' => 'integer',
+        'auth_version' => 'integer',
         'username' => 'string',
         'nickname' => 'string',
         'employee_no' => 'string',

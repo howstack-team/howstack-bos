@@ -15,6 +15,7 @@ use support\annotation\route\RouteGroup;
 use support\Request;
 use support\Response;
 use support\validation\Validator;
+use app\shared\validation\TableListQueryValidator;
 
 /** 运营后台财务单据只读入口。 */
 #[DisableDefaultRoute]
@@ -45,6 +46,13 @@ final readonly class AdminFinanceRecordController
         return $this->responses->success($request, $this->records->paginate(
             $this->context->account($request), $data['resource'], (int) $data['page'],
             (int) $data['page_size'], $data['status'],
+            array_merge($this->filters($request), TableListQueryValidator::validate($request->get(), [], match ($data['resource']) {
+                'recharges', 'payments' => ['created_at', 'paid_at', 'amount_minor'],
+                'transactions' => ['created_at', 'amount_minor', 'available_after_minor'],
+                'refunds' => ['created_at', 'reviewed_at', 'completed_at', 'amount_minor'],
+                'invoices' => ['created_at', 'reviewed_at', 'issued_at', 'amount_minor'],
+                'withdrawals' => ['created_at', 'reviewed_at', 'payout_at', 'amount_minor'],
+            })),
         ));
     }
 
@@ -59,5 +67,14 @@ final readonly class AdminFinanceRecordController
         return $this->responses->success($request, $this->records->detail(
             $this->context->account($request), $data['resource'], (int) $data['id'],
         ));
+    }
+    private function filters(Request $request): array
+    {
+        $data = Validator::make(array_intersect_key($request->get(), array_flip(['number', 'member_id', 'created_from', 'created_to'])), [
+            'number' => 'sometimes|nullable|string|max:48', 'member_id' => 'sometimes|nullable|integer|min:1',
+            'created_from' => 'sometimes|nullable|date_format:Y-m-d',
+            'created_to' => 'sometimes|nullable|date_format:Y-m-d' . ($request->get('created_from') ? '|after_or_equal:created_from' : ''),
+        ])->validate();
+        return array_filter($data, static fn ($value): bool => $value !== null && $value !== '');
     }
 }

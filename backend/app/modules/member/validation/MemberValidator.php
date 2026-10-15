@@ -64,10 +64,10 @@ final class MemberValidator
             'nickname' => 'required|string|min:2|max:64',
             'group_id' => 'sometimes|nullable|integer|min:1',
             'level_id' => 'sometimes|nullable|integer|min:1',
-            'mobile' => ['required', 'string', 'regex:/^\+?[0-9]{6,20}$/'],
-            'email' => 'sometimes|nullable|email|max:254',
+            'mobile' => ['nullable', 'required_without:email', 'string', 'regex:/^\+?[0-9]{6,20}$/'],
+            'email' => 'nullable|required_without:mobile|email|max:254',
             'description' => 'sometimes|nullable|string|max:255',
-            'password' => ($create ? 'required' : 'sometimes|nullable') . '|string|min:8|max:128',
+            'password' => ($create ? 'required' : 'sometimes|nullable') . '|string|min:8|max:72',
             'status' => 'required|integer|in:0,1',
         ])->validate();
     }

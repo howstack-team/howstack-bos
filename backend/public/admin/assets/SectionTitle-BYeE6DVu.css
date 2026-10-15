@@ -1,0 +1,1 @@
+.section-title{box-sizing:border-box;background-color:var(--color-fill-1);align-items:center;gap:8px;width:100%;min-height:32px;padding:4px 12px;font-weight:600;display:flex}.section-title:before{content:"";background-color:rgb(var(--primary-6));flex-shrink:0;width:3px;height:16px}

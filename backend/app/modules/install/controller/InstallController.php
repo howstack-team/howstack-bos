@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\modules\install\controller;
 
 use app\modules\install\application\InstallApplicationService;
+use app\modules\install\application\InstallationAuthorizationService;
 use app\modules\install\contract\InstallationStateRepositoryInterface;
 use app\modules\install\domain\InstallationConfiguration;
 use app\modules\install\exception\InstallationException;
@@ -31,6 +32,7 @@ final readonly class InstallController
         private InstallApplicationService $installer,
         private InstallationStateRepositoryInterface $stateRepository,
         private ApiResponse $apiResponse,
+        private InstallationAuthorizationService $authorization,
     ) {
     }
 
@@ -81,6 +83,11 @@ final readonly class InstallController
         }
 
         $session = $request->session();
+        $key = (string) $request->header('x-install-key', '');
+        if ($key !== '') {
+            $session->set('installer.authorization', $this->authorization->authorize($key));
+        }
+        $this->authorization->assertProof((string) $session->get('installer.authorization', ''));
         $token = (string) $session->get('installer.token', '');
         if (!preg_match('/^[a-f0-9]{64}$/', $token)) {
             $token = bin2hex(random_bytes(32));
@@ -153,10 +160,13 @@ final readonly class InstallController
             'configuration' => $request->post('configuration'),
         ])->validateExecution();
 
-        return $this->apiResponse->success(
-            $request,
-            $this->installer->execute($input['phase'], $input['configuration'], $token),
-        );
+        $result = $this->installer->execute($input['phase'], $input['configuration'], $token);
+        if ($input['phase'] === 'finalize') {
+            $this->authorization->revoke();
+            $request->session()->delete('installer.authorization');
+            $request->session()->delete('installer.token');
+        }
+        return $this->apiResponse->success($request, $result);
     }
 
     /**
@@ -167,6 +177,7 @@ final readonly class InstallController
      */
     private function assertToken(Request $request): string
     {
+        $this->authorization->assertProof((string) $request->session()->get('installer.authorization', ''));
         $provided = (string) $request->header('x-install-token', '');
         $expected = (string) $request->session()->get('installer.token', '');
         if ($provided === '' || $expected === '' || !hash_equals($expected, $provided)) {

@@ -36,6 +36,14 @@ export class ApiRequestError extends Error {
   }
 }
 
+let generation = 0
+let pendingRequests = new AbortController()
+export function rotateAdminRequests(): void {
+  generation++
+  pendingRequests.abort()
+  pendingRequests = new AbortController()
+}
+
 const httpClient = axios.create({
   baseURL: '/api/admin/v1',
   timeout: 15_000,
@@ -68,8 +76,11 @@ function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
  * @throws ApiRequestError 接口拒绝请求或响应结构无效时抛出
  */
 export async function request<T>(config: AxiosRequestConfig): Promise<T> {
+  const started = generation
+  const signal = config.signal ? AbortSignal.any([config.signal as AbortSignal, pendingRequests.signal]) : pendingRequests.signal
   try {
-    const response = await httpClient.request<unknown>(config)
+    const response = await httpClient.request<unknown>({ ...config, signal })
+    if (generation !== started) throw new axios.CanceledError('会话已变更')
     if (!isApiEnvelope(response.data)) {
       throw new ApiRequestError('认证服务返回了无法识别的响应', response.status, 50000)
     }
@@ -84,6 +95,8 @@ export async function request<T>(config: AxiosRequestConfig): Promise<T> {
 
     return response.data.data as T
   } catch (error) {
+    if (generation !== started) throw new axios.CanceledError('会话已变更')
+    if (axios.isCancel(error)) throw error
     if (error instanceof ApiRequestError) throw error
     if (error instanceof AxiosError) {
       const responseData = error.response?.data

@@ -1,0 +1,23 @@
+{
+  "description": "皓量云擎云业务运营系统后台、PC 和移动端会员中心配套状态素材",
+  "loading": {
+    "file": "loading.svg",
+    "method": "repo-native-svg",
+    "palette": [
+      "#165DFF",
+      "#6B9BFF",
+      "#ADC9FF",
+      "#E8F0FF"
+    ],
+    "animation": "通过 app-loading-icon CSS 旋转，减少动态效果偏好时停止"
+  },
+  "empty": {
+    "file": "empty-state.png",
+    "method": "built-in-imagegen",
+    "prompt": "Use case: stylized-concept\nAsset type: transparent empty-state illustration for a professional cloud software dashboard, paired with a small blue segmented circular loader.\nPrimary request: a compact, polished illustration showing an empty open document tray and a single blank sheet with a folded corner, a small cloud glyph on that sheet. Calm clean enterprise style. The sheet leans very slightly, the tray is centered and stable; two tiny blue square accents at upper corners, no extra objects. Subtle dimensional depth through pale grey and light blue planes, sharp tidy edges, matte material, restrained detailing, no cartoon face.\nComposition: isolated centrally on a genuinely transparent square canvas, illustration occupies about 78% of canvas; front three-quarter view, legible at 100px in an empty table. Palette: vivid brand blue #165DFF for cloud glyph and a short tray accent, pale #E8F0FF and #F2F5FA surfaces, light grey outlines. No dark outlines. No colored background or backdrop. No broad shadow, minimal natural shading on the object itself.\nText: none. No EMPTY text, no letters, no numbers, no watermark, no logos.",
+    "size": 384,
+    "transparent": true,
+    "cleanup_prompt": "Clean up this transparent dashboard empty-state illustration. Preserve exactly the tray, blank folded-corner sheet, blue cloud glyph, and the two blue accent squares, their shapes and proportions, current white/blue palette and shading. Remove every stray white fleck, speckle, halo, ragged scrap and disconnected fragment around the object, especially above the sheet and along both sides. Make perfectly clean, antialiased silhouette edges against genuine transparency. The only visible items must be the intact tray+sheet+cloud and exactly two blue accent squares. No text. No background, no ground plane, no extra shadows. Keep it compact and legible as a 100px enterprise UI empty state."
+  },
+  "integration": "后台与 PC 会员中心沿用各自 ConfigProvider 的 loadingElement、Spin.element、Empty.imgSrc；移动端引用 console 本地同套素材，由 Busy、EmptyState 与独立样式展示"
+}

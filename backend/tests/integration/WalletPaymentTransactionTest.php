@@ -24,13 +24,13 @@ final class WalletPaymentTransactionTest extends TestCase
 
     private function wallet(): WalletLedgerService
     {
-        return new WalletLedgerService(new DatabaseWalletLedgerRepository(), new DatabaseTransactionManager());
+        return new WalletLedgerService(new DatabaseWalletLedgerRepository(), new DatabaseTransactionManager(), \tests\support\MessageRuntimeFactory::publisher());
     }
 
     private function payments(?OutboxWriterInterface $outbox = null): PayOrderByWalletService
     {
         return new PayOrderByWalletService(new DatabaseOrderPaymentRepository(), $this->wallet(),
-            new DatabaseTransactionManager(), $outbox ?? new DatabaseOutboxWriter());
+            new DatabaseTransactionManager(), $outbox ?? new DatabaseOutboxWriter(), \tests\support\MessageRuntimeFactory::publisher(), new \app\modules\product\infrastructure\ProductOrderCapacityRegistry(new \app\modules\compute\application\OrderComputeCapacityService(new \app\modules\compute\infrastructure\DatabaseComputeInventoryRepository())));
     }
 
     public function testRechargeAndOrderAreIdempotentWithSeparatePaymentSources(): void

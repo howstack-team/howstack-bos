@@ -1,21 +1,54 @@
 openapi: 3.0.3
 info:
-  title: 运营后台财务记录查询
-  version: 1.0.0
-  description: 当前仅开放财务记录查询。充值、在线支付、退款审核、开票与提现操作尚未开放。
+  title: 运营后台财务管理
+  version: 1.1.0
+  description: 社区版财务查询、线下充值入账、余额单实例退款、开票与红冲登记、充值来源提现。在线收款与原渠道退款须通过支付模块另行接入。
 paths:
   /api/admin/v1/finance/{resource}:
     get:
       summary: 分页查询指定财务记录
+      description: >-
+        排序先于分页，空值最后、同值按 id 降序；不传排序参数保持原有顺序。
+        recharges/payments 允许 created_at、paid_at、amount_minor；transactions 允许 created_at、amount_minor、available_after_minor；
+        refunds 允许 created_at、reviewed_at、completed_at、amount_minor；invoices 允许 created_at、reviewed_at、issued_at、amount_minor；
+        withdrawals 允许 created_at、reviewed_at、payout_at、amount_minor。不属于该资源的排序字段返回 422。
       parameters:
+        - { name: sort_by, in: query, schema: { type: string, enum: [created_at, paid_at, amount_minor, available_after_minor, reviewed_at, completed_at, issued_at, payout_at] } }
+        - { name: sort_order, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
         - $ref: '#/components/parameters/resource'
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
         - { name: status, in: query, schema: { type: string, maxLength: 24 } }
+        - { name: number, in: query, description: 单号字面包含查询，与其他条件按 AND 组合, schema: { type: string, maxLength: 48 } }
+        - { name: member_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: created_from, in: query, schema: { type: string, format: date } }
+        - { name: created_to, in: query, description: 包含结束当天，不能早于开始日期, schema: { type: string, format: date } }
       responses:
         '200': { description: 统一响应 data 包含 data 数组与 total 数量 }
         '401': { description: 未登录 }
         '403': { description: 缺少对应记录的查看权限 }
+    post:
+      summary: 创建财务单据
+      description: >-
+        仅 recharges/refunds/invoices/withdrawals；要求对应 view 和 create 权限。
+        金额为整数分，当前币种固定 CNY。recharges 是人工核实线下收款并立即入账；
+        refunds 仅允许已核实的余额支付订单实例、资源未交付或已终止；
+        invoices 按净实付分配实例金额；withdrawals 仅退还指定充值来源的剩余资金并立即冻结。
+        同一 request_key 重放返回原单据；同键不同内容返回 409；失败时单据、账本及审计一同回滚。
+      parameters:
+        - $ref: '#/components/parameters/resource'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinanceCreate'
+      responses:
+        '200': { description: 统一响应 data 为包含整数 id 的单据标识对象 }
+        '403': { description: 缺少查看或创建权限 }
+        '404': { description: 会员或订单不存在 }
+        '409': { description: 超额、重复凭证、来源不符、资源未终止或金额归属不完整 }
+        '422': { description: 参数验证失败，data.errors 为字段错误 }
   /api/admin/v1/finance/{resource}/{id}:
     get:
       summary: 查询指定财务记录详情
@@ -27,6 +60,54 @@ paths:
         '401': { description: 未登录 }
         '403': { description: 缺少对应记录的查看权限 }
         '404': { description: 财务记录不存在 }
+  /api/admin/v1/finance/{resource}/members:
+    get:
+      summary: 财务操作中的会员选择
+      description: 要求对应 view/create 权限；最多二十项，返回 id 与昵称，不回显手机号等联系资料。
+      parameters:
+        - $ref: '#/components/parameters/resource'
+        - { name: search, in: query, description: 按会员昵称、手机号或 ID 查找, schema: { type: string, maxLength: 64 } }
+      responses:
+        '200': { description: 统一响应 data 为 id/label 选项数组 }
+        '403': { description: 缺少创建权限 }
+  /api/admin/v1/finance/{resource}/options:
+    get:
+      summary: 查找当前会员可处理的业务来源
+      description: >-
+        仅 refunds/invoices/withdrawals；要求对应 view/create 权限。
+        返回实例、订单或充值来源的 id、label、available_minor；金额在最终提交时持锁重新检查。
+        最多读取最近一百个订单或充值来源，历史金额归属不完整的订单不提供操作。
+      parameters:
+        - $ref: '#/components/parameters/resource'
+        - { name: member_id, in: query, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: 统一响应 data 为可用业务来源数组 }
+        '403': { description: 缺少创建权限 }
+  /api/admin/v1/finance/{resource}/{id}/{action}:
+    post:
+      summary: 审核或处置财务单据
+      description: >-
+        refunds 支持 approve/reject/execute；invoices 支持 approve/reject/issue/red；withdrawals 支持 approve/reject/payout。
+        approve/reject 需要 review 权限，其他动作需要对应 execute/issue/red/payout 权限，同时必须有 view 权限。
+        驳回必须填写 review_reason；issue/red/payout 必须填写 external_reference，且应先在外部完成真实开票、红冲或打款。
+        execute 真实退回原余额资金来源；issue/red/payout 只登记外部处理结果，不调用厂商接口。
+        新流程未核对的历史单据保持只读；资金流水和审核记录不得编辑或删除。
+      parameters:
+        - $ref: '#/components/parameters/resource'
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [approve, reject, execute, issue, red, payout] } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinanceAction'
+      responses:
+        '200': { description: 统一响应 data 为原单据标识 }
+        '403': { description: 缺少对应处置权限 }
+        '404': { description: 单据不存在 }
+        '409': { description: 状态已变化、资金来源未核对或历史单据只读 }
+        '422': { description: 参数验证失败 }
 components:
   parameters:
     resource:
@@ -36,3 +117,29 @@ components:
       schema:
         type: string
         enum: [recharges, payments, transactions, refunds, invoices, withdrawals]
+
+  schemas:
+    FinanceCreate:
+      type: object
+      required: [request_key, member_id, amount_minor]
+      description: >-
+        source_id 在退款、发票、提现中必填，分别对应订单实例 ID、订单 ID、充值 ID。
+        充值必填 external_reference；退款和提现必填 reason；发票必填 title 和 invoice_type。
+        输入由服务端按资源白名单提取，不接受客户端修改状态、币种、管理员或支付结果。
+      properties:
+        request_key: { type: string, pattern: '^[A-Za-z0-9_-]{16,64}$' }
+        member_id: { type: integer, minimum: 1 }
+        amount_minor: { type: integer, minimum: 1, maximum: 100000000, description: 金额单位分 }
+        source_id: { type: integer, minimum: 1 }
+        reason: { type: string, maxLength: 255 }
+        remark: { type: string, maxLength: 255 }
+        external_reference: { type: string, maxLength: 80, description: 线下收款凭证，全系统内唯一 }
+        title: { type: string, maxLength: 160 }
+        invoice_type: { type: string, enum: [electronic, paper] }
+    FinanceAction:
+      type: object
+      required: [request_key]
+      properties:
+        request_key: { type: string, pattern: '^[A-Za-z0-9_-]{16,64}$' }
+        review_reason: { type: string, maxLength: 255, description: 驳回必填 }
+        external_reference: { type: string, maxLength: 80, description: 开票、红冲及打款登记必填 }

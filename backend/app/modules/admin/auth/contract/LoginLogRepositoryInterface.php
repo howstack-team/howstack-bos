@@ -21,8 +21,15 @@ interface LoginLogRepositoryInterface
      * @param int      $page     页码
      * @param int      $pageSize 每页条数
      * @return array{data: list<array<string, mixed>>, total: int} 分页记录及总数
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
      */
-    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array;
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array;
 
     /**
      * 统计指定时间之前的记录。

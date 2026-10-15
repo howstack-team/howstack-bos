@@ -1,92 +1,88 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Spin } from '@arco-design/web-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { authApi, type AdminUser } from './authApi.ts'
-import { ApiRequestError } from '../api/httpClient.ts'
+import { ApiRequestError, rotateAdminRequests } from '../api/httpClient.ts'
 import { AuthContext, type AuthenticationStatus, type AuthContextValue } from './AuthContext.ts'
 
-interface AuthProviderProps {
-  children: ReactNode
-}
-
-/**
- * 管理运营后台登录状态并通过 HttpOnly Cookie 恢复会话。
- * @param props 组件属性
- * @param props.children 后台应用内容
- * @returns 认证上下文提供器
- */
-export function AuthProvider({ children }: AuthProviderProps) {
+const channelName = 'howstack.admin-session'
+/** 后台切换账号必须清空页面及请求，跨标签页只广播事件。 */
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthenticationStatus>('loading')
   const [user, setUser] = useState<AdminUser | null>(null)
   const [permissions, setPermissions] = useState<string[]>([])
   const [bootstrapError, setBootstrapError] = useState('')
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    authApi.profile(controller.signal)
-      .then(({ user: currentUser, permissions: currentPermissions }) => {
-        setUser(currentUser)
-        setPermissions(currentPermissions)
-        setStatus('authenticated')
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        setUser(null)
-        setPermissions([])
-        setStatus('anonymous')
-        if (!(error instanceof ApiRequestError) || error.status !== 401) {
-          setBootstrapError(error instanceof Error ? error.message : '暂时无法验证登录状态')
-        }
-      })
-
-    return () => controller.abort()
+  const [checking, setChecking] = useState(false)
+  const currentUserId = useRef<number | null>(null)
+  const revision = useRef(0)
+  const mounted = useRef(true)
+  const clear = useCallback(() => {
+    revision.current++
+    rotateAdminRequests()
+    setChecking(false)
+    currentUserId.current = null
+    setUser(null); setPermissions([])
+    window.dispatchEvent(new Event('admin:session-cleared'))
   }, [])
-
+  const refresh = useCallback(async () => {
+    let current = ++revision.current
+    setChecking(true)
+    try {
+      const result = await authApi.profile()
+      if (!mounted.current || revision.current !== current) return
+      if (currentUserId.current !== null && currentUserId.current !== result.user.id) { clear(); current = revision.current }
+      currentUserId.current = result.user.id
+      setUser(result.user); setPermissions(result.permissions); setBootstrapError(''); setStatus('authenticated')
+    } catch (error) {
+      if (!mounted.current || revision.current !== current) return
+      clear(); current = revision.current; setStatus('anonymous')
+      if (!(error instanceof ApiRequestError) || error.status !== 401) setBootstrapError(error instanceof Error ? error.message : '暂时无法验证登录状态')
+    } finally { if (mounted.current && revision.current === current) setChecking(false) }
+  }, [clear])
+  const broadcast = () => {
+    try { localStorage.setItem(channelName, `${Date.now()}:${Math.random()}`) } catch { /* 焦点校验兜底。 */ }
+    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(channelName)
+    channel?.postMessage('changed'); channel?.close()
+  }
   useEffect(() => {
-    const refresh = () => {
-      void authApi.profile().then(({ user: currentUser, permissions: currentPermissions }) => {
-        setUser(currentUser)
-        setPermissions(currentPermissions)
-      }).catch((error: unknown) => {
-        if (error instanceof ApiRequestError && error.status === 401) {
-          setUser(null)
-          setPermissions([])
-          setStatus('anonymous')
-        }
-      })
-    }
-    const onFocus = () => refresh()
-    window.addEventListener('focus', onFocus)
-    window.addEventListener('admin:access-changed', refresh)
+    mounted.current = true
+    void refresh()
+    const reload = () => { void refresh() }
+    const onStorage = (event: StorageEvent) => { if (event.key === channelName) reload() }
+    const visible = () => { if (document.visibilityState === 'visible') reload() }
+    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(channelName)
+    if (channel) channel.onmessage = reload
+    window.addEventListener('focus', reload)
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('admin:access-changed', reload)
+    document.addEventListener('visibilitychange', visible)
     return () => {
-      window.removeEventListener('focus', onFocus)
-      window.removeEventListener('admin:access-changed', refresh)
+      mounted.current = false; revision.current++; rotateAdminRequests(); channel?.close()
+      window.removeEventListener('focus', reload)
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('admin:access-changed', reload)
+      document.removeEventListener('visibilitychange', visible)
     }
-  }, [])
-
-  const value = useMemo<AuthContextValue>(() => ({
-    status,
-    user,
-    permissions,
-    bootstrapError,
+  }, [refresh])
+  const value = useMemo<AuthContextValue>(() => ({ status, user, permissions, bootstrapError,
     async login(input) {
       const result = await authApi.login(input)
-      setBootstrapError('')
-      setUser(result.user)
-      setPermissions(result.permissions)
-      setStatus('authenticated')
+      if (!result.mfa_required) { await refresh(); broadcast() }
+      return result
+    },
+    async verifyMfa(code, recovery) {
+      await authApi.verifyMfa(code, recovery)
+      await refresh()
+      broadcast()
     },
     async logout() {
       await authApi.logout()
-      setUser(null)
-      setPermissions([])
-      setStatus('anonymous')
+      clear(); setStatus('anonymous'); broadcast()
     },
-    async refreshAccess() {
-      const result = await authApi.profile()
-      setUser(result.user)
-      setPermissions(result.permissions)
-    },
-  }), [bootstrapError, status, user, permissions])
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    refreshAccess: refresh,
+    clearSession() { clear(); setStatus('anonymous'); broadcast() },
+  }), [bootstrapError, status, user, permissions, clear, refresh])
+  return <AuthContext.Provider value={value}>
+    <div key={user?.id ?? 'anonymous'} style={{ display: checking ? 'none' : 'contents' }}>{children}</div>
+    {checking && <div role="status" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin /></div>}
+  </AuthContext.Provider>
 }

@@ -1,0 +1,1 @@
+function e(e){return e?e.length<=7?`${e.slice(0,2)}****${e.slice(-2)}`:`${e.slice(0,3)}****${e.slice(-4)}`:`-`}function t(e){if(!e)return`-`;let[t,n]=e.split(`@`);return`${t.slice(0,1)}***@${n}`}export{e as n,t};

@@ -28,7 +28,7 @@ export default function Block(props: BlockProps) {
             <div className={styles['switch-wrapper']} key={option.value}>
               <span>{locale[option.name]}</span>
               {type === 'switch' && (
-                <Switch
+                <Switch type="round"
                   size="small"
                   checked={!!settings[option.value]}
                   onChange={(checked) => {
@@ -59,9 +59,15 @@ export default function Block(props: BlockProps) {
               )}
               {type === 'number' && (
                 <InputNumber
-                  style={{ width: 80 }}
+                  mode="button"
+                  precision={0}
+                  suffix={option.value === 'menuWidth' || option.value === 'classicMenuWidth' ? 'px' : undefined}
+                  placeholder={`请输入${locale[option.name]}`}
+                  aria-label={locale[option.name]}
+                  style={{ width: 140 }}
                   size="small"
-                  value={settings.menuWidth}
+                  min={option.value === 'menuWidth' ? 160 : option.value === 'classicMenuWidth' ? 180 : undefined}
+                  value={settings[option.value]}
                   onChange={(value) => {
                     const newSetting = {
                       ...settings,

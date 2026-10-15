@@ -1,3 +1,4 @@
+import { applyClientTableQuery } from '../utils/clientTableQuery'
 import type { FinanceRecord, FinanceResource } from '../api/financeApi.ts'
 import type { OrderDetail } from '../api/orderApi.ts'
 
@@ -70,12 +71,16 @@ const finance: Record<FinanceResource, FinanceRecord[]> = {
 }
 
 /** 获取订单演示列表，支持与真实页面相同的筛选及分页。 */
-export function previewOrders(keyword: string, status: string | undefined, page: number, pageSize: number) {
+export function previewOrders(keyword: string, status: string | undefined, page: number, pageSize: number, fields: { order_no?: string; member_mobile?: string; member_nickname?: string; order_type?: string; payment_status?: string; sort_by?: string; sort_order?: string } = {}) {
   const query = keyword.toLowerCase()
-  const filtered = orders.filter((row) => (!status || row.status === status)
+  const filtered = orders.filter((row) => row.order_no.includes(fields.order_no ?? '')
+    && row.member_mobile_snapshot.includes(fields.member_mobile ?? '')
+    && row.member_nickname_snapshot.includes(fields.member_nickname ?? '')
+    && (!status || row.status === status)
     && (!query || [row.order_no, row.member_mobile_snapshot, row.member_nickname_snapshot]
       .some((value) => value.toLowerCase().includes(query))))
-  return { data: filtered.slice((page - 1) * pageSize, page * pageSize), total: filtered.length }
+  const ordered = applyClientTableQuery(filtered, Object.fromEntries(Object.entries(fields).filter((entry): entry is [string, string] => entry[1] !== undefined)), ['order_type', 'payment_status'])
+  return { data: ordered.slice((page - 1) * pageSize, page * pageSize), total: ordered.length }
 }
 
 /** 获取指定演示订单及订单项。 */
@@ -84,8 +89,8 @@ export function previewOrder(id: number): OrderDetail | null {
 }
 
 /** 获取指定财务资源的演示列表。 */
-export function previewFinanceRecords(resource: FinanceResource, page: number, pageSize: number) {
-  const rows = finance[resource]
+export function previewFinanceRecords(resource: FinanceResource, page: number, pageSize: number, params: Record<string, string> = {}) {
+  const rows = applyClientTableQuery(finance[resource], params)
   return { data: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length }
 }
 

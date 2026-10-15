@@ -1,14 +1,16 @@
+import type { TableSortQuery } from './tableQuery'
 import { request } from './httpClient.ts'
 
 /** 运营后台会员列表项，不包含密码哈希。 */
 export interface MemberRecord {
+  public_id: string
   id: number
   nickname: string
   group_id: number | null
   group_name: string | null
   level_id: number | null
   level_name: string | null
-  mobile: string
+  mobile: string | null
   email: string | null
   description: string
   status: number
@@ -22,7 +24,7 @@ export interface MemberInput {
   nickname: string
   group_id?: number | null
   level_id?: number | null
-  mobile: string
+  mobile: string | null
   email?: string | null
   description?: string
   password?: string
@@ -31,7 +33,7 @@ export interface MemberInput {
 
 /** 运营后台会员管理接口。 */
 export const memberApi = {
-  list(params: { keyword?: string; status?: number; page: number; page_size: number }) {
+  list(params: TableSortQuery & { nickname?: string; mobile?: string; email?: string; keyword?: string; status?: number; page: number; page_size: number }) {
     return request<{ data: MemberRecord[]; total: number }>({ url: '/members', params })
   },
   get(id: number) {

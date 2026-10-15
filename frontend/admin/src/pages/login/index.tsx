@@ -1,33 +1,30 @@
 import React, { useEffect } from 'react';
-import Footer from '@/components/Footer';
+import { Card } from '@arco-design/web-react';
 import LoginForm from './form';
-import LoginBanner from './banner';
 import styles from './style/index.module.less';
 
+/** 居中展示管理员登录入口，并在离开时恢复原页面标题。 */
 function Login() {
   useEffect(() => {
+    const previousTitle = document.title;
+    document.title = '云业务运营后台';
     document.body.setAttribute('arco-theme', 'light');
+    return () => { document.title = previousTitle; };
   }, []);
 
   return (
     <div className={styles.container}>
-      <div className={styles.logo}>
-        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" style={{ width: 32, height: 32 }} />
-        <div className={styles['logo-text']}>皓量云擎</div>
-      </div>
-      <div className={styles.banner}>
-        <div className={styles['banner-inner']}>
-          <LoginBanner />
-        </div>
-      </div>
-      <div className={styles.content}>
-        <div className={styles['content-inner']}>
-          <LoginForm />
-        </div>
-        <div className={styles.footer}>
-          <Footer />
-        </div>
-      </div>
+      <main className={styles.content} aria-labelledby="login-title">
+        <Card bordered bodyStyle={{ padding: 0 }}>
+          <div className={styles.panel}>
+            <header className={styles.heading}>
+              <h1 id="login-title" className={styles.title}>云业务运营后台</h1>
+              <p className={styles.subtitle}>请使用管理员账号登录</p>
+            </header>
+            <LoginForm />
+          </div>
+        </Card>
+      </main>
     </div>
   );
 }

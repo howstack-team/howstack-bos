@@ -9,6 +9,7 @@ use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\modules\support\application\ManageSupportService;
 use app\modules\support\validation\SupportValidator;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\Delete;
 use support\annotation\route\DisableDefaultRoute;
@@ -30,8 +31,11 @@ final readonly class AdminSupportController
     public function catalog(Request $request, string $kind): Response
     {
         $query = SupportValidator::page($request->get());
-        return $this->responses->success($request, $this->service->catalog($this->context->account($request), $kind,
-            $query['keyword'], $query['status'] === null ? null : (int) $query['status'], $query['page'], $query['page_size']));
+        return $this->responses->success($request, $this->service->catalog(
+            $this->context->account($request), $kind,
+            $query['keyword'], $query['status'] === null ? null : (int) $query['status'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['name' => 64, 'code' => 64, 'title' => 128, 'content' => 128], ['sort_order', 'created_at']),
+        ));
     }
 
     #[Post(path: '/ticket-catalog/{kind:types|quick-replies}', name: 'admin.ticket-catalog.store')]
@@ -59,8 +63,11 @@ final readonly class AdminSupportController
     public function tickets(Request $request): Response
     {
         $query = SupportValidator::page($request->get(), true);
-        return $this->responses->success($request, $this->service->tickets($this->context->account($request),
-            $query['keyword'], $query['status'], $query['page'], $query['page_size']));
+        return $this->responses->success($request, $this->service->tickets(
+            $this->context->account($request),
+            $query['keyword'], $query['status'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), ['ticket_no' => 64, 'subject' => 128, 'member_mobile' => 20, 'member_nickname' => 64], ['updated_at', 'created_at'], ['priority' => ['low', 'normal', 'high', 'urgent']]),
+        ));
     }
 
     #[Get(path: '/tickets/{id:\d+}', name: 'admin.tickets.show')]

@@ -1,3 +1,4 @@
+import type { TableSortQuery } from './tableQuery'
 import { ApiRequestError, request } from './httpClient.ts'
 
 /** 操作日志列表仅包含可快速浏览的摘要。 */
@@ -60,7 +61,7 @@ function isDetail(value: unknown): value is OperationLogDetail {
 }
 
 /** 分页读取操作日志。 */
-export async function listOperationLogs(params: { keyword?: string; status?: 0 | 1; page: number; page_size: number }): Promise<{ data: OperationLogSummary[]; total: number }> {
+export async function listOperationLogs(params: TableSortQuery & { operator_username?: string; operator_nickname?: string; module?: string; operation?: string; client_ip?: string; keyword?: string; status?: 0 | 1; page: number; page_size: number }): Promise<{ data: OperationLogSummary[]; total: number }> {
   const value = await request<unknown>({ url: '/operation-logs', params })
   if (!isRecord(value) || !Array.isArray(value.data) || !value.data.every(isSummary)
     || typeof value.total !== 'number' || !Number.isInteger(value.total) || value.total < 0) {

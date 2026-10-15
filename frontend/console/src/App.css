@@ -1,47 +1,89 @@
+/* 框架尺寸与后台布局一致；保留会员应用独立的组件和状态。 */
 .member-login-page,
 .member-loading {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: var(--app-page-background);
+  padding: 40px 24px;
+  background: var(--color-bg-1);
+}
+.member-login-content { width: 420px; max-width: 100%; min-width: 0; }
+.member-login-panel { padding: 40px; }
+.member-login-heading { text-align: center; margin-bottom: 32px; }
+.member-login-title { margin: 0; font-size: 24px; font-weight: 600; line-height: 32px; color: var(--color-text-1); }
+.member-login-subtitle { margin: 12px 0 0; font-size: 14px; line-height: 22px; color: var(--color-text-3); }
+.login-error { margin-bottom: 24px; overflow-wrap: anywhere; }
+.console-layout { min-height: 100dvh; width: 100%; min-width: 0; }
+.console-header { position: fixed; inset: 0 0 auto; height: 60px; z-index: 100; }
+.console-navbar { height: 100%; display: flex; align-items: center; justify-content: space-between; min-width: 0; background: var(--color-bg-2); border-bottom: 1px solid var(--color-border); }
+.navbar-brand, .brand-link, .navbar-actions { display: flex; align-items: center; min-width: 0; }
+.console-top-navigation, .console-top-shortcuts { display: flex; align-items: center; gap: 24px; height: 100%; padding: 0 20px; }
+.console-top-navigation { min-width: 0; margin-right: auto; }
+.console-top-shortcuts { min-width: 0; margin-left: auto; }
+.brand-link { width: 200px; padding-left: 20px; color: var(--color-text-1); text-decoration: none; font-size: 20px; font-weight: 500; white-space: nowrap; }
+.brand-link img { width: 32px; height: 32px; object-fit: contain; flex: none; }
+.brand-link span { margin-left: 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.navbar-actions { flex: none; padding-right: 20px; }
+.navbar-action-item { display: flex; align-items: center; padding: 0 8px; }
+.navbar-icon-button { font-size: 16px; border: 1px solid var(--color-border-2); }
+.navbar-action-icon { vertical-align: -3px; }
+.navbar-dropdown-icon { margin-right: 8px; font-size: 16px; vertical-align: text-bottom; }
+.member-menu-trigger { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.member-menu-trigger:disabled { cursor: wait; }
+.console-body { padding-top: 60px; min-height: 100dvh; min-width: 0; }
+.console-sider { position: fixed; top: 60px; bottom: 0; left: 0; z-index: 99; border-right: 1px solid var(--color-border); }
+.console-menu { height: calc(100% - 48px); overflow-y: auto; }
+.console-menu-icon { font-size: 18px; vertical-align: text-bottom; }
+.sider-collapse { position: absolute; bottom: 12px; right: 12px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--app-border-radius); background: var(--color-fill-1); color: var(--color-text-3); cursor: pointer; }
+.sider-collapse:hover { background: var(--color-fill-3); }
+.console-mobile-menu { top: 60px; height: calc(100dvh - 60px); }
+.console-main { min-width: 0; background: var(--app-page-background); }
+.console-content { padding: 16px 20px 0; min-width: 0; }
+.console-content main { min-width: 0; overflow-wrap: anywhere; }
+.console-footer { display: flex; min-height: 40px; flex: none; align-items: center; justify-content: center; padding: 8px 12px; text-align: center; font-size: 14px; color: var(--color-text-2); }
+.console-page-card { border: 1px solid var(--color-border-2); border-radius: var(--app-border-radius); }
+.page-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.page-heading-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.page-heading-row > div { min-width: 0; }
+.page-loading, .wallet-loading { display: flex; align-items: center; justify-content: center; min-height: 180px; }
+.page-loading { min-height: 50vh; }
+.app-loading-icon { width: 40px; height: 40px; animation: arco-loading-circle 1s infinite cubic-bezier(0, 0, 1, 1); }
+@media (prefers-reduced-motion: reduce) {
+  img.app-loading-icon { animation: none; }
+}
+.profile-intro { margin-bottom: 24px; max-width: 100%; overflow-wrap: anywhere; }
+.profile-privacy { display: flex; align-items: center; gap: 16px; padding-top: 16px; }
+.console-feature-pending { display: grid; min-height: 320px; place-items: center; }
+@media (max-width: 768px) {
+  .console-header { height: 104px; }
+  .console-navbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 60px 44px; }
+  .navbar-brand, .navbar-actions { height: 60px; }
+  .navbar-brand { grid-area: 1 / 1; }
+  .navbar-actions { grid-area: 1 / 2; justify-self: end; }
+  .console-top-navigation { grid-area: 2 / 1; height: 44px; padding: 0 12px; margin-right: 0; border-top: 1px solid var(--color-border-2); }
+  .console-top-shortcuts { grid-area: 2 / 2; height: 44px; padding-right: 12px; margin-left: 0; border-top: 1px solid var(--color-border-2); }
+  .console-body { padding-top: 104px; }
+  .console-mobile-menu { top: 104px; height: calc(100dvh - 104px); }
+  .mobile-menu-toggle { display: inline-flex; align-items: center; justify-content: center; flex: none; margin-left: 8px; width: 40px; height: 40px; padding: 0; border: 0; border-radius: var(--app-border-radius); background: transparent; color: inherit; cursor: pointer; font-size: 18px; }
+  .brand-link { width: auto; padding-left: 6px; font-size: 16px; }
+  .brand-link span { margin-left: 6px; }
+  .navbar-actions { padding-right: 8px; }
+  .navbar-action-item { padding: 0 4px; }
+  .console-content { padding: 12px 12px 0; }
+  .page-heading-row { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .profile-intro { align-items: flex-start; }
+}
+@media (max-width: 480px) {
+  .member-login-page, .member-loading { padding: 24px 16px; }
+  .member-login-panel { padding: 32px 24px; }
 }
 
-.member-login-panel {
-  width: min(100%, 580px);
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid #e5e6eb;
-  border-radius: var(--app-border-radius);
-}
-
-.member-home {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.member-home-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.member-home-header h3 {
-  margin: 0;
-}
-
-.member-wallet-values {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 48px;
-}
-
-@media (max-width: 600px) {
-  .member-home { padding: 16px; }
-  .member-home-header { align-items: flex-start; flex-direction: column; }
-  .member-wallet-values { gap: 24px; }
-}
+.member-auth-footer { margin-top: 24px; text-align: center; font-size: 14px; }
+.member-auth-footer a { color: rgb(var(--primary-6)); text-decoration: none; }
+.member-auth-footer a:hover { text-decoration: underline; }
+.registration-loading { display: flex; justify-content: center; padding: 24px 0; }
+.registration-code-row { display: flex; align-items: flex-start; gap: 8px; }
+.registration-code-row > :first-child { flex: 1; min-width: 0; }
+.registration-code-row > button { flex: none; }

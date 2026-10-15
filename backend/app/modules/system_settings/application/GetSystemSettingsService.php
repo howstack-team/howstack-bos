@@ -12,9 +12,6 @@ final readonly class GetSystemSettingsService
 {
     public const array BASE_KEYS = [
         'site_title' => 'site.title',
-        'site_subtitle' => 'site.subtitle',
-        'site_keywords' => 'site.keywords',
-        'site_description' => 'site.description',
         'site_url' => 'site.url',
         'copyright' => 'site.copyright',
         'icp_record' => 'site.icp_record',
@@ -28,6 +25,27 @@ final readonly class GetSystemSettingsService
         'login_window' => 'security.login_window',
     ];
 
+    public const array REGISTRATION_KEYS = [
+        'mobile_enabled' => 'registration.mobile_enabled',
+        'email_enabled' => 'registration.email_enabled',
+        'mobile_verification' => 'registration.mobile_verification',
+        'email_verification' => 'registration.email_verification',
+    ];
+
+    /** 只公开开关；缺失或损坏时阻止注册，常驻进程不缓存。 */
+    public function registration(): array
+    {
+        $values = $this->repository->values('registration');
+        $result = [];
+        foreach (self::REGISTRATION_KEYS as $field => $key) {
+            if (!isset($values[$key]) || !in_array($values[$key], ['0', '1'], true)) {
+                throw new RuntimeException('会员注册设置无效，请完成系统迁移');
+            }
+            $result[$field] = (int) $values[$key];
+        }
+        return $result;
+    }
+
     /**
      * 注入持久化边界。
      * @param SystemSettingsRepositoryInterface $repository 设置仓储
@@ -38,7 +56,7 @@ final readonly class GetSystemSettingsService
 
     /**
      * 读取基础设置，旧安装缺少可选项时返回空字符串。
-     * @return array{site_title: string, site_subtitle: string, site_keywords: string, site_description: string, site_url: string, copyright: string, icp_record: string, public_security_record: string, business_license: string} 基础设置
+     * @return array{site_title: string, site_url: string, copyright: string, icp_record: string, public_security_record: string, business_license: string} 基础设置
      */
     public function base(): array
     {

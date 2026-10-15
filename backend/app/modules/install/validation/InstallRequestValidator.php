@@ -50,7 +50,7 @@ final class InstallRequestValidator extends Validator
             'required',
             'string',
             'regex:/^[a-z][a-z0-9-]{2,31}$/',
-            'not_in:api,console,install,install-assets,assets,plugin-assets',
+            'not_in:api,api-docs,console,install,install-assets,assets,plugin-assets',
         ],
         'configuration.admin' => 'required|array:username,nickname,password',
         'configuration.admin.username' => ['required', 'string', 'regex:/^[a-zA-Z][a-zA-Z0-9_]{5,31}$/'],

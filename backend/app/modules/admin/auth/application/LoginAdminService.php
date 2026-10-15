@@ -9,6 +9,8 @@ use app\modules\admin\auth\contract\AdminAccountRepositoryInterface;
 use app\modules\admin\auth\contract\AuthenticationAuditLoggerInterface;
 use app\modules\admin\auth\domain\AdminLoginCredentials;
 use app\modules\admin\auth\domain\AdminLoginResult;
+use app\modules\admin\auth\domain\AdminMfaLoginChallenge;
+use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\admin\auth\exception\AdminAuthenticationException;
 
 /**
@@ -30,6 +32,7 @@ final readonly class LoginAdminService
         private AdminAccessTokenServiceInterface $tokens,
         private AuthenticationAuditLoggerInterface $auditLogger,
         private RecordAdminLoginService $loginLogs,
+        private AdminMfaService $mfa,
     ) {
     }
 
@@ -41,7 +44,7 @@ final readonly class LoginAdminService
      * @return AdminLoginResult 登录成功结果
      * @throws AdminAuthenticationException 账号密码错误或账号停用时抛出
      */
-    public function execute(AdminLoginCredentials $credentials, string $clientAddress, string $userAgent = ''): AdminLoginResult
+    public function execute(AdminLoginCredentials $credentials, string $clientAddress, string $userAgent = ''): AdminLoginResult|AdminMfaLoginChallenge
     {
         $account = $this->accounts->findByUsername($credentials->username);
         $passwordHash = $account?->passwordHash ?? self::DUMMY_PASSWORD_HASH;
@@ -59,6 +62,14 @@ final readonly class LoginAdminService
             throw AdminAuthenticationException::accountDisabled();
         }
 
+        $challenge = $this->mfa->challenge($account, $credentials->remember);
+        if ($challenge !== null) return $challenge;
+        return $this->complete($account, $clientAddress, $userAgent);
+    }
+
+    /** 仅在完整认证成功后调用，统一签发和成功审计。 */
+    public function complete(AdminAccount $account, string $clientAddress, string $userAgent): AdminLoginResult
+    {
         $token = $this->tokens->issue($account);
         $this->accounts->recordSuccessfulLogin($account->id, date('Y-m-d H:i:s'));
         $this->auditLogger->loginSucceeded($account, $clientAddress);

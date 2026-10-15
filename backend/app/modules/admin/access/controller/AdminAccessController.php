@@ -9,6 +9,7 @@ use app\modules\admin\access\validation\AdminAccessValidator;
 use app\modules\admin\auth\application\AdminAuthenticationContext;
 use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\shared\http\ApiResponse;
+use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
 use support\annotation\route\Delete;
 use support\annotation\route\DisableDefaultRoute;
@@ -52,6 +53,7 @@ final readonly class AdminAccessController
 
         return $this->responses->success($request, $this->management->administrators(
             $this->context->account($request), $query['keyword'], $query['page'], $query['page_size'],
+            TableListQueryValidator::validate($request->get(), [], ['last_login_at'], ['status' => ['0', '1']]),
         ));
     }
 

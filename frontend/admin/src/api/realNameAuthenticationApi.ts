@@ -1,3 +1,4 @@
+import type { TableSortQuery } from './tableQuery'
 import { request } from './httpClient.ts'
 
 export type AuthenticationType = 'personal' | 'enterprise'
@@ -11,7 +12,7 @@ export interface RealNameAuthenticationRecord {
 }
 
 export const realNameAuthenticationApi = {
-  list(params: { keyword?: string; type?: AuthenticationType; status?: AuthenticationStatus; page: number; page_size: number }) {
+  list(params: TableSortQuery & { mobile?: string; nickname?: string; subject?: string; keyword?: string; type?: AuthenticationType; status?: AuthenticationStatus; page: number; page_size: number }) {
     return request<{ data: RealNameAuthenticationRecord[]; total: number }>({ url: '/real-name-authentications', params })
   },
   get(id: number) { return request<RealNameAuthenticationRecord>({ url: `/real-name-authentications/${id}` }) },

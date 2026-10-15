@@ -10,12 +10,12 @@
 - 未安装时，除安装接口以外的 `/api/*` 返回 HTTP 503，并携带安装入口。
 - 安装成功后访问 `/install` 会跳转到自定义后台路径，安装接口拒绝重复执行。
 - 安装状态以 `.env` 中的 `APP_INSTALLED=true` 为最终判定；`runtime/install/installed.json` 只用于保存非敏感安装摘要。
-- 自定义后台路径在安装时写入 `.env`，路由会先匹配核心和插件路由，再由 fallback 判断后台入口，避免覆盖插件路由。
+- 自定义后台路径在安装时写入 `.env`，安装后可在「系统设置 → 安全设置 → 后台访问入口」修改，路由会先匹配核心和插件路由，再由 fallback 判断后台入口，避免覆盖插件路由。
 
 ## 安装流程
 
 1. 阅读宁波皓量云擎网络科技有限公司《皓量云擎云业务运营系统软件使用协议》并明确勾选同意；社区版代码的许可权利仍以仓库 AGPL-3.0 为准。
-2. 检测 PHP 8.4、必需扩展、`.env` 与 `runtime/` 写权限及安装器静态资源。
+2. 检测 PHP 8.4、必需扩展、`.env` 与 `runtime/` 写权限及安装器静态资源。同时检测 OPcache 扩展，推荐安装并启用以提升运行性能，但未安装不阻止继续安装。
 3. 配置并实际测试 MySQL 8.0 与 Redis 连接；只有连接测试成功后才允许进入下一步。数据表前缀固定为 `hlyq_`，Redis 安装配置只使用密码认证，不展示 ACL 用户名。
 4. 配置网站标题与地址、自定义或随机后台路径，以及管理员昵称、账号和密码；网站描述留空，管理员账号与密码可分别随机生成。
 5. 分阶段执行核心数据库迁移、写入系统初始数据、原子生成 `.env`、写入安装标记，并返回实时阶段进度。
@@ -44,7 +44,7 @@ React、Arco 组件及 CSS 均由 Vite 本地打包到 `backend/public/install-a
 
 安装流程保持六步：协议、检测、数据库、系统、安装、结果。使用 Arco `Steps`、`Form`、`Table`、`Progress`、`Result` 和 `Descriptions`；步骤条从 1 开始计数。表单使用点号字段路径，并通过公开的 `getFields()` 收集完整配置，保留前面步骤已卸载的字段。连接参数发生变化后必须重新测试。密码仅在当前页面内存中暂存，不写入浏览器持久存储。
 
-安装器保留 `#165DFF` 品牌色和 `2px` 矩形圆角，通过官方 CSS 变量设置圆角；窄屏隐藏品牌侧栏、精简检测列并将结果描述列表降为一列。运营后台和会员控制台分别构建到 `backend/public/app/admin/` 与 `backend/public/app/console/`。
+安装器保留 `#165DFF` 品牌色和 `2px` 矩形圆角，通过官方 CSS 变量设置圆角；窄屏隐藏品牌侧栏、精简检测列并将结果描述列表降为一列。运营后台和会员控制台分别构建到 `backend/public/admin/` 与 `backend/public/console/`。
 
 已安装的系统继续阻止安装接口。UI 验收应在独立安装测试环境或隔离模拟接口进行，不得为预览界面清除现有安装标记。
 
@@ -83,3 +83,21 @@ php webman route:list
 ```
 
 完成验证后，发行目录使用 `composer install --no-dev --classmap-authoritative` 安装生产依赖。用于上传的发行包应包含生产 Composer 依赖，但不应包含开发机的 `.env`、`runtime/` 内容、日志、测试数据库凭据或其他敏感数据。首次启动前确保 PHP 进程用户能创建/写入 `.env` 与 `runtime/`，安装结束后可收紧 `.env` 权限。
+
+包含第三方 SDK 的插件必须单独构建本地依赖。例如在发行目录的 `backend/plugins/mail/smtp/` 执行：
+
+```bash
+composer install --no-dev --no-scripts --no-plugins --prefer-dist --optimize-autoloader
+composer validate --strict
+```
+
+将该插件的 `composer.json`、`composer.lock` 及完整生产 `vendor/` 一起交付。Git 忽略 vendor 不代表发行包可以省略；缺失或锁定版本不一致会使插件不可用。该步骤在开发机或构建流水线完成，客户安装器不执行插件 Composer。
+
+## 安装后修改后台入口
+
+- 系统设置的安全设置提供「后台访问路径」，独立于登录策略保存；只读账号只能查看，修改需要 `admin.page.settings.view` 和 `admin.page.settings.update`。
+- `GET /api/admin/v1/settings/admin-entry` 读取实际生效路径，`PUT` 提交 `admin_path` 和上次读取的 `current_admin_path`，要求同源 Origin。
+- 路径只接受3–32位小写字母、数字及连字符，以字母开头。系统保留路径、宿主业务路由、公开资源和已安装主题页面冲突会拒绝；冲突及失败保留输入。
+- 使用安装文件锁和同目录原子替换，仅更新 `.env` 中的 `ADMIN_PATH`，不复制后台目录、不修改其余配置，不需要重启。安装数据表中的路径是首次安装记录，保留历史值。
+- 保存成功后进入新后台设置页，原入口不再可用；API 保持 `/api/admin/v1`，静态资源仍位于 `/admin/assets`，管理员会话保持原有效期。
+- 本地 Vite 开发入口固定 `/admin`，因此修改后跳转到后端实际入口；生产环境按当前同源新入口跳转。

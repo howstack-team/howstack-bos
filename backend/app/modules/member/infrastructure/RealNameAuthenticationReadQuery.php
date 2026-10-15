@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\member\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use Illuminate\Database\Query\Builder;
 use stdClass;
 use support\Db;
@@ -11,7 +13,15 @@ use support\Db;
 /** 后台跨模块联表只读查询，不能执行写入。 */
 final class RealNameAuthenticationReadQuery
 {
-    public function paginate(string $keyword, ?string $type, ?string $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?string $type,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $query = Db::table('member_real_name_authentications as a')
             ->join('members as m', 'm.id', '=', 'a.member_id');
@@ -24,8 +34,31 @@ final class RealNameAuthenticationReadQuery
         }
         if ($type !== null) $query->where('a.authentication_type', $type);
         if ($status !== null) $query->where('a.status', $status);
+        foreach ([
+            'mobile' => 'm.mobile',
+            'nickname' => 'm.nickname',
+        ] as $field => $column) {
+            if (isset($filters[$field])) {
+                $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+            }
+        }
+        if (isset($filters['subject'])) {
+            $pattern = '%' . strtr($filters['subject'], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+            $query->where(static function (Builder $nested) use ($pattern): void {
+                $grammar = $nested->getGrammar();
+                $nested->whereRaw(
+                    $grammar->wrap('a.subject_name') . " LIKE ? ESCAPE '!' OR "
+                    . $grammar->wrap('a.company_name') . " LIKE ? ESCAPE '!'",
+                    [$pattern, $pattern],
+                );
+            });
+        }
         $total = (clone $query)->count();
-        $rows = $query->select(self::safeColumns())->orderBy('a.id', 'desc')->forPage($page, $pageSize)->get();
+        $rows = TableQueryOrder::apply($query, $filters, [
+                'submitted_at' => 'a.submitted_at',
+                'reviewed_at' => 'a.reviewed_at',
+            ], ['a.id' => 'desc'], 'a.id')->select(self::safeColumns())->forPage($page, $pageSize)->get();
 
         return ['data' => array_map(self::normalize(...), $rows->all()), 'total' => $total];
     }

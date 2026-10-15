@@ -30,6 +30,7 @@ final class ContentValidator
             'sort_order' => 'required|integer|min:0|max:9999', 'status' => 'required|integer|in:0,1',
         ] : [
             'category_id' => 'required|integer|min:1', 'title' => 'required|string|min:2|max:200',
+            'body_format' => 'sometimes|string|in:markdown,html',
             'summary' => 'sometimes|nullable|string|max:500', 'body' => 'required|string|min:1|max:100000',
             'sort_order' => 'required|integer|min:0|max:9999', 'status' => 'required|string|in:draft,published',
         ];

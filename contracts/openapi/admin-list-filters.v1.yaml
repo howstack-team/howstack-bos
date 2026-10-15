@@ -1,0 +1,1535 @@
+openapi: 3.0.3
+info:
+  title: 运营后台独立字段组合查询
+  version: 1.0.0
+  description: 列表独立字段的补充查询契约。所有非空条件使用 AND 组合；文本为对应字段的包含匹配， % 和 _ 按普通字符处理。实名认证 subject 匹配姓名或企业名称，并与手机号、类型、状态等条件使用 AND 组合。 单选表头筛选与查询表单使用同一参数。sort_by 仅接受各列表声明的业务字段，sort_order 接受 asc/desc； 指定排序时空值始终最后，同值追加 id 降序；未指定排序时保持原有默认顺序。帮助分类维持父子结构，只对同级排序。 权限与脱敏响应继续由各业务模块执行；查询总数和数据使用相同条件，过滤先于分页。
+paths:
+  /api/admin/v1/members:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - created_at
+              - last_login_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: mobile
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: email
+          in: query
+          schema:
+            type: string
+            maxLength: 254
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: &a1
+                    type: string
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/Member
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/member-groups:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - sort_order
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: name
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: code
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/Group
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/member-levels:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - level_order
+              - growth_threshold
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: name
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: code
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/Level
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/real-name-authentications:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - submitted_at
+              - reviewed_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: mobile
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: subject
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - approved
+              - rejected
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - personal
+              - enterprise
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/RealName
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/orders:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - created_at
+              - payable_minor
+              - paid_minor
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: order_type
+          in: query
+          schema:
+            type: string
+            enum:
+              - purchase
+              - renewal
+              - upgrade
+              - trial
+        - name: payment_status
+          in: query
+          schema:
+            type: string
+            enum:
+              - unpaid
+              - partial
+              - paid
+              - refunded
+              - partial_refund
+        - name: order_no
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: member_mobile
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: member_nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending_payment
+              - paid
+              - fulfilling
+              - completed
+              - cancelled
+              - failed
+              - refunding
+              - refunded
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/service-instances:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - created_at
+              - activated_at
+              - expires_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: instance_no
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: display_name
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: member_mobile
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: member_nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - provisioning
+              - active
+              - suspended
+              - expired
+              - terminated
+              - failed
+        - name: product_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - cloud_server
+              - physical_server
+              - server_colocation
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/ServiceInstance
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/tickets:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - updated_at
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum:
+              - low
+              - normal
+              - high
+              - urgent
+        - name: ticket_no
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: subject
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: member_mobile
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: member_nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - open
+              - processing
+              - waiting_member
+              - closed
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/Ticket
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/login-logs:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - logged_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: username
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: client_ip
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: client_ip_location
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/LoginLog
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/operation-logs:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - operated_at
+              - duration_ms
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: operator_username
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: operator_nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: module
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: operation
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: client_ip
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/OperationLog
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/cloud-products:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - "0"
+              - "1"
+        - name: publication
+          in: query
+          schema:
+            type: string
+            enum:
+              - draft
+              - published
+        - name: name
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: code
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/ticket-catalog/types:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - sort_order
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: name
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: code
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/TicketType
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/ticket-catalog/quick-replies:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - sort_order
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: title
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: content
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/QuickReply
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/content/help/categories:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - sort_order
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: name
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/ContentCategory
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/content/help/entries:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - sort_order
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: title
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - draft
+              - published
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/ContentEntry
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/content/news/categories:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - sort_order
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: name
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum:
+              - 0
+              - 1
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/ContentCategory
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/content/news/entries:
+    get:
+      summary: 独立字段组合查询
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - sort_order
+              - created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: title
+          in: query
+          schema:
+            type: string
+            maxLength: 128
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - draft
+              - published
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/ContentEntry
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应列表查看权限
+        "422":
+          description: 查询字段类型或长度不合法
+  /api/admin/v1/administrators:
+    get:
+      summary: 数据权限范围内的系统用户排序与状态筛选
+      parameters:
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - last_login_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - "0"
+              - "1"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: 数据范围约束、状态筛选和排序后分页；不暴露密码哈希
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: ./admin-core.v1.yaml#/components/schemas/Administrator
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无系统用户查看权限
+        "422":
+          description: 非法查询参数

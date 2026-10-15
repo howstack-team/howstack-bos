@@ -29,11 +29,18 @@ final readonly class ViewFinanceRecordsService
     }
 
     /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function paginate(AdminAccount $actor, string $resource, int $page, int $pageSize, ?string $status): array
+    public function paginate(
+        AdminAccount $actor,
+        string $resource,
+        int $page,
+        int $pageSize,
+        ?string $status,
+        array $filters = [],
+    ): array
     {
         $this->authorize($actor, $resource);
 
-        return $this->records->paginate($resource, $page, $pageSize, $status);
+        return $this->records->paginate($resource, $page, $pageSize, $status, $filters);
     }
 
     /** @return array<string, mixed> */

@@ -1,3 +1,4 @@
+import type { TableSortQuery } from './tableQuery'
 import { ApiRequestError, request } from './httpClient.ts'
 
 /** 当前支持独立查看的服务类型。 */
@@ -33,8 +34,12 @@ function isServiceInstance(value: unknown): value is ServiceInstance {
 }
 
 /** 分页查询某类已创建服务实例。 */
-export async function listServiceInstances(params: {
+export async function listServiceInstances(params: TableSortQuery & {
   product_type: ServiceProductType
+  instance_no?: string
+  display_name?: string
+  member_mobile?: string
+  member_nickname?: string
   keyword?: string
   status?: string
   page: number

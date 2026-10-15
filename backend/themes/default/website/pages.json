@@ -1,0 +1,10 @@
+{
+  "company": {
+    "path": "/company",
+    "template": "pages/company.html.twig",
+    "title": "公司介绍",
+    "seo": {
+      "indexable": true
+    }
+  }
+}

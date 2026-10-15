@@ -1,0 +1,54 @@
+---
+title: 订单与财务核心业务关系
+---
+erDiagram
+  members ||--o{ orders : "会员订单"
+  products ||--o{ offers : "销售配置"
+  offers ||--o{ offer_versions : "不可变发布版本"
+  orders ||--|{ order_items : "购买项"
+  order_items ||--|{ order_item_units : "逐实例金额单元"
+  service_instances o|--o{ order_item_units : "可空服务关联"
+  order_item_units ||--o{ refund_requests : "order_unit 业务来源"
+  invoice_records ||--o{ invoice_allocations : "开票金额归属"
+  order_item_units ||--o{ invoice_allocations : "占用单元额度"
+  members ||--o{ wallet_accounts : "按币种账户"
+  wallet_accounts ||--o{ wallet_funding_lots : "充值来源批次"
+  wallet_funding_lots ||--o{ wallet_consumptions : "消费与恢复归属"
+  wallet_accounts ||--o{ wallet_entries : "不可变流水"
+  orders {
+    bigint id PK
+    bigint member_id
+    string order_type
+    string status
+    string payment_status
+    bigint payable_minor
+    bigint paid_minor
+    bigint refunded_minor
+  }
+  order_items {
+    bigint id PK
+    bigint order_id
+    int quantity
+    string configuration_snapshot
+  }
+  order_item_units {
+    bigint id PK
+    bigint order_item_id
+    int unit_index
+    bigint service_id
+    bigint allocated_minor
+    bigint reserved_refund_minor
+    bigint refunded_minor
+  }
+  service_instances {
+    bigint id PK
+    string product_type
+    string status
+  }
+  refund_requests {
+    bigint id PK
+    string source_type
+    bigint source_id
+    bigint amount_minor
+    string status
+  }

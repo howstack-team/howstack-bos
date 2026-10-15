@@ -162,7 +162,7 @@ final class BusinessModelRepositoriesTest extends TestCase
 
     public function testContentSupportAndSettingsWriteThenReadPreservesExistingContracts(): void
     {
-        $content = new DatabaseContentRepository();
+        $content = new DatabaseContentRepository(new \app\modules\file\infrastructure\DatabaseFileRegistry());
         $category = $content->save(true, null, ['kind' => 'help', 'name' => '指南', 'status' => 1, 'parent_id' => null]);
         $child = $content->save(true, null, ['kind' => 'help', 'name' => '入门', 'status' => 1, 'parent_id' => $category]);
         $entry = $content->save(false, null, ['kind' => 'help', 'category_id' => $child, 'title' => '使用指南', 'body' => '# Markdown', 'status' => 'draft']);
@@ -178,7 +178,7 @@ final class BusinessModelRepositoriesTest extends TestCase
         $now = '2026-10-01 09:00:00';
         $ticket = $this->row('tickets', ['ticket_no' => 'T1', 'member_id' => $member, 'type_id' => $type, 'subject' => '咨询',
             'content' => '问题', 'created_at' => $now, 'updated_at' => $now]);
-        self::assertTrue($support->reply($ticket, 1, '已收到'));
+        self::assertIsInt($support->reply($ticket, 1, '已收到'));
         self::assertSame('waiting_member', $support->ticket($ticket)['status']);
         self::assertSame('已收到', $support->messages($ticket)[0]['content']);
         $settings = new DatabaseSystemSettingsRepository();
@@ -186,7 +186,7 @@ final class BusinessModelRepositoriesTest extends TestCase
         self::assertSame('测试站点', $settings->values('base')['site.title']);
         $settings->save('base', ['site.title' => '修改后的站点']);
         self::assertSame('修改后的站点', $settings->values('base')['site.title']);
-        self::assertCount(2, $settings->categories());
+        self::assertCount(4, $settings->categories());
     }
 
     public function testOrderDetailDoesNotExposeConfigurationSnapshot(): void

@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "应用 ID",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入应用 ID",
+      "max_length": 128
+    },
+    {
+      "key": "app_secret",
+      "label": "应用密钥",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入应用密钥",
+      "max_length": 128
+    },
+    {
+      "key": "redirect_url",
+      "label": "回调地址",
+      "type": "url",
+      "required": true,
+      "placeholder": "请输入回调地址",
+      "max_length": 512,
+      "description": "填写核心登录用例的固定 HTTPS 回调地址，并在开放平台设置相同的授权回调域名。"
+    }
+  ]
+}

@@ -1,14 +1,37 @@
-.content-markdown-modal .bytemd {
+.content-markdown-editor .bytemd {
   height: min(54dvh, 500px);
   min-height: 300px;
 }
 
-.content-markdown-modal .bytemd-fullscreen.bytemd {
+.content-markdown-editor .bytemd-fullscreen.bytemd {
   z-index: 1100;
 }
 
-.content-markdown-modal .bytemd-toolbar {
+.content-markdown-editor .bytemd-toolbar {
   max-width: 100%;
+}
+
+/* ByteMD 内置右侧第 5 号动作是源代码链接，不在业务编辑器中提供此入口。 */
+.content-markdown-editor .bytemd-toolbar-right [bytemd-tippy-path="5"] {
+  display: none;
+}
+
+/* 正文随编辑面板宽度排布，避免 ByteMD 默认的 800px 居中阅读宽度留下大片空白。 */
+.content-markdown-editor .bytemd-editor .CodeMirror .CodeMirror-lines {
+  max-width: none;
+  margin: 0;
+  padding: 16px 0;
+}
+
+.content-markdown-editor .bytemd-editor .CodeMirror pre.CodeMirror-line,
+.content-markdown-editor .bytemd-editor .CodeMirror pre.CodeMirror-line-like {
+  padding: 0 16px;
+}
+
+.content-markdown-editor .bytemd-preview .markdown-body {
+  max-width: none;
+  margin: 0;
+  padding: 16px;
 }
 
 .content-markdown-viewer {
@@ -67,7 +90,8 @@
   color: rgb(var(--primary-6));
 }
 
-.content-markdown-viewer .markdown-body img {
+.content-markdown-viewer .markdown-body img,
+.content-markdown-editor .bytemd-preview .markdown-body img {
   max-width: 100%;
   height: auto;
 }
@@ -86,8 +110,17 @@
 }
 
 @media (max-width: 768px) {
-  .content-markdown-modal .bytemd {
+  .content-markdown-editor .bytemd {
     height: 42dvh;
     min-height: 260px;
   }
+}
+
+.content-editor-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+}
+@media (max-width: 767px) {
+  .content-editor-fields { grid-template-columns: minmax(0, 1fr); }
 }

@@ -1,0 +1,1 @@
+import{n as e}from"./httpClient-UJbwK5rx.js";var t={list(t){return e({url:`/real-name-authentications`,params:t})},get(t){return e({url:`/real-name-authentications/${t}`})},review(t,n,r=``){return e({method:`PUT`,url:`/real-name-authentications/${t}/review`,data:{decision:n,reason:r}})}};export{t};

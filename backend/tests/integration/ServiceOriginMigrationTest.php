@@ -46,7 +46,7 @@ final class ServiceOriginMigrationTest extends TestCase
     public function testUpgradeBackfillsOriginAndAllowsSubsequentOrdersWithoutChangingOrigin(): void
     {
         $result = $this->runner->migrate($this->configuration);
-        self::assertSame([20261001000200], $result->executed);
+        self::assertSame([20261001000200, 20261002000100, 20261002000200, 20261002000300, 20261003000100, 20261003000200, 20261003000300, 20261004000100, 20261004000200, 20261006000100, 20261006000200, 20261006000300, 20261006000400, 20261007000100, 20261007000200, 20261007000300], $result->executed);
         self::assertSame(1, (int) $this->pdo->query('SELECT origin_order_unit_id FROM custom_service_instances WHERE id=1')->fetchColumn());
         self::assertNull($this->pdo->query('SELECT origin_order_unit_id FROM custom_service_instances WHERE id=2')->fetchColumn());
         $this->pdo->exec("INSERT INTO custom_order_item_units(id,order_item_id,unit_index,service_id,allocated_minor,created_at) VALUES(2,1,2,1,200,'2026-10-01 09:00:00'),(3,1,3,1,100,'2026-10-01 10:00:00')");
@@ -72,6 +72,6 @@ final class ServiceOriginMigrationTest extends TestCase
         self::assertSame(999, (int) $this->pdo->query('SELECT service_id FROM custom_order_item_units WHERE id=1')->fetchColumn());
         // 测试用数据由测试明确修复，产品迁移本身不改客户数据。
         $this->pdo->exec('UPDATE custom_order_item_units SET service_id=1 WHERE id=1');
-        self::assertSame([20261001000200], $this->runner->migrate($this->configuration)->executed);
+        self::assertSame([20261001000200, 20261002000100, 20261002000200, 20261002000300, 20261003000100, 20261003000200, 20261003000300, 20261004000100, 20261004000200, 20261006000100, 20261006000200, 20261006000300, 20261006000400, 20261007000100, 20261007000200, 20261007000300], $this->runner->migrate($this->configuration)->executed);
     }
 }

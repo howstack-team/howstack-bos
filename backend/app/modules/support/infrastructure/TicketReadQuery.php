@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\support\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use Illuminate\Database\Query\Builder;
 use stdClass;
 use support\Db;
@@ -16,8 +18,14 @@ final class TicketReadQuery
         't.priority', 't.status', 't.created_at', 't.updated_at', 't.closed_at',
         'm.nickname as member_nickname', 'm.mobile as member_mobile', 'tt.name as type_name',
     ];
-
-    public function tickets(string $keyword, ?string $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function tickets(
+        string $keyword,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $query = $this->ticketQuery();
         if ($status !== null) $query->where('t.status', $status);
@@ -28,8 +36,25 @@ final class TicketReadQuery
                     ->orWhere('m.nickname', 'like', $pattern)->orWhere('m.mobile', 'like', $pattern);
             });
         }
+        foreach ([
+            'ticket_no' => 't.ticket_no',
+            'subject' => 't.subject',
+            'member_mobile' => 'm.mobile',
+            'member_nickname' => 'm.nickname',
+        ] as $field => $column) {
+            if (isset($filters[$field])) {
+                $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+            }
+        }
+        if (isset($filters['priority'])) {
+            $query->where('t.priority', $filters['priority']);
+        }
         $total = (int) (clone $query)->count('t.id');
-        $rows = $query->select(self::TICKET_COLUMNS)->orderBy('t.id', 'desc')->forPage($page, $pageSize)->get();
+        $rows = TableQueryOrder::apply($query, $filters, [
+                'updated_at' => 't.updated_at',
+                'created_at' => 't.created_at',
+            ], ['t.id' => 'desc'], 't.id')->select(self::TICKET_COLUMNS)->forPage($page, $pageSize)->get();
         return ['data' => array_map(self::normalize(...), $rows->all()), 'total' => $total];
     }
 

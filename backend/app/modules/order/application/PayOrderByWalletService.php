@@ -20,6 +20,8 @@ final readonly class PayOrderByWalletService
         private WalletLedgerService $wallet,
         private TransactionManagerInterface $transactions,
         private OutboxWriterInterface $outbox,
+        private \app\modules\message\contract\MessagePublisherInterface $messages,
+        private \app\modules\product\contract\ProductOrderCapacityInterface $capacity,
     ) {
     }
 
@@ -46,8 +48,15 @@ final readonly class PayOrderByWalletService
                 throw self::conflict('订单实例金额尚未完整分摊，不能付款');
             }
             $balance = $this->wallet->debitOrder($payment);
+            // 资金账户先于库存锁；库存不足将付款、流水与通知全部回滚。
+            foreach ($this->orders->capacityItems($orderId) as $item) {
+                $this->capacity->occupy($item['type'], $item['configuration'], $item['unit_ids']);
+            }
             $this->orders->markPaid($orderId, $order->payableMinor, date('Y-m-d H:i:s'));
             $this->outbox->append('order.paid.' . $orderId, 'order.paid', $orderId, ['order_id' => $orderId]);
+            $this->messages->publish('order.paid.' . $orderId, 'order_paid', 'order', $orderId, $memberId,
+                ['site_name' => '云业务运营系统', 'order_no' => $order->number,
+                    'amount' => intdiv($order->payableMinor, 100) . '.' . str_pad((string) ($order->payableMinor % 100), 2, '0', STR_PAD_LEFT)]);
             return $balance;
         });
     }

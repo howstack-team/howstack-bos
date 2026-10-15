@@ -32,13 +32,19 @@
     "webman/event": "^1.0",
     "vlucas/phpdotenv": "^5.7",
     "workerman/crontab": "^1.0",
-    "webman/push": "^1.1",
     "webman/openai": "^3.1",
-    "guzzlehttp/guzzle": "^8.2",
+    "guzzlehttp/guzzle": "^7.15",
     "zoujingli/ip2region": "^3.0",
     "ramsey/uuid": "^3.9",
     "workerman/workerman": "~5.1",
-    "firebase/php-jwt": "^7.1"
+    "firebase/php-jwt": "^7.1",
+    "alipaysdk/easysdk": "2.2.3",
+    "ezyang/htmlpurifier": "^4.19",
+    "twig/markdown-extra": "^3.29",
+    "league/commonmark": "^2.10",
+    "tempest/highlight": "^2.28",
+    "twig/twig": "^3.30",
+    "spomky-labs/otphp": "^11.5"
   },
   "suggest": {
     "ext-event": "For better performance. "
@@ -48,7 +54,8 @@
       "support\\": "./support",
       "app\\": "./app",
       "App\\": "./app",
-      "app\\View\\Components\\": "./app/view/components"
+      "app\\View\\Components\\": "./app/view/components",
+      "plugins\\": "./plugins"
     }
   },
   "scripts": {

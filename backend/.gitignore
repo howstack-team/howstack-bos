@@ -7,3 +7,7 @@
 /runtime/install/
 /tests/tmp
 /tests/.phpunit.result.cache
+
+/storage/private/
+
+/var/install/

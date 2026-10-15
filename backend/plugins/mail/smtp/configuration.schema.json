@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "host",
+      "label": "邮件服务器",
+      "type": "text",
+      "required": true,
+      "max_length": 253,
+      "placeholder": "例如 smtp.example.com",
+      "description": "只填写域名或 IPv4 地址，不包含协议、端口或路径。"
+    },
+    {
+      "key": "port",
+      "label": "服务器端口",
+      "type": "integer",
+      "required": true,
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 465,
+      "placeholder": "例如 465",
+      "description": "SSL/TLS 通常使用 465，STARTTLS 通常使用 587，以邮件服务商配置为准。"
+    },
+    {
+      "key": "encryption",
+      "label": "连接加密",
+      "type": "select",
+      "required": true,
+      "default": "ssl",
+      "options": [
+        {
+          "value": "ssl",
+          "label": "SSL"
+        },
+        {
+          "value": "tls",
+          "label": "TLS"
+        },
+        {
+          "value": "none",
+          "label": "不加密"
+        }
+      ],
+      "description": "加密连接验证服务器证书；不加密仅用于可信网络或本地测试。"
+    },
+    {
+      "key": "auth",
+      "label": "账号认证",
+      "type": "boolean",
+      "required": true,
+      "default": true
+    },
+    {
+      "key": "username",
+      "label": "登录账号",
+      "type": "text",
+      "required": false,
+      "max_length": 128,
+      "placeholder": "通常为完整邮箱地址"
+    },
+    {
+      "key": "password",
+      "label": "密码或授权码",
+      "type": "password",
+      "required": false,
+      "max_length": 2048,
+      "placeholder": "请输入邮箱服务商提供的 SMTP 密码或授权码",
+      "description": "开启账号认证时必填；部分服务商要求使用专用授权码。"
+    },
+    {
+      "key": "from_email",
+      "label": "发件邮箱",
+      "type": "text",
+      "required": true,
+      "max_length": 254,
+      "placeholder": "例如 noreply@example.com"
+    },
+    {
+      "key": "from_name",
+      "label": "发件名称",
+      "type": "text",
+      "required": false,
+      "max_length": 128,
+      "placeholder": "例如 云业务通知（选填）"
+    },
+    {
+      "key": "reply_to",
+      "label": "回复邮箱",
+      "type": "text",
+      "required": false,
+      "max_length": 254,
+      "placeholder": "留空使用发件邮箱"
+    },
+    {
+      "key": "timeout",
+      "label": "连接超时",
+      "type": "integer",
+      "required": true,
+      "minimum": 1,
+      "maximum": 30,
+      "default": 10,
+      "unit": "秒",
+      "placeholder": "请输入超时时间"
+    }
+  ]
+}

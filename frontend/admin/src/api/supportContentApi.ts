@@ -1,3 +1,4 @@
+import type { TableSortQuery } from './tableQuery'
 import { request } from './httpClient.ts'
 
 export type CatalogStatus = 0 | 1
@@ -18,10 +19,10 @@ export interface ContentCategory {
 }
 export interface ContentEntry {
   id: number; kind: ContentKind; category_id: number; title: string; summary: string; body: string
-  sort_order: number; status: 'draft' | 'published'; published_at: string | null; created_at: string; updated_at: string
+  body_format: 'markdown' | 'html'; sort_order: number; status: 'draft' | 'published'; published_at: string | null; created_at: string; updated_at: string
 }
 export interface PageResult<T> { data: T[]; total: number }
-export interface ListParams { keyword?: string; status?: string | number; page: number; page_size: number }
+export interface ListParams extends TableSortQuery { priority?: string; name?: string; code?: string; title?: string; content?: string; ticket_no?: string; subject?: string; member_mobile?: string; member_nickname?: string; keyword?: string; status?: string | number; page: number; page_size: number }
 
 export const supportApi = {
   catalog<T extends TicketType | QuickReply>(kind: TicketCatalogKind, params: ListParams) {

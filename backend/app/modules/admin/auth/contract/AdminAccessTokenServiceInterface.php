@@ -13,6 +13,9 @@ use app\modules\admin\auth\domain\IssuedAccessToken;
  */
 interface AdminAccessTokenServiceInterface
 {
+    /** 校验令牌是否仍绑定当前密码，改密后拒绝旧会话。 */
+    public function matchesAccount(AccessTokenClaims $claims, AdminAccount $account): bool;
+
     /**
      * 为管理员签发访问令牌。
      * @param AdminAccount $account 管理员账号

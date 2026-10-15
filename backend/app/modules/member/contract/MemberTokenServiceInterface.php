@@ -8,9 +8,11 @@ use app\modules\member\domain\MemberAccount;
 
 interface MemberTokenServiceInterface
 {
-    public function issue(MemberAccount $account): string;
+    public function issue(MemberAccount $account, bool $remember = false): string;
 
-    public function parse(string $token): int;
+    public function revoke(string $token): void;
+
+    public function parse(string $token): string;
 
     public function matchesPasswordVersion(string $token, MemberAccount $account): bool;
 }

@@ -1,31 +1,49 @@
 import { StrictMode } from 'react'
-import { ConfigProvider } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ConfigProvider } from '@arco-design/web-react'
+import zhCN from '@arco-design/web-react/es/locale/zh-CN'
+import '@arco-design/web-react/es/_util/react-19-adapter'
+import '@arco-design/web-react/dist/css/arco.css'
+import '@arco-themes/react-arco-pro/css/arco.css'
+import './style/auth-inputs.less'
+import './style/console-navigation.less'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { parseConsoleSite, themeRequest, type ConsoleThemeConfig } from '../../packages/console-theme-runtime'
+import { configureApiBase } from './api/httpClient'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { ConsoleThemeProvider } from './ConsoleThemeProvider'
 import App from './App.tsx'
 import './index.css'
-import { appTheme } from './theme.ts'
+import { appComponentConfig } from './theme.ts'
+import { createMemberQueryClient } from './api/queryClient'
+import AuthProvider from './auth/AuthProvider'
+import emptyStateImage from './assets/empty-state.png'
+import loadingImage from './assets/loading.svg?url'
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 30_000,
-    },
-  },
-})
+const loadingElement = <img src={loadingImage} className="app-loading-icon" alt="加载中" />
 
-createRoot(document.getElementById('root')!).render(
+async function start() {
+  const node = document.getElementById('console-theme-config');
+  const runtime: ConsoleThemeConfig = node ? JSON.parse(node.textContent || '{}') : await themeRequest<ConsoleThemeConfig>({ apiBase: '/api/console/v1' } as ConsoleThemeConfig, '/bootstrap');
+  if (runtime.contract !== '1' || runtime.basePath !== '/console' || runtime.apiBase !== '/api/console/v1') throw new Error('会员中心配置无效')
+  runtime.site = parseConsoleSite(runtime.site)
+  configureApiBase(runtime.apiBase)
+  const queryClient = createMemberQueryClient()
+  const root = createRoot(document.getElementById('root')!)
+  root.render(
   <StrictMode>
-    <ConfigProvider locale={zhCN} theme={appTheme}>
+    <ConfigProvider locale={zhCN} loadingElement={loadingElement} componentConfig={{ ...appComponentConfig,
+      Empty: { imgSrc: emptyStateImage }, Spin: { element: loadingElement },
+    }}>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter basename="/console">
-          <App />
+        <ConsoleThemeProvider initial={runtime}>
+        <BrowserRouter basename={runtime.basePath}>
+          <AuthProvider><App /></AuthProvider>
         </BrowserRouter>
+        </ConsoleThemeProvider>
       </QueryClientProvider>
     </ConfigProvider>
   </StrictMode>,
 )
+}
+void start().catch(error => { document.getElementById('root')!.textContent = error instanceof Error ? error.message : '会员中心加载失败' })

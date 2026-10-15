@@ -1,0 +1,562 @@
+openapi: 3.0.3
+info:
+  title: 授权、在线更新与应用中心后台 API
+  version: 1.0.0
+  description: 本机后台 API，不等同于官网 /api/client/v1。仅输出白名单，不返回实例私钥、设备密钥或官网令牌。 Cookie
+    写请求必须具有同源 Origin。安装接口仅创建持久任务，不在 HTTP Worker 中修改运行文件。
+servers:
+  - url: /api/admin/v1
+security:
+  - AdminCookie: []
+paths:
+  /official-platform/connection:
+    get:
+      operationId: admin.official-platform.connection
+      summary: 查看本地官网连接状态
+      description: license.view、updates.view 或 app-center.view 至少一种；不执行远程请求。
+      x-permission-any:
+        - admin.license.view
+        - admin.updates.view
+        - admin.app-center.view
+      responses:
+        "200":
+          description: configured、origin、installation_id、connected、reconnect_required、公开connection、checked_at；不返回授权码、安装私钥或连接令牌。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /official-platform/connection/refresh:
+    post:
+      operationId: admin.official-platform.refresh
+      summary: 主动核对当前官网连接
+      x-permission: admin.platform.connect
+      responses:
+        "200":
+          description: 同连接状态读取，不含凭证
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /official-platform/connection/disconnect:
+    post:
+      operationId: admin.official-platform.disconnect
+      summary: 解除安装授权绑定并同步撤销证书
+      description: 本机权限先于远程写入；重复解绑幂等，旧证书租约结束前保留名额占用。存在维护任务时拒绝解绑。
+      responses:
+        "200":
+          description: 已验证的本机授权状态；保留高修订撤销证书、业务数据和更新记录。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseEnvelope"
+      x-permission-all:
+        - admin.platform.connect
+        - admin.license.manage
+  /official-platform/license:
+    get:
+      operationId: admin.official-platform.license
+      summary: 读取本地已验证商业授权或默认社区版
+      x-permission: admin.license.view
+      responses:
+        "200":
+          description: 已验签购买版本与逐项权益；使用、更新及离线期限分别判断，到期不删除模块或客户数据。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseEnvelope"
+  /official-platform/capabilities:
+    get:
+      operationId: admin.official-platform.capabilities
+      summary: 读取当前管理员的最小功能操作投影
+      description: 登录即可读取自身投影；服务端同时收敛权益、已接入能力和RBAC。无商业能力时返回空对象，不输出许可证或官网账户。仅读取本机状态，不访问官网；Cache-Control为no-store。
+      responses:
+        "200":
+          description: 功能操作允许值、稳定原因、权益修订及下一截止时间。客户端用剩余秒数刷新，避免浏览器时区影响。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilitiesEnvelope"
+  /official-platform/license/refresh:
+    post:
+      operationId: admin.official-platform.verify-license
+      summary: 向官网获取并验签商业证书
+      description: 失败保留已有证书；低修订及同修订不同载荷拒绝，不用旧证书覆盖已收到的撤销。社区版不获取商业证书，期限按签名grants逐项判断。
+      x-permissions:
+        - admin.license.view
+        - admin.license.manage
+      responses:
+        "200":
+          description: 同本地授权投影
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseEnvelope"
+  /system-updates:
+    get:
+      operationId: admin.system-updates.status
+      summary: 本地版本、上次有效检查结果和最近任务
+      x-permission: admin.updates.view
+      responses:
+        "200":
+          description: current_version、update（未检查为 null）、last_attempt_at、last_error 和
+            jobs；仅读取本机持久缓存，不触发官网请求。失败保留上次成功摘要。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /system-updates/notice:
+    get:
+      operationId: admin.system-updates.notice
+      summary: 管理员登录后读取本机更新提醒
+      description: 仅返回已验签的缓存摘要，不返回签名信封、下载路径或官网凭证；缓存不受清单十分钟有效期影响。
+      x-permission: admin.updates.view
+      responses:
+        "200":
+          description: available、current_version、latest_version、changelog（ReleaseChangelog
+            四分类对象）、force_update（已验签布尔值）、checked_at、last_attempt_at、last_error；无新版本时
+            force_update=false，日志为空分类。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /system-updates/check:
+    post:
+      operationId: admin.system-updates.check
+      summary: 检查适配当前版本和级别的稳定发布
+      description: 远程接口缺失或错误返回失败，不生成“已最新”结果。
+      x-permissions:
+        - admin.updates.view
+        - admin.updates.check
+      responses:
+        "200":
+          description: current_version、update 和 jobs；update 包含
+            available、target_version、changelog、force_update、checked_at、bytes、sha256、expires_at；同时提供最近尝试时间和安全错误文案
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /system-updates/start:
+    post:
+      operationId: admin.system-updates.start
+      summary: 受理已明确批准的更新目标
+      description: 受理前重新检查并验签新清单，目标版本或摘要变化时拒绝安装并刷新摘要，要求管理员重新确认。任务 UUID
+        与批准的版本及摘要绑定，重复请求复用原任务。查询 jobs 的终态核实结果。
+      x-permissions:
+        - admin.updates.view
+        - admin.updates.execute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/InstallationTarget"
+                - type: object
+                  required:
+                    - target_version
+                  properties:
+                    target_version:
+                      type: string
+                      pattern: ^\d+\.\d+\.\d+$
+                      description: 管理员明确确认的目标版本，必须与重新验签的发布清单一致
+      responses:
+        "200":
+          description: 当前更新状态与任务，受理不等于安装成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /application-center/owned:
+    get:
+      operationId: admin.application-center.owned
+      summary: 本实例应用权益与本机安装状态
+      x-permission: admin.app-center.view
+      responses:
+        "200":
+          description: 仅当前实例已获取应用 items 和应用 jobs；包括
+            local_version、local_state、local_revision、local_category，权益与安装状态分别记录。不获取全量商店目录。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /application-center/store-link:
+    get:
+      operationId: admin.application-center.store-link
+      summary: 获取官方应用商店超链接
+      description: 根据本机受信 portal_origin 生成 /applications 链接，未连接账号时也可获取。不调用官网 API，不附带令牌。
+      x-permission: admin.app-center.view
+      responses:
+        "200":
+          description: data.store_url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /application-center/uninstall:
+    post:
+      operationId: admin.application-center.uninstall
+      summary: 卸载本机应用，保留文件、配置与历史数据
+      description: 沿用插件状态、业务引用和 revision 保护；安装或更新任务执行期间禁止卸载。不依赖官网可用性，不取消官网权益。
+      x-permissions:
+        - admin.app-center.view
+        - admin.app-center.uninstall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - revision
+              properties:
+                code:
+                  type: string
+                  pattern: ^[a-z][a-z0-9_]{0,63}$
+                revision:
+                  type: integer
+                  minimum: 0
+      responses:
+        "200":
+          description: 新本地状态、revision；保留审计历史
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "409":
+          description: 仍有业务引用、状态已变化、未停用或有活跃安装任务
+  /application-center/prepare:
+    post:
+      operationId: admin.application-center.prepare
+      summary: 验签应用发布清单并返回确认资料
+      x-permission: admin.app-center.view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version_id
+              properties:
+                version_id:
+                  type: integer
+                  minimum: 1
+      responses:
+        "200":
+          description: application_id、application_code、version_id、version、kind、permissions、bytes、sha256、expires_at、changelog（ReleaseChangelog
+            四分类对象）、force_update（已验签布尔值）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /application-center/install:
+    post:
+      operationId: admin.application-center.install
+      summary: 创建固定目标的安装或更新任务
+      description: install 需要 install 权限，update 需要 update 权限；当前只开放供应插件 v1，更新前须停用并排空。
+      x-permission: admin.app-center.view
+      x-action-permissions:
+        install: admin.app-center.install
+        update: admin.app-center.update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/InstallationTarget"
+                - type: object
+                  required:
+                    - version_id
+                    - action
+                  properties:
+                    version_id:
+                      type: integer
+                      minimum: 1
+                    action:
+                      type: string
+                      enum:
+                        - install
+                        - update
+      responses:
+        "200":
+          description: jobs；异步任务完成并核对实际运行状态后才表示成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+  /official-platform/license/activate:
+    post:
+      operationId: admin.official-platform.activate
+      summary: 填写授权码激活软件
+      description: 安装UUID及公钥自动生成；不进行官网账号配对、不返回凭证。激活后校验签名证书，续费无需更换授权码。
+      x-permission-all:
+        - admin.platform.connect
+        - admin.license.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - activation_code
+              properties:
+                activation_code:
+                  type: string
+                  pattern: ^HS-(?:[A-Fa-f0-9]{8}-){5}[A-Fa-f0-9]{8}$
+      responses:
+        "200":
+          description: 已验证本机授权及安全连接投影
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "403":
+          description: 无激活或授权管理权限
+        "422":
+          description: 字段校验失败，data.errors.activation_code
+components:
+  securitySchemes:
+    AdminCookie:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+  schemas:
+    ReleaseChangelog:
+      type: object
+      description: 目标版本变更说明，整体 JSON 最多 32KB；文本转义展示，隐藏空分类，不是跨版本累计日志。
+      additionalProperties: false
+      required:
+        - added
+        - improved
+        - fixed
+        - notices
+      properties:
+        added:
+          type: array
+          description: 新增功能
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/ReleaseChangelogItem"
+        improved:
+          type: array
+          description: 优化改进
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/ReleaseChangelogItem"
+        fixed:
+          type: array
+          description: 问题修复
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/ReleaseChangelogItem"
+        notices:
+          type: array
+          description: 升级注意事项
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/ReleaseChangelogItem"
+    ReleaseChangelogItem:
+      type: string
+      minLength: 1
+      maxLength: 1000
+      description: 不允许纯空白；不作为 HTML 执行。
+    InstallationTarget:
+      type: object
+      required:
+        - request_id
+        - sha256
+      properties:
+        request_id:
+          type: string
+          format: uuid
+          description: 相同动作和目标复用 UUID，后端规范化为小写
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          description: 管理员确认清单时的摘要
+    CapabilitiesEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Capabilities"
+    LicenseEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/LicenseProjection"
+    Capabilities:
+      type: object
+      additionalProperties: false
+      required:
+        - capabilities
+        - entitlement_revision
+        - next_check_at
+        - next_check_in_seconds
+      properties:
+        entitlement_revision:
+          type: integer
+          minimum: 0
+        next_check_at:
+          type: string
+          nullable: true
+          description: 本机显示时间，Y-m-d H:i:s
+        next_check_in_seconds:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: 距离下一使用或离线截止的秒数
+        capabilities:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required:
+              - installed
+              - status
+              - operations
+              - reasons
+            properties:
+              installed:
+                type: boolean
+              status:
+                type: string
+              operations:
+                type: object
+                description: 只包含宿主已登记的read_existing、configure、start_new、complete_existing、maintain_existing、download_update操作
+                additionalProperties:
+                  type: boolean
+              reasons:
+                type: object
+                additionalProperties:
+                  type: string
+    LicenseProjection:
+      type: object
+      additionalProperties: false
+      required:
+        - software_code
+        - edition
+        - edition_name
+        - status
+        - status_text
+        - license_no
+        - offline_until
+        - verified_at
+        - installation_id
+        - entitlement_revision
+        - entitlements
+        - last_error
+        - account
+      properties:
+        software_code:
+          type: string
+          enum:
+            - howstack-bos
+        edition:
+          type: string
+          description: 购买版本代码，到期不抹去购买记录
+        edition_name:
+          type: string
+        status:
+          type: string
+          enum:
+            - community
+            - active
+            - expired
+            - revoked
+            - offline_expired
+            - unverified
+            - clock_error
+        status_text:
+          type: string
+        license_no:
+          type: string
+          nullable: true
+        offline_until:
+          type: string
+          nullable: true
+        verified_at:
+          type: string
+          nullable: true
+        installation_id:
+          type: string
+        entitlement_revision:
+          type: integer
+          minimum: 0
+        last_error:
+          type: string
+          nullable: true
+        account:
+          type: object
+          additionalProperties: true
+          description: 既有公开连接投影，不含令牌和私钥
+        entitlements:
+          type: array
+          maxItems: 128
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - capability
+              - name
+              - implemented
+              - installed
+              - status
+              - use_until
+              - updates_until
+              - limits
+            properties:
+              capability:
+                type: string
+              name:
+                type: string
+              implemented:
+                type: boolean
+              installed:
+                type: boolean
+              status:
+                type: string
+              use_until:
+                type: string
+                nullable: true
+                description: null表示签发方明确授予永久使用
+              updates_until:
+                type: string
+                nullable: true
+                description: null表示签发方明确授予永久更新
+              limits:
+                type: object
+                additionalProperties:
+                  type: integer
+                  minimum: 0
+                  maximum: 2147483647
+    Envelope:
+      type: object
+      required:
+        - code
+        - message
+        - data
+        - request_id
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+        data:
+          type: object
+          nullable: true
+          additionalProperties: true
+        request_id:
+          type: string
+      description: 成功 code=0；401 未登录、403 无权限或来源无效、400/422 输入无效、409 状态冲突、 503
+        官网或维护不可用。官网协议失败 data.reason 为稳定原因，例如
+        NOT_CONNECTED、RECONNECT_REQUIRED、ENDPOINT_NOT_AVAILABLE、UNTRUSTED_SIGNATURE。
+        所有响应由统一 ApiResponse 与异常处理器生成并提供 X-Request-Id。

@@ -1,44 +1,635 @@
 openapi: 3.0.3
 info:
-  title: 运营后台订单只读查询
-  version: 1.0.0
-  description: 订单和订单项当前仅供查询。创建、支付、退款将在报价及账务闭环实现后开放。
+  title: 运营后台订单管理
+  version: 1.2.0
+  description: 订单查询、已发布产品代下单、余额付款、未支付取消与备注编辑。金额由产品契约计算并封存，退款和开票使用独立财务接口。
 paths:
   /api/admin/v1/orders:
     get:
       summary: 分页查询订单
-      description: 需要 admin.page.order-list.view 权限。
+      description: 需要 admin.page.order-list.view 权限。独立字段使用 AND 组合，按快照中的对应字段进行包含匹配。
       parameters:
-        - { name: keyword, in: query, schema: { type: string, maxLength: 64 } }
-        - { name: status, in: query, schema: { type: string, enum: [pending_payment, paid, fulfilling, completed, cancelled, failed, refunding, refunded] } }
-        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum:
+              - created_at
+              - payable_minor
+              - paid_minor
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: order_type
+          in: query
+          schema:
+            type: string
+            enum:
+              - purchase
+              - renewal
+              - upgrade
+              - trial
+        - name: payment_status
+          in: query
+          schema:
+            type: string
+            enum:
+              - unpaid
+              - partial
+              - paid
+              - refunded
+              - partial_refund
+        - name: order_no
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: member_mobile
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: member_nickname
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: keyword
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending_payment
+              - paid
+              - fulfilling
+              - completed
+              - cancelled
+              - failed
+              - refunding
+              - refunded
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
       responses:
-        '200':
+        "200":
           description: 统一响应 data 包含 data 和 total
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: &a1
+                    type: string
+                  data:
+                    type: object
+                    required:
+                      - data
+                      - total
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Order"
+                      total:
+                        type: integer
+                        minimum: 0
+                  request_id:
+                    type: string
+                    minLength: 1
+    post:
+      summary: 按已发布配置创建待支付购买订单
+      description: 需要查看及 admin.page.order-list.create 权限；当前支持云服务器、人民币正价订单，创建不扣款、不占库存、不调用供应商。发布版本须仍可售，费用与服务端重算结果一致；同管理员同 request_key 同内容返回原订单，异内容返回409。未知类型字段由购买输入契约剔除，不保存密码、供应密钥或客户端价格状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/OrderPreviewInput"
+                - type: object
+                  required:
+                    - member_id
+                    - expected_amount_minor
+                    - request_key
+                  properties:
+                    member_id:
+                      type: integer
+                      minimum: 1
+                    expected_amount_minor:
+                      type: integer
+                      minimum: 1
+                      maximum: 100000000
+                      description: 已预览应付金额，单位分；必须与服务端重算一致
+                    request_key:
+                      type: string
+                      minLength: 16
+                      maxLength: 64
+                      pattern: ^[A-Za-z0-9_-]{16,64}$
+                    remark:
+                      type: string
+                      maxLength: 255
+                      default: ""
+      responses:
+        "200":
+          description: 统一响应 data.id 为原订单或新订单标识
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - id
+                    properties:
+                      id: &a2
+                        type: integer
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无查看或创建权限
+        "409":
+          description: 版本失效、会员禁用、费用变化或请求键冲突
+        "422":
+          description: 参数无效或配置组合不合法
+  /api/admin/v1/orders/members:
+    get:
+      summary: 为创建订单选择启用会员
+      description: 需要订单查看及创建权限，仅返回会员ID和昵称标签，不返回认证、账户或联系方式详情。
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        "200":
+          description: 统一响应 data 是最多20项的 id 和 label 数组
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - label
+                      properties:
+                        id: *a2
+                        label: *a1
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 缺少权限
+  /api/admin/v1/orders/products:
+    get:
+      summary: 查询已发布且启用的产品入口
+      description: 需要订单查看及创建权限，返回 id、name、product_type 和 version_id；配置草稿不可下单。
+      responses:
+        "200":
+          description: 统一响应 data 为可售入口数组
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - name
+                        - product_type
+                        - version_id
+                      properties:
+                        id: *a2
+                        name: *a1
+                        product_type: *a1
+                        version_id: *a2
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 缺少权限
+  /api/admin/v1/orders/preview:
+    post:
+      summary: 按发布版本解析可选配置或计算费用
+      description: 需要订单查看及创建权限。mode为options时允许不完整选择，返回可选项和失效字段；price要求完整合法选择。不会扣款、预占或开通。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/OrderPreviewInput"
+                - type: object
+                  required:
+                    - mode
+                  properties:
+                    mode:
+                      type: string
+                      enum:
+                        - options
+                        - price
+      responses:
+        "200":
+          description: 统一响应 data 为选项或费用；费用含 configuration、currency、quantity、amount_minor、subtotal_minor、discount_minor 和费用分项
+        "403":
+          description: 缺少权限
+        "409":
+          description: 发布版本变化、停止销售或尚未接入购买类型
+        "422":
+          description: 参数或配置无效
+  /api/admin/v1/orders/{id}/{action}:
+    post:
+      summary: 余额付款、取消未支付订单或编辑备注
+      description: 需要查看及对应 admin.page.order-list.pay/cancel/update 权限。付款锁定订单、账户、消费来源和库存，异常整体回滚；重复已核实余额付款不重复扣款。只取消待付款且未付金额为0的订单，重复取消幂等。update携带原备注避免并发覆盖。付款不代表外部实例已开通。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - pay
+              - cancel
+              - update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                remark:
+                  type: string
+                  maxLength: 255
+                  description: update时必传，允许空字符串
+                expected_remark:
+                  type: string
+                  maxLength: 255
+                  description: update时必传读取到的原备注，允许空字符串
+      responses:
+        "200":
+          description: 统一响应 data.id 为操作的订单标识
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    type: object
+                    required:
+                      - id
+                    properties:
+                      id: *a2
+                  request_id:
+                    type: string
+                    minLength: 1
+        "403":
+          description: 无对应权限
+        "404":
+          description: 订单不存在
+        "409":
+          description: 状态冲突、余额或库存不足、资金核实异常或备注已被修改
+        "422":
+          description: 参数无效
   /api/admin/v1/orders/{id}:
     get:
       summary: 查询订单及订单项快照
       description: 需要 admin.page.order-list.view 权限；不返回含敏感配置的 configuration_snapshot。
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
       responses:
-        '200':
-          description: 统一响应 data 包含订单字段和 items 数组
-        '404':
+        "200":
+          description: 统一响应 data 包含订单字段、items 数组和 units 数组。units 使用保存的实付分摊，历史订单可能为空，不根据当前价格补算。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    enum:
+                      - 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/OrderDetail"
+                  request_id:
+                    type: string
+                    minLength: 1
+        "404":
           description: 订单不存在
 components:
   schemas:
+    OrderPreviewInput:
+      type: object
+      required:
+        - offer_id
+        - version_id
+      properties:
+        offer_id:
+          type: integer
+          minimum: 1
+        version_id:
+          type: integer
+          minimum: 1
+        selection:
+          $ref: "#/components/schemas/CloudPurchaseSelection"
+    CloudPurchaseSelection:
+      type: object
+      description: 当前云服务器类型的标准购买输入。创建与price按版本执行完整组合校验，options可不完整。客户端不能提交实际凭据或供应参数。
+      additionalProperties: false
+      properties:
+        region_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        zone_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        line_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        flavor_group_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        flavor_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        image_type_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        image_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        protection_id:
+          type: integer
+          minimum: 0
+          nullable: true
+        duration_months:
+          type: integer
+          minimum: 1
+          maximum: 120
+        billing_cycle:
+          type: string
+          enum:
+            - month
+            - year
+          description: 历史v1的计费周期
+        billing_mode:
+          type: string
+          enum:
+            - prepaid
+        login_method:
+          type: string
+          enum:
+            - password
+          description: 仅登录方式标识，不传实际密码
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        system_disk:
+          $ref: "#/components/schemas/DiskSelection"
+        data_disks:
+          type: array
+          maxItems: 32
+          items:
+            $ref: "#/components/schemas/DiskSelection"
+        network:
+          type: object
+          additionalProperties: false
+          properties:
+            billing_mode:
+              type: string
+              enum:
+                - fixed
+            egress_mbps:
+              type: integer
+              minimum: 0
+              maximum: 1000000
+            ingress_mbps:
+              type: integer
+              minimum: 0
+              maximum: 1000000
+            bandwidth_mbps:
+              type: integer
+              minimum: 0
+              maximum: 1000000
+              description: 历史v1带宽
+            ipv4_count:
+              type: integer
+              minimum: 0
+              maximum: 1000000
+    DiskSelection:
+      type: object
+      additionalProperties: false
+      properties:
+        type_id:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        size_gib:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+    OrderUnit:
+      type: object
+      required:
+        - id
+        - order_item_id
+        - unit_index
+        - service_id
+        - allocated_minor
+        - refunded_minor
+        - reserved_refund_minor
+      properties:
+        id: *a2
+        order_item_id: *a2
+        unit_index: *a2
+        service_id:
+          type: integer
+          nullable: true
+        allocated_minor: *a2
+        refunded_minor: *a2
+        reserved_refund_minor: *a2
     OrderItem:
       type: object
-      required: [id, line_no, product_type, product_type_version, sales_version, product_name, quantity, unit_price_minor, total_minor]
+      required:
+        - id
+        - line_no
+        - product_type
+        - product_type_version
+        - sales_version
+        - product_name
+        - quantity
+        - unit_price_minor
+        - total_minor
       properties:
-        id: { type: integer }
-        line_no: { type: integer }
-        product_type: { type: string }
-        product_type_version: { type: string }
-        sales_version: { type: string }
-        product_name: { type: string }
-        quantity: { type: integer }
-        unit_price_minor: { type: integer, format: int64 }
-        total_minor: { type: integer, format: int64 }
+        id: *a2
+        line_no: *a2
+        product_type: *a1
+        product_type_version: *a1
+        sales_version: *a1
+        product_name: *a1
+        quantity: *a2
+        unit_price_minor: *a2
+        total_minor: *a2
+    Order:
+      type: object
+      required:
+        - id
+        - order_no
+        - member_id
+        - member_mobile_snapshot
+        - member_nickname_snapshot
+        - order_type
+        - status
+        - payment_status
+        - currency
+        - subtotal_minor
+        - discount_minor
+        - payable_minor
+        - paid_minor
+        - refunded_minor
+        - remark
+        - paid_at
+        - completed_at
+        - cancelled_at
+        - created_at
+        - updated_at
+      properties:
+        id: *a2
+        order_no: *a1
+        member_id: *a2
+        member_mobile_snapshot: *a1
+        member_nickname_snapshot: *a1
+        order_type: *a1
+        status: *a1
+        payment_status: *a1
+        currency: *a1
+        subtotal_minor: *a2
+        discount_minor: *a2
+        payable_minor: *a2
+        paid_minor: *a2
+        refunded_minor: *a2
+        remark: *a1
+        paid_at: &a3
+          type: string
+          nullable: true
+        completed_at: *a3
+        cancelled_at: *a3
+        created_at: *a1
+        updated_at: *a1
+    OrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          required:
+            - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/OrderItem"
+            units:
+              type: array
+              items:
+                $ref: "#/components/schemas/OrderUnit"

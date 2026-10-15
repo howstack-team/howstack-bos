@@ -85,6 +85,7 @@ final class DatabaseAdminAccountRepository implements AdminAccountRepositoryInte
             isset($record->last_login_at) ? (string) $record->last_login_at : null,
             (bool) ($record->is_founder ?? false),
             isset($record->department_id) ? (int) $record->department_id : null,
+            (int) ($record->auth_version ?? 0),
         );
     }
 }

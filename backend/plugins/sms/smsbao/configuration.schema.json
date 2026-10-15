@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "username",
+      "label": "账号",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入账号",
+      "max_length": 128
+    },
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入API Key",
+      "max_length": 128,
+      "description": "使用短信宝 API Key；如使用密码模式，应填账号密码的 MD5 值。"
+    }
+  ]
+}

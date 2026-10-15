@@ -15,7 +15,9 @@ use app\shared\http\ApiErrorCode;
 /** 编排运营后台会员管理用例。 */
 final readonly class MemberManagementService
 {
-    /** 初始化会员管理用例。 */
+    /**
+     * 初始化会员管理用例。
+     */
     public function __construct(
         private MemberRepositoryInterface $members,
         private AdminAccessControlService $access,
@@ -27,12 +29,20 @@ final readonly class MemberManagementService
     /**
      * 分页查询会员。
      * @return array{data: list<array<string, mixed>>, total: int} 会员分页
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
      */
-    public function paginate(AdminAccount $actor, string $keyword, ?int $status, int $page, int $pageSize): array
+    public function paginate(
+        AdminAccount $actor,
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->access->requirePermission($actor, 'admin.members.view');
 
-        return $this->members->paginate($keyword, $status, $page, $pageSize);
+        return $this->members->paginate($keyword, $status, $page, $pageSize, $filters);
     }
 
     /**
@@ -60,7 +70,7 @@ final readonly class MemberManagementService
         if ($id !== null && $previous === null) {
             throw $this->notFound();
         }
-        $mobile = trim((string) $input['mobile']);
+        $mobile = trim((string) ($input['mobile'] ?? '')) ?: null;
         $email = strtolower(trim((string) ($input['email'] ?? ''))) ?: null;
         $groupId = array_key_exists('group_id', $input) ? ($input['group_id'] === null ? null : (int) $input['group_id']) : ($previous['group_id'] ?? null);
         $levelId = array_key_exists('level_id', $input) ? ($input['level_id'] === null ? null : (int) $input['level_id']) : ($previous['level_id'] ?? null);
@@ -70,7 +80,7 @@ final readonly class MemberManagementService
         if ($levelId !== null && $this->catalog !== null && (($level = $this->catalog->level($levelId)) === null || (int) $level['status'] !== 1)) {
             throw new BusinessException('会员等级不存在或已停用', ApiErrorCode::VALIDATION_FAILED, 422);
         }
-        if ($this->members->mobileExists($mobile, $id)) {
+        if ($mobile !== null && $this->members->mobileExists($mobile, $id)) {
             throw new BusinessException('手机号已被其他会员使用', ApiErrorCode::CONFLICT, 409);
         }
         if ($email !== null && $this->members->emailExists($email, $id)) {
@@ -86,6 +96,10 @@ final readonly class MemberManagementService
             'status' => (int) $input['status'],
         ];
         if (!empty($input['password'])) {
+            if (!is_string($input['password']) || mb_strlen($input['password']) < 8 || strlen($input['password']) > 72) {
+                throw new BusinessException('请检查会员密码', ApiErrorCode::VALIDATION_FAILED, 422,
+                    ['errors' => ['password' => ['密码至少8个字符，且最多72字节']]]);
+            }
             $data['password_hash'] = password_hash((string) $input['password'], PASSWORD_DEFAULT);
         }
         $savedId = $this->members->save($id, $data);

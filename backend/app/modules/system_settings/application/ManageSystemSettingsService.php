@@ -28,7 +28,7 @@ final readonly class ManageSystemSettingsService
     }
 
     /**
-     * 返回两个已实现表单的分类。
+     * 返回已实现表单的分类目录。
      * @param AdminAccount $actor 当前管理员
      * @return list<array{id: int, code: string, name: string, sort_order: int}> 分类
      */
@@ -50,7 +50,7 @@ final readonly class ManageSystemSettingsService
         $this->access->requirePermission($actor, 'admin.page.settings.view');
         $category = $this->validator->category($category);
 
-        return $category === 'base' ? $this->reader->base() : $this->reader->security();
+        return match ($category) { 'base' => $this->reader->base(), 'registration' => $this->reader->registration(), default => $this->reader->security() };
     }
 
     /**
@@ -66,7 +66,7 @@ final readonly class ManageSystemSettingsService
         $this->access->requirePermission($actor, 'admin.page.settings.update');
         $category = $this->validator->category($category);
         $values = $this->validator->values($category, $input);
-        $mapping = $category === 'base' ? GetSystemSettingsService::BASE_KEYS : GetSystemSettingsService::SECURITY_KEYS;
+        $mapping = match ($category) { 'base' => GetSystemSettingsService::BASE_KEYS, 'registration' => GetSystemSettingsService::REGISTRATION_KEYS, default => GetSystemSettingsService::SECURITY_KEYS };
         $stored = [];
         foreach ($mapping as $field => $key) {
             $stored[$key] = (string) $values[$field];

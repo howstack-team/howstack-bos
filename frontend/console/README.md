@@ -1,32 +1,111 @@
-# React + TypeScript + Vite
+# 会员控制台
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+会员控制台采用 React 19、TypeScript、Vite、Arco Design React 与 React Query。依据 [Arco Design Pro 快速开始](https://arco.design/docs/pro/start) 和运营后台的布局组织方式实现，使用独立的路由、会话与构建，不跨应用引用后台源码。
 
-Currently, two official plugins are available:
+## 页面与功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `/console/login`：手机号或邮箱密码登录，参考图的品牌背景与登录卡片，支持密码／验证码切换、记住我、找回密码表单和 QQ／微信授权入口。验证码、找回密码和第三方方式已完成前端交互与 API 适配，扩展接口及会话时长选项待后端接入；缺少接口时明确提示并保留密码登录。接入约定见 [登录接口接入说明](login-integration.md)。
+- `/console/register`：与登录页共用品牌顶栏、背景、卡片和协议页脚，输入框采用 Arco 原生大号尺寸（36px 高、14px 字号），提交按钮高 48px。手机号／邮箱方式及验证码要求按已有注册配置接口展示，支持获取验证码、密码确认、失败重试；默认不勾选协议，提交前须同意服务协议和隐私政策。协议地址暂为空；勾选只用于前端表单校验，不增加现有注册 API 字段。注册成功后回到登录页，不自动登录。
+- `/console/overview`：七个首页卡片模块，包含欢迎卡片、账户概览、我的产品、快捷入口、费用概览、帮助文档与最新公告。首页直接从欢迎卡片开始，不显示页面标题、说明和刷新账户按钮；桌面采用顶部欢迎区及左右两列布局，窄屏自动重排为单列；会员编号和脱敏联系方式来自当前会话，账户余额使用现有本人钱包接口，支持加载失败重试及无权限反馈，主动刷新仍可在资金账户页操作。产品数量和费用统计未开放时显示 `--`，不以零或模拟数据代替；六个快捷操作与三个产品入口跳转到已有控制台路由。快捷入口使用三列图标加文字布局，充值入口使用主题蓝；“查看更多”打开按菜单分组的原生抽屉，支持遮罩、Escape 关闭及点击入口跳转。帮助文档与公告先提供官网首页链接，在新标签打开，不增加侧栏入口，尚未展示真实文章列表。
+- `/console/finance/wallet`：可用余额、冻结余额、刷新、加载失败重试及无权限提示。
+- `/console/account/profile`：本人公开资料，手机号默认脱敏，可通过 Arco 原生 `round` 开关临时显示。
+- 顶部左侧为“控制台”链接，右侧为“工单”“费用”链接和头像区；三个入口均使用 Arco Link，不显示选中背景或下划线，保留通知及主题切换；费用指向现有资金账户，工单指向工单管理。
+- 左侧共有 17 个入口，控制台单独置顶，其余按原生菜单分组：产品与服务（云服务器、物理服务器、服务器托管、续费管理）；财务管理（充值中心、资金明细、订单管理、退款管理、发票管理、优惠券）；账户管理（账户设置、安全设置、实名认证、登录记录、消息中心）；服务与帮助（工单管理）。公告和帮助文档由官网提供，控制台不重复设置菜单和占位路由。菜单超出可用高度时，桌面侧栏和手机原生抽屉均可滚动访问底部入口。
+- 订单管理已接入本人列表、详情与余额付款，云服务器页面提供购买入口。其余尚未接入的菜单明确展示建设状态，不发起未接入请求或提供虚构交易；账户设置复用个人资料页，顶部费用指向资金账户，通知使用已有消息收件箱。
+- 未知页面提供 404 和返回控制台入口。
 
-## React Compiler
+登录、注册、找回密码及第三方授权的接口失败反馈使用 Arco Message；验证码发送与注册、密码重置成功也使用 Message，不在表单中插入 Alert 或成功提示段落。注册配置读取失败保留重试按钮；注册关闭时仅提示并隐藏注册表单。字段格式、确认密码、协议勾选等校验继续显示在对应 Form.Item，避免重复全局提示。
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+样式采用相同的 Arco Pro 主题、Logo、空状态与加载资源；登录页桌面左右分栏，卡片宽度为 500px、内边距 40px，900px 以下单列，手机卡片内边距为 28px / 24px；输入框通过公开 Less Token 设置白底与浅灰边框，保留主题蓝聚焦及原生错误、禁用状态。登录背景使用新生成的 1536 × 1024 云计算插画，以无损 WebP 保存（约 883 KiB），定位于登录页容器内，与页面内容一起滚动；提示词与资源说明见 [背景资源记录](src/assets/login-background.md)。登录页脚处于正常文档流，随页面滚动，最小高度为 64px 并兼顾设备安全区，底部保留“服务协议”和“隐私政策”，按当前要求地址为空，点击不刷新登录表单。控制台顶栏 60px、侧栏 220px（收起为 48px），内容区桌面为 16px / 20px、移动为 12px，业务卡片使用细边框，页脚高 40px。支持桌面侧栏收起、390px 原生 Drawer 导航、顶部快捷导航和浅色/深色切换。标题与面包屑由业务页面提供。品牌色为 `#165DFF`，矩形圆角为 `2px`；自定义样式不覆盖 Arco 私有 DOM。
 
-## Expanding the Oxlint configuration
+## 本地开发
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### 默认官方移动端模板
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+默认主题另有独立的 Arco Design Mobile React 模板，源码在 `src/mobile/`，共用 API、Cookie 会话、公开品牌配置及缓存边界，不加载 PC 页面和样式。移动导航分为总览、服务、消息、我的；真实接口尚未接入的业务明确提示待接入。
+
+```bash
+pnpm dev:mobile --host 0.0.0.0 --port 5177 --strictPort
+pnpm build:template:mobile
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+开发地址为 `http://127.0.0.1:5177/console/`。正式移动入口由后台“内容管理 → 主题管理”当前主题卡片上的“移动端模板”开关控制，操作即时保存，默认不开启；开启后手机访问 `/console/` 使用移动模板。`pnpm build:template` 同时构建 PC 和移动组件至 `backend/themes/default/console/pc/`、`console/mobile/`，构建后的包由宿主发布。源码分层、许可证、发布及浏览器验收见 [会员模板开发文档](../../docs/themes/console.md#6-默认官方移动端模板)。
+
+### PC 模板
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev --host 0.0.0.0 --port 5176 --strictPort
+```
+
+访问 `/console/`，匿名访问转到 `/console/login`。开发服务将 `/api` 代理至 `VITE_BACKEND_TARGET`，默认 `http://127.0.0.1:8989`。后台与会员保持独立会话，会员接口始终为 `/api/console/v1`。
+
+开发服务监听所有网卡。同一局域网设备使用 `http://<开发机局域网 IP>:5176/console/` 访问 PC 模板，使用 `http://<开发机局域网 IP>:5177/console/` 访问独立移动模板；本机仍可使用 `127.0.0.1`。启动时不要用 `--host 127.0.0.1` 覆盖监听地址。后端代理目标是开发服务器连接的地址，保持本机后端地址即可。
+
+使用 Node.js 24 LTS 和 pnpm 11。共同依赖的声明和安装版本以后台为准，更新时同步核对两端并维护锁文件，不单独升级控制台的共同依赖。当前共同安装版本如下：
+
+| 依赖 | 两端安装版本 |
+| --- | --- |
+| Arco Design React | 2.66.16 |
+| Arco Pro 主题 | 0.0.7 |
+| Axios | 1.20.0 |
+| React Router | 5.3.4 |
+| Vite | 8.3.0 |
+| Vite React 插件 | 6.1.1 |
+| TypeScript | 6.0.3 |
+| Oxlint | 1.82.0 |
+| Node 类型 | 24.13.4 |
+| React Router 类型 | 5.3.3 |
+
+根据项目规范，后台保留 React 18，控制台保留 React 19 及对应类型，并使用 React Query 管理本人服务端状态；不添加后台独有的编辑器、Redux 或配置界面依赖。路由实现统一为 React Router 5 的 `Switch`、`Route`、`Redirect` 和 `useHistory`，保留登录返回路径及退出跳转行为。Arco React 19 adapter、本地 CSS、中文语言包和 Pro 主题均在入口加载，第三方许可保留在 `public/ARCO_DESIGN_LICENSE`。
+
+## 会话与数据边界
+
+- 会话由后端签发 HttpOnly Cookie，前端不保存密码、验证码、授权码、令牌或本人业务数据。浏览器保存独立的控制台主题偏好；第三方授权期间仅在 sessionStorage 临时保存经过校验的控制台返回路径，回调时删除。
+- API 边界校验响应外层结构、会员公开字段、CNY 币种及安全整数分。金额精确转为两位元文本，再由 Arco `Statistic` 展示。
+- 所有会员查询使用 `['console', ...]` 前缀。退出或接口 401 先取消在途查询，再清理本人业务缓存与提交缓存；失败的退出请求保留登录界面。
+- 页面和服务端状态分别放在路由/组件和 React Query 中。请求支持取消；403 不重试、不显示缓存余额，刷新失败明确标记上次查询结果。
+- 当前支持本人身份、余额、消息、云服务器购买及订单列表/详情。服务列表、资料修改、充值、在线支付、退款和续费尚未接入会员界面，不添加虚构交易或演示统计。契约以 `contracts/openapi/console-*.v1.yaml` 与公开购买契约为准。
+
+## 官网展示与会员购买
+
+官网首页与 `/products/cloud-server` 展示真实可售产品，进入 `/console/purchase/cloud-server?offer=<配置ID>` 后匿名用户也能选配、查看报价；点击继续才登录。选配白名单在当前标签页保存两小时，跨登录和刷新恢复，报价重新向后端计算，再次确认才下单。PC 和移动端共用业务逻辑、分别提供界面；不保存密码、令牌或报价。
+
+会员购买复用既有订单、实例分摊、幂等及钱包付款；详情地址为 `/console/finance/orders/<订单ID>`。流程、接口与验证说明见 [官网展示与会员购买](../../docs/development/member-purchase.md)。浏览器回归使用 `node tests/purchase-browser.mjs`，通过 `HOWSTACK_PLAYWRIGHT_MODULE` 指定 Playwright；业务响应采用模拟夹具，不代替真实支付或供应商开通。
+- 前端会话控制不替代后端身份验证和对象归属校验。
+
+## 代码组织
+
+```text
+src/
+  api/          API 地址、响应解析、请求和查询缓存
+  auth/         会话 Provider 与类型明确的 Context
+  components/   顶栏、页面标题、加载和余额展示
+  hooks/        本人余额查询与响应式断点
+  pages/        登录、注册、控制台、资金账户、账户设置、建设中入口和 404
+  utils/        金额、登录返回路径、手机号脱敏
+  routes.ts     菜单、顶部快捷导航、路由和标题的集中配置
+  layout.tsx    Arco Pro 布局与移动导航
+```
+
+## 检查与构建
+
+```bash
+pnpm lint
+pnpm test
+pnpm build
+```
+
+`pnpm test` 使用 Node.js 原生测试验证共同依赖声明一致性、响应边界、金额精度、安全返回路径、在途请求取消、401/403 与缓存隔离。生产构建写入 `backend/public/console/`，由 Webman 提供 `/console` 页面和 `/console/assets/` 资源，深层页面可直接访问和刷新。业务页面按路由懒加载，公共依赖由 Vite 自动分包；基础 CSS、Pro 主题和项目 Token 按顺序加载。
+
+浏览器回归脚本 `tests/browser-smoke.mjs` 使用 Playwright，不参与生产依赖。在可访问开发或生产页面、且本机已安装 Playwright 及 Chromium 时执行：
+
+```bash
+CONSOLE_BASE_URL=http://127.0.0.1:5176/console node tests/browser-smoke.mjs
+```
+
+也可通过 `HOWSTACK_PLAYWRIGHT_MODULE` 指向已安装的 Playwright 模块文件，通过 `CONSOLE_SCREENSHOT_DIR` 指定截图目录。脚本先验证真实后端匿名跳转和字段校验，再拦截会员接口验证模拟登录、路径恢复、响应式布局、导航、主题、错误重试、无权限、会话失效和退出竞态。模拟账户与金额仅存在于测试进程，不进入业务页面；模拟通过不代表真实会员、财务或支付验收。
+
+`tests/navigation-browser.mjs` 覆盖全部侧栏入口、顶部左右位置、选中状态、刷新与历史导航、侧栏折叠、390px / 320px / 768px 菜单及退出。手机顶栏分成 60px 品牌与头像行、44px 快捷导航行，菜单抽屉从这两行下方打开。
+
+`tests/overview-browser.mjs` 验证首页七个卡片、产品及快捷操作跳转、脱敏资料、未开放统计占位、钱包加载失败和 403 无权限反馈，并覆盖 1440px / 1280px / 1024px / 768px / 390px / 320px、深色主题和长昵称。账户数据由测试拦截模拟，不代表真实产品、费用或官网文章验收。

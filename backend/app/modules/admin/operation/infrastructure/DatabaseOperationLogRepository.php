@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace app\modules\admin\operation\infrastructure;
 
+use app\shared\infrastructure\TableQueryOrder;
+
 use app\modules\admin\operation\infrastructure\model\AdminOperationLogModel;
 use support\Model;
 use app\modules\admin\operation\contract\OperationLogRepositoryInterface;
@@ -24,7 +26,6 @@ final class DatabaseOperationLogRepository implements OperationLogRepositoryInte
         'method', 'request_url', 'status', 'http_status', 'client_ip', 'client_ip_location',
         'duration_ms', 'browser', 'operating_system', 'request_id', 'request_params',
     ];
-
     public function append(array $record): void
     {
         try {
@@ -34,7 +35,14 @@ final class DatabaseOperationLogRepository implements OperationLogRepositoryInte
         }
     }
 
-    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array
+    /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         try {
             $query = AdminOperationLogModel::query();
@@ -51,8 +59,23 @@ final class DatabaseOperationLogRepository implements OperationLogRepositoryInte
             if ($status !== null) {
                 $query->where('status', $status);
             }
+            foreach ([
+                'operator_username' => 'operator_username',
+                'operator_nickname' => 'operator_nickname',
+                'module' => 'module',
+                'operation' => 'operation',
+                'client_ip' => 'client_ip',
+            ] as $field => $column) {
+                if (isset($filters[$field])) {
+                    $pattern = '%' . strtr($filters[$field], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+                    $query->whereRaw($query->getGrammar()->wrap($column) . " LIKE ? ESCAPE '!'", [$pattern]);
+                }
+            }
             $total = (int) (clone $query)->count();
-            $rows = $query->select(self::SUMMARY_COLUMNS)->orderBy('id', 'desc')->forPage($page, $pageSize)->get();
+            $rows = TableQueryOrder::apply($query, $filters, [
+                'operated_at' => 'operated_at',
+                'duration_ms' => 'duration_ms',
+            ], ['id' => 'desc'], 'id')->select(self::SUMMARY_COLUMNS)->forPage($page, $pageSize)->get();
 
             return ['data' => array_map(static fn (Model $row): array => [
                 'id' => (int) $row->id,

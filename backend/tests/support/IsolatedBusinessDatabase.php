@@ -86,6 +86,9 @@ trait IsolatedBusinessDatabase
     /** @param array<string, int|string|null> $data 受控测试数据 */
     private function row(string $table, array $data): int
     {
+        if ($table === 'members' && Db::connection()->getSchemaBuilder()->hasColumn('members', 'public_id')) {
+            $data['public_id'] ??= \app\modules\member\domain\PublicMemberId::generate();
+        }
         return (int) Db::table($table)->insertGetId($data);
     }
 

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "captcha_id",
+      "label": "验证 ID",
+      "type": "text",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入验证 ID"
+    },
+    {
+      "key": "secret_id",
+      "label": "密钥 ID",
+      "type": "text",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入密钥 ID"
+    },
+    {
+      "key": "secret_key",
+      "label": "密钥",
+      "type": "password",
+      "required": true,
+      "max_length": 128,
+      "placeholder": "请输入密钥"
+    }
+  ]
+}

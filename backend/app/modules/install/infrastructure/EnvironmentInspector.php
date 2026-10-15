@@ -104,6 +104,16 @@ final class EnvironmentInspector implements EnvironmentInspectorInterface
             $assetsReadable ? '' : '安装页面资源不完整，请重新上传完整的系统安装包',
         );
 
+        $opcacheLoaded = extension_loaded('Zend OPcache');
+        $items[] = $this->item(
+            'extension_opcache',
+            'OPcache 扩展',
+            $opcacheLoaded ? '已安装' : '未安装',
+            $opcacheLoaded,
+            false,
+            $opcacheLoaded ? '' : '推荐安装并启用 PHP OPcache 扩展以提升运行性能，未安装不影响继续安装',
+        );
+
         $eventLoaded = extension_loaded('event');
         $items[] = $this->item(
             'extension_event',

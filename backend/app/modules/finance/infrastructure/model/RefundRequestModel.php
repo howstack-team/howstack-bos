@@ -14,6 +14,7 @@ final class RefundRequestModel extends Model
     public $timestamps = true;
 
     protected $fillable = [
+        'operator_id', 'remark', 'review_reason',
         'refund_no',
         'member_id',
         'source_type',
@@ -34,6 +35,9 @@ final class RefundRequestModel extends Model
     protected $hidden = [];
 
     protected $casts = [
+        'operator_id' => 'integer',
+        'remark' => 'string',
+        'review_reason' => 'string',
         'id' => 'integer',
         'refund_no' => 'string',
         'member_id' => 'integer',

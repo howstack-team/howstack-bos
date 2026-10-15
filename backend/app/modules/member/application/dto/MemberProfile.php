@@ -14,13 +14,14 @@ final readonly class MemberProfile
         public ?string $groupName,
         public ?int $levelId,
         public ?string $levelName,
-        public string $mobile,
+        public ?string $mobile,
         public ?string $email,
         public string $description,
         public int $status,
         public ?string $lastLoginAt,
         public ?string $createdAt,
         public ?string $updatedAt,
+        public ?string $publicId = null,
     ) {
     }
 
@@ -29,6 +30,7 @@ final readonly class MemberProfile
     {
         return [
             'id' => $this->id,
+            'public_id' => $this->publicId,
             'nickname' => $this->nickname,
             'group_id' => $this->groupId,
             'group_name' => $this->groupName,

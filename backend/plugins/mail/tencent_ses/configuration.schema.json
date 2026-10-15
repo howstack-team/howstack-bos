@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "scope": "connection",
+  "fields": [
+    {
+      "key": "secret_id",
+      "label": "SecretId",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入SecretId",
+      "max_length": 128
+    },
+    {
+      "key": "secret_key",
+      "label": "SecretKey",
+      "type": "password",
+      "required": true,
+      "placeholder": "请输入SecretKey",
+      "max_length": 128
+    },
+    {
+      "key": "region",
+      "label": "地域",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入地域",
+      "max_length": 128,
+      "default": "ap-guangzhou"
+    },
+    {
+      "key": "from_email",
+      "label": "发件邮箱",
+      "type": "text",
+      "required": true,
+      "placeholder": "请输入发件邮箱",
+      "max_length": 128
+    },
+    {
+      "key": "template_id",
+      "label": "审核模板 ID",
+      "type": "integer",
+      "required": true,
+      "placeholder": "请输入审核模板 ID",
+      "minimum": 1,
+      "maximum": 2147483647,
+      "description": "使用审核通过的模板，模板变量约定为 text、html、subject。"
+    }
+  ]
+}

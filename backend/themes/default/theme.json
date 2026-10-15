@@ -1,0 +1,22 @@
+{
+  "id": "default",
+  "name": "默认官方主题",
+  "version": "2.0.0",
+  "theme_api": "1",
+  "requires": {
+    "core": ">=0.1.0 <1.0.0"
+  },
+  "cover": "cover.svg",
+  "console": {
+    "routes": [
+      "auth.login",
+      "auth.register",
+      "console.overview",
+      "account.profile",
+      "finance.wallet",
+      "product.purchase",
+      "order.list",
+      "order.detail"
+    ]
+  }
+}

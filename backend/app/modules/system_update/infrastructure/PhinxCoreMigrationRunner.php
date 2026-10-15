@@ -126,7 +126,7 @@ final readonly class PhinxCoreMigrationRunner implements CoreMigrationRunnerInte
         ]);
         $output = new BufferedOutput();
 
-        return [new Manager($phinxConfiguration, new ArrayInput([]), $output), $output];
+        return [new CoreMigrationManager($phinxConfiguration, new ArrayInput([]), $output), $output];
     }
 
     /**

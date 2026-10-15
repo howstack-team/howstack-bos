@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { AdminLoginInput, AdminUser } from './authApi.ts'
+import type { AdminLoginInput, AdminUser, AdminLoginResponse } from './authApi.ts'
 
 export type AuthenticationStatus = 'loading' | 'authenticated' | 'anonymous'
 
@@ -11,8 +11,11 @@ export interface AuthContextValue {
   user: AdminUser | null
   permissions: string[]
   bootstrapError: string
-  login: (input: AdminLoginInput) => Promise<void>
+  login: (input: AdminLoginInput) => Promise<AdminLoginResponse>
+  verifyMfa: (code: string, recovery: boolean) => Promise<void>
   logout: () => Promise<void>
+  /** 服务端已清除 Cookie（例如改密成功）后同步清除前端会话。 */
+  clearSession: () => void
   refreshAccess: () => Promise<void>
 }
 

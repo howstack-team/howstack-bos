@@ -55,6 +55,12 @@ final class Handler extends BaseHandler
      */
     public function report(Throwable $exception): void
     {
+        if ($exception instanceof \app\modules\official_platform\exception\OfficialPlatformException) {
+            if ($exception->getPrevious() !== null) {
+                $this->logger->error('官网请求未完成', ['reason' => $exception->reason, 'exception_type' => $exception->getPrevious()::class]);
+            }
+            return;
+        }
         $reportableBusinessFailure = $exception instanceof BusinessException
             && $exception->httpStatus() >= 500
             && $exception->getPrevious() !== null;
@@ -139,6 +145,8 @@ final class Handler extends BaseHandler
         $path = $request->path();
 
         return $path === '/api'
+            || $path === '/api-docs'
+            || str_starts_with($path, '/api-docs/')
             || str_starts_with($path, '/api/')
             || $request->expectsJson();
     }

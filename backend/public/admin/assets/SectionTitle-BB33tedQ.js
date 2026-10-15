@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-CF4O39kz.js";var t=e();function n({children:e}){return(0,t.jsx)(`span`,{className:`section-title`,children:e})}export{n as t};

@@ -1,3 +1,7 @@
+import useTableQuery from '../hooks/useTableQuery'
+import { applyClientTableQuery } from '../utils/clientTableQuery'
+import { IconPlus } from '@arco-design/web-react/icon'
+import FormDialog from '../components/FormDialog'
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Form, Input, InputNumber, Message, Modal, Switch, Table, TreeSelect } from '@arco-design/web-react'
 import type { TableColumnProps } from '@arco-design/web-react'
@@ -25,6 +29,7 @@ function tree(rows: DepartmentRecord[]): TreeRow[] {
 }
 
 export default function DepartmentsPage() {
+  const { queryParams, sortColumn, onTableChange } = useTableQuery({ sortFields: ['sort_order'] })
   const { permissions } = useAdminAuth()
   const [form] = Form.useForm<DepartmentInput>()
   const [rows, setRows] = useState<DepartmentRecord[]>([])
@@ -54,8 +59,13 @@ export default function DepartmentsPage() {
   }
 
   async function save() {
+    let values: DepartmentInput
     try {
-      const values = await form.validate()
+      values = await form.validate()
+    } catch {
+      return
+    }
+    try {
       setSaving(true)
       await accessApi.saveDepartment({ ...values, description: values.description?.trim() ?? '',
         parent_id: editing?.is_root ? null : (values.parent_id ?? null), status: editing?.is_root ? 1 : values.status }, editing?.id)
@@ -69,11 +79,12 @@ export default function DepartmentsPage() {
   const columns: TableColumnProps<TreeRow>[] = [
     { title: '部门名称', dataIndex: 'name', width: 260, ellipsis: true, render: tableCellText },
     { title: '描述', dataIndex: 'description', width: 250, ellipsis: true, render: tableCellText },
+    { ...sortColumn('sort_order'), title: '排序', width: 90 },
     { title: '状态', width: 110, render: (_, row) => <EnabledStatus status={row.status} /> },
-    { title: '操作', width: 130, fixed: 'right', render: (_, row) => {
+    { title: '操作', width: 170, fixed: 'right', render: (_, row) => {
       const actions: TableAction[] = []
       if (can('update')) actions.push({ key: 'edit', label: '编辑', onClick: () => edit(row) })
-      if (!row.is_root && can('delete')) actions.push({ key: 'delete', label: '删除', sensitive: true, danger: true, onClick: () => Modal.confirm({
+      if (!row.is_root && can('delete')) actions.push({ key: 'delete', label: '删除', sensitive: true, danger: true, onClick: () => Modal.confirm({ maskClosable: true,
         title: '删除部门？', content: '有关联成员、子部门或角色授权时不能删除。',
         onOk: async () => { await accessApi.deleteDepartment(row.id); Message.success('已删除'); await load() },
       }) })
@@ -82,18 +93,18 @@ export default function DepartmentsPage() {
   ]
 
   return <section className="page-card">
-    <div className="page-toolbar">{can('create') && <Button type="primary" onClick={() => edit(null)}>新建部门</Button>}</div>
-    <div className="table-scroll"><Table rowKey="id" columns={columns} data={tree(rows)} loading={loading} pagination={false} scroll={{ x: 750 }} /></div>
-    <Modal title={editing ? '编辑部门' : '新建部门'} visible={open} onCancel={() => setOpen(false)} onOk={() => void save()} confirmLoading={saving} style={{ width: 560, maxWidth: 'calc(100vw - 24px)' }}>
-      <Form form={form} layout="vertical" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
-        <Form.Item field="name" label="部门名称" rules={[{ required: true, message: '请输入部门名称' }, { minLength: 2, message: '部门名称至少 2 个字符' }, { maxLength: 64, message: '部门名称不能超过 64 个字符' }]}><Input /></Form.Item>
-        <Form.Item field="sort_order" label="排序" rules={[{ type: 'number', min: 0, max: 9999, message: '排序须为 0–9999 的整数' }]}><InputNumber min={0} max={9999} precision={0} style={{ width: '100%' }} /></Form.Item>
-        <Form.Item field="description" label="描述" rules={[{ maxLength: 255, message: '描述不能超过 255 个字符' }]}><Input.TextArea placeholder="选填" maxLength={255} /></Form.Item>
+    <div className="page-toolbar">{can('create') && <Button icon={<IconPlus />} type="primary" onClick={() => edit(null)}>新建部门</Button>}</div>
+    <div className="table-scroll"><Table onChange={onTableChange} rowKey="id" columns={columns} data={tree(applyClientTableQuery(rows, queryParams))} loading={loading} pagination={false} scroll={{ x: 750 }} /></div>
+    <FormDialog title={editing ? '编辑部门' : '新建部门'} visible={open} onCancel={() => setOpen(false)} onOk={() => void save()} confirmLoading={saving}>
+      <Form form={form} layout="vertical">
+        <Form.Item field="name" label="部门名称" rules={[{ required: true, message: '请输入部门名称' }, { minLength: 2, message: '部门名称至少 2 个字符' }, { maxLength: 64, message: '部门名称不能超过 64 个字符' }]}><Input placeholder="请输入部门名称" /></Form.Item>
+        <Form.Item field="sort_order" label="排序" rules={[{ type: 'number', min: 0, max: 9999, message: '排序须为 0–9999 的整数' }]}><InputNumber mode="button" placeholder="请输入排序" min={0} max={9999} precision={0} style={{ width: '100%' }} /></Form.Item>
+        <Form.Item className="form-dialog-wide" field="description" label="描述" rules={[{ maxLength: 255, message: '描述不能超过 255 个字符' }]}><Input.TextArea placeholder="请输入描述（选填）" maxLength={255} /></Form.Item>
         {!editing?.is_root && <Form.Item field="parent_id" label="上级部门" rules={editing ? [] : [{ required: true, message: '请选择上级部门' }]} formatter={(value) => value == null ? undefined : String(value)} normalize={(value) => value ? Number(value) : null}>
           <TreeSelect disabled={editing !== null} showSearch placeholder="请选择上级部门" treeData={departmentTreeData(rows.filter((node) => node.id !== editing?.id))} />
         </Form.Item>}
-        {!editing?.is_root && <Form.Item field="status" label="状态" triggerPropName="checked" formatter={(value) => value === 1} normalize={(value) => value === true ? 1 : 0}><Switch checkedText="启用" uncheckedText="禁用" /></Form.Item>}
+        {!editing?.is_root && <Form.Item field="status" label="状态" triggerPropName="checked" formatter={(value) => value === 1} normalize={(value) => value === true ? 1 : 0}><Switch type="round" checkedText="启用" uncheckedText="禁用" /></Form.Item>}
       </Form>
-    </Modal>
+    </FormDialog>
   </section>
 }

@@ -18,8 +18,15 @@ final class PruneAdminLoginLogsServiceTest extends TestCase
             public int $deletions = 0;
 
             public function append(array $record): void { }
-            public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array { return ['data' => [], 'total' => 0]; }
-            public function countBefore(string $cutoff): int { return 501; }
+            /** @param array<string, string> $filters 独立文本条件，使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array { return ['data' => [], 'total' => 0]; }
+    public function countBefore(string $cutoff): int { return 501; }
             public function deleteBatchBefore(string $cutoff, int $limit): int
             {
                 ++$this->deletions;
@@ -39,7 +46,14 @@ final class PruneAdminLoginLogsServiceTest extends TestCase
     {
         $repository = new class () implements LoginLogRepositoryInterface {
             public function append(array $record): void { }
-            public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array { return ['data' => [], 'total' => 0]; }
+            /** @param array<string, string> $filters 独立文本条件，使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array { return ['data' => [], 'total' => 0]; }
             public function countBefore(string $cutoff): int { return 0; }
             public function deleteBatchBefore(string $cutoff, int $limit): int { return 0; }
         };

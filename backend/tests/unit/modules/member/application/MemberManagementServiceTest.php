@@ -39,6 +39,16 @@ final class MemberManagementServiceTest extends TestCase
         self::assertSame(7, $saved['id']);
     }
 
+    public function testMultibyteOversizedPasswordIsRejectedBeforePersistence(): void
+    {
+        $members = $this->createMock(MemberRepositoryInterface::class);
+        $members->expects(self::never())->method('save');
+        $this->expectException(BusinessException::class);
+        $this->service($members)->save($this->founder(), null, [
+            'nickname' => '测试会员', 'mobile' => '13800138001', 'password' => str_repeat('密', 25), 'status' => 1,
+        ]);
+    }
+
     public function testDuplicateMobileIsRejectedBeforeWrite(): void
     {
         $members = $this->createMock(MemberRepositoryInterface::class);

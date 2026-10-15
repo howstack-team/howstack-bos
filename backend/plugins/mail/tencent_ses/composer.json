@@ -1,0 +1,15 @@
+{
+  "name": "howstack-team/mail-tencent-ses",
+  "description": "云业务运营系统通道插件独立依赖",
+  "type": "project",
+  "license": "AGPL-3.0-or-later",
+  "require": {
+    "php": ">=8.4",
+    "tencentcloud/ses": "^3.0"
+  },
+  "config": {
+    "allow-plugins": false,
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}

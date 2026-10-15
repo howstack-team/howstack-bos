@@ -1,0 +1,15 @@
+{
+  "name": "howstack-team/mail-smtp",
+  "description": "云业务运营系统 SMTP 邮件通道依赖",
+  "type": "project",
+  "license": "AGPL-3.0-or-later",
+  "require": {
+    "php": ">=8.4",
+    "phpmailer/phpmailer": "^7.0"
+  },
+  "config": {
+    "allow-plugins": false,
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}

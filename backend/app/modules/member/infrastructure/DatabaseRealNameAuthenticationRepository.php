@@ -14,10 +14,20 @@ final class DatabaseRealNameAuthenticationRepository implements RealNameAuthenti
     {
     }
 
-    /** {@inheritDoc} */
-    public function paginate(string $keyword, ?string $type, ?string $status, int $page, int $pageSize): array
+    /**
+     * {@inheritDoc}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function paginate(
+        string $keyword,
+        ?string $type,
+        ?string $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
-        return $this->reads->paginate($keyword, $type, $status, $page, $pageSize);
+        return $this->reads->paginate($keyword, $type, $status, $page, $pageSize, $filters);
     }
 
     /** {@inheritDoc} */

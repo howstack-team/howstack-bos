@@ -46,7 +46,7 @@ final readonly class AdminAuthMiddleware implements MiddlewareInterface
 
         $claims = $this->tokens->parse($token);
         $account = $this->accounts->findById($claims->adminId);
-        if ($account === null) {
+        if ($account === null || !$this->tokens->matchesAccount($claims, $account)) {
             throw AdminAuthenticationException::invalidToken();
         }
         if (!$account->isActive()) {

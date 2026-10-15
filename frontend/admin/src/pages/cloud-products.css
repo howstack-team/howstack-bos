@@ -1,0 +1,67 @@
+.cloud-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+.cloud-section { margin-top: 24px; }
+.cloud-workspace { min-width: 0; }
+.cloud-resource-switch { display: inline-flex; flex-wrap: wrap; max-width: 100%; margin-bottom: 16px; }
+.cloud-workspace-panel { min-width: 0; padding-top: 0; }
+.cloud-workspace-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border-2); }
+.cloud-workspace-heading > div:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.cloud-workspace-actions { margin-left: auto; }
+.cloud-workspace-savebar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border-2); }
+.cloud-workspace-savebar > button { margin-left: auto; }
+.cloud-configuration-guide { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; margin-top: 24px; background: var(--color-fill-1); border: 1px solid var(--color-border-2); border-radius: 2px; }
+.cloud-guide-pending { border-left: 3px solid rgb(var(--primary-6)); }
+.cloud-existing-configuration { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.cloud-deployment-layout { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: 24px; }
+.cloud-zone-navigation { min-width: 0; padding-right: 16px; border-right: 1px solid var(--color-border-2); }
+.cloud-zone-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.cloud-region-label, .cloud-zone-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-region-label { color: var(--color-text-2); font-weight: 500; }
+.cloud-deployment-content { min-width: 0; }
+.cloud-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.cloud-provider-setup { margin-bottom: 24px; }
+.cloud-provider-form { width: 100%; }
+.cloud-inline-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cloud-settings-section { margin-top: 24px; }
+.cloud-settings-section:first-child { margin-top: 0; }
+.cloud-price-locations { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 16px; }
+.cloud-line-selection { margin-bottom: 16px; }
+@media (max-width: 1000px) {
+  .cloud-deployment-layout { grid-template-columns: 160px minmax(0, 1fr); gap: 16px; }
+  .cloud-zone-navigation { padding-right: 12px; }
+}
+@media (max-width: 600px) {
+  .cloud-deployment-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .cloud-zone-navigation { border-right: 0; padding-right: 0; padding-bottom: 16px; border-bottom: 1px solid var(--color-border-2); }
+  .cloud-workspace-actions { margin-left: 0; }
+  .cloud-configuration-guide { align-items: flex-start; }
+}
+.cloud-disk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 600px) {
+  .cloud-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .cloud-disk-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+.cloud-resource-table { min-width: 0; }
+.cloud-region-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cloud-region-count { flex-shrink: 0; font-size: 12px; color: var(--color-text-3); }
+.cloud-region-summary { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.cloud-context-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px; margin-bottom: 16px; background: var(--color-fill-1); }
+.cloud-context-categories { min-width: 0; }
+.cloud-context-categories .cloud-resource-switch { margin-bottom: 0; }
+.cloud-context-zone { flex-shrink: 0; }
+.cloud-policy-form { max-width: 880px; }
+.cloud-period-context { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 16px; }
+.cloud-period-context > div { min-width: 240px; margin-bottom: 0; }
+@media (max-width: 600px) {
+  .cloud-context-bar { align-items: flex-start; }
+  .cloud-context-zone { width: 100%; }
+}

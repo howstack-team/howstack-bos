@@ -15,11 +15,21 @@ final readonly class ListAdminLoginLogsService
     {
     }
 
-    /** @return array{data: list<array<string, mixed>>, total: int} */
-    public function execute(AdminAccount $actor, string $keyword, ?int $status, int $page, int $pageSize): array
+    /**
+     * @return array{data: list<array<string, mixed>>, total: int}
+     * @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合
+     */
+    public function execute(
+        AdminAccount $actor,
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array
     {
         $this->access->requirePermission($actor, 'admin.page.login-logs.view');
 
-        return $this->logs->paginate($keyword, $status, $page, $pageSize);
+        return $this->logs->paginate($keyword, $status, $page, $pageSize, $filters);
     }
 }

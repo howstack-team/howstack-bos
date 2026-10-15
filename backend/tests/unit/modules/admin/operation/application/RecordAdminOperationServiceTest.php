@@ -101,6 +101,71 @@ final class RecordAdminOperationServiceTest extends TestCase
         self::assertCount(1, $logs->records);
     }
 
+    public function testFixedPluginConfigurationAuditUsesRouteIdentityAndNeverLogsCredentials(): void
+    {
+        $logs = new MemoryOperationLogRepository();
+        $body = '{"plugin_id":"forged_plugin","name":"不应记录","configuration":{"password":"private-test"},"status":0,"revision":0}';
+        $request = new Request("PUT /api/admin/v1/channels/mail/platforms/smtp HTTP/1.1\r\nHost: example.test\r\nContent-Type: application/json\r\n\r\n" . $body);
+        $this->service($logs)->record($request, $this->account(), new Response(200), null, 2);
+        self::assertSame(['plugin_id' => 'smtp', 'status' => 0, 'revision' => 0],
+            json_decode($logs->records[0]['request_params'], true));
+        self::assertStringNotContainsString('private-test', $logs->records[0]['request_params']);
+    }
+
+    public function testMessageConfigurationAuditOnlyKeepsMessageCodeAndRevision(): void
+    {
+        $logs = new MemoryOperationLogRepository();
+        $body = json_encode([
+            'revision' => 3,
+            'configurations' => ['dingtalk' => ['webhook_url' => 'PRIVATE_WEBHOOK', 'sign_secret' => 'PRIVATE_SECRET', 'body' => 'PRIVATE_BODY']],
+            'clear_secrets' => ['dingtalk' => ['sign_secret']],
+        ], JSON_THROW_ON_ERROR);
+        $request = new Request("PUT /api/admin/v1/message-configurations/admin/order_paid HTTP/1.1\r\nHost: example.test\r\nContent-Type: application/json\r\n\r\n" . $body);
+        $this->service($logs)->record($request, $this->account(), new Response(200), null, 2);
+        self::assertSame('消息配置', $logs->records[0]['module']);
+        self::assertSame(['revision' => 3, 'message_type' => 'order_paid'], json_decode($logs->records[0]['request_params'], true));
+        self::assertStringNotContainsString('PRIVATE_', $logs->records[0]['request_params']);
+    }
+
+    public function testGlobalNotificationAuditNeverLogsRobotCredentials(): void
+    {
+        $logs = new MemoryOperationLogRepository();
+        $body = json_encode([
+            'revision' => 2,
+            'robots' => ['dingtalk' => ['webhook_url' => 'PRIVATE_WEBHOOK', 'sign_secret' => 'PRIVATE_SECRET']],
+            'clear_secrets' => ['dingtalk' => ['sign_secret']],
+        ], JSON_THROW_ON_ERROR);
+        $request = new Request("PUT /api/admin/v1/settings/notifications HTTP/1.1\r\nHost: example.test\r\nContent-Type: application/json\r\n\r\n" . $body);
+        $this->service($logs)->record($request, $this->account(), new Response(200), null, 2);
+        self::assertSame(['category' => '消息通知', 'revision' => 2], json_decode($logs->records[0]['request_params'], true));
+        self::assertStringNotContainsString('PRIVATE_', $logs->records[0]['request_params']);
+    }
+
+    public function testBatchMessageAuditKeepsOnlySelectionAndChannelChanges(): void
+    {
+        $logs = new MemoryOperationLogRepository();
+        $body = json_encode([
+            'items' => [['code' => 'order_paid', 'revision' => 1, 'body' => 'PRIVATE_BODY']],
+            'channel' => 'email', 'channel_id' => 7, 'enabled' => true, 'password' => 'PRIVATE_SECRET',
+        ], JSON_THROW_ON_ERROR);
+        $request = new Request("POST /api/admin/v1/message-configurations/customer/batch HTTP/1.1\r\nHost: example.test\r\nContent-Type: application/json\r\n\r\n" . $body);
+        $this->service($logs)->record($request, $this->account(), new Response(200), null, 2);
+        self::assertSame('批量编辑消息配置', $logs->records[0]['operation']);
+        self::assertSame(['message_types' => ['order_paid'], 'channel' => 'email', 'enabled' => true, 'channel_id' => 7],
+            json_decode($logs->records[0]['request_params'], true));
+        self::assertStringNotContainsString('PRIVATE_', $logs->records[0]['request_params']);
+    }
+
+    public function testSeoAuditOnlyKeepsPageIdentityAndRevision(): void
+    {
+        $logs = new MemoryOperationLogRepository();
+        $body = json_encode(['revision' => 7, 'scope' => 'theme:default', 'settings' => ['title' => '不应保存的完整正文']], JSON_THROW_ON_ERROR);
+        $request = new Request("PUT /api/admin/v1/website/seo/pages/company HTTP/1.1\r\nHost: example.test\r\nContent-Type: application/json\r\n\r\n" . $body);
+        $this->service($logs)->record($request, $this->account(), new Response(200), null, 1);
+        self::assertSame('编辑页面 SEO', $logs->records[0]['operation']);
+        self::assertSame(['page_id' => 'company', 'scope' => 'theme:default', 'revision' => 7], json_decode($logs->records[0]['request_params'], true));
+    }
+
     private function service(MemoryOperationLogRepository $logs): RecordAdminOperationService
     {
         return new RecordAdminOperationService(
@@ -129,7 +194,14 @@ final class MemoryOperationLogRepository implements OperationLogRepositoryInterf
     public array $records = [];
 
     public function append(array $record): void { $this->records[] = $record; }
-    public function paginate(string $keyword, ?int $status, int $page, int $pageSize): array { return ['data' => [], 'total' => 0]; }
+    /** @param array<string, string> $filters 独立文本条件，使用 AND 组合 */
+    public function paginate(
+        string $keyword,
+        ?int $status,
+        int $page,
+        int $pageSize,
+        array $filters = [],
+    ): array { return ['data' => [], 'total' => 0]; }
     public function find(int $id): ?array { return null; }
     public function countBefore(string $cutoff): int { return 0; }
     public function deleteBatchBefore(string $cutoff, int $limit): int { return 0; }

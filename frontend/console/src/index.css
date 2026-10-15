@@ -1,52 +1,14 @@
-:root {
-  --app-color-primary: #165dff;
+:root, body, body[arco-theme='light'], body[arco-theme='dark'] {
+  --primary-6: 22, 93, 255;
+  --border-radius-small: 2px;
+  --border-radius-medium: 2px;
+  --border-radius-large: 2px;
   --app-border-radius: 2px;
-  --app-page-background: #f7f8fa;
-  --app-text-color: #1f2329;
-  font-family:
-    Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  color: var(--app-text-color);
-  background: var(--app-page-background);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --app-page-background: var(--color-fill-2);
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--color-text-1);
 }
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  min-width: 320px;
-  min-height: 100%;
-  margin: 0;
-}
-
-body {
-  min-height: 100vh;
-  background: var(--app-page-background);
-}
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
-.app-placeholder {
-  display: grid;
-  min-height: 100vh;
-  padding: 24px;
-  place-items: center;
-}
-
-.app-placeholder__card {
-  width: min(100%, 480px);
-}
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { width: 100%; min-width: 320px; min-height: 100%; margin: 0; padding: 0; font-size: 14px; }
+body { min-height: 100dvh; color: var(--color-text-1); background: var(--color-bg-1); }
+button, input, textarea, select { font: inherit; }

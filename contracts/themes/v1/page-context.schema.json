@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "logo": {
+          "type": "string"
+        },
+        "favicon": {
+          "type": "string"
+        },
+        "copyright": {
+          "type": "string"
+        },
+        "icp_record": {
+          "type": "string"
+        },
+        "public_security_record": {
+          "type": "string"
+        },
+        "company": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "introduction": {
+              "type": "string",
+              "maxLength": 6000
+            },
+            "contact_phone": {
+              "type": "string",
+              "maxLength": 50
+            },
+            "contact_email": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "address": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "image_url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "introduction",
+            "contact_phone",
+            "contact_email",
+            "address",
+            "image_url"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "logo",
+        "favicon",
+        "copyright",
+        "icp_record",
+        "public_security_record",
+        "company"
+      ]
+    },
+    "seo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "keywords": {
+          "type": "string"
+        },
+        "canonical": {
+          "type": "string"
+        },
+        "indexable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title",
+        "description",
+        "keywords",
+        "canonical",
+        "indexable"
+      ]
+    },
+    "navigation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "external": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "url",
+          "external",
+          "active"
+        ]
+      }
+    },
+    "footer_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "external": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "url",
+          "external",
+          "active"
+        ]
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "settings"
+      ]
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "core",
+            "custom"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "banners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "image_id": {
+                "type": "string"
+              },
+              "image_url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "description",
+              "image_id",
+              "image_url"
+            ]
+          }
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "description"
+            ]
+          }
+        },
+        "announcements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "published_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "summary",
+              "published_at"
+            ]
+          }
+        },
+        "images": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "path",
+        "settings",
+        "banners",
+        "features",
+        "announcements",
+        "images"
+      ]
+    }
+  },
+  "required": [
+    "site",
+    "seo",
+    "navigation",
+    "footer_links",
+    "theme",
+    "page"
+  ]
+}

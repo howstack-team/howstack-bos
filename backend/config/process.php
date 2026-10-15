@@ -21,6 +21,13 @@ use app\process\Http;
 global $argv;
 
 return [
+    'payment-reconciliation' => ['handler' => \app\process\PaymentReconciliationWorker::class, 'count' => 1],
+    'message-delivery' => ['handler' => \app\process\MessageDeliveryWorker::class, 'count' => 1],
+    'software-maintenance' => [
+        'handler' => \app\process\SoftwareMaintenanceWorker::class,
+        'count' => 1,
+        'reloadable' => true,
+    ],
     'webman' => [
         'handler' => Http::class,
         'listen' => getenv('WEBMAN_LISTEN') ?: 'http://0.0.0.0:8989',
@@ -50,10 +57,11 @@ return [
                 base_path() . '/support',
                 base_path() . '/resource',
                 base_path() . '/.env',
-            ], glob(base_path() . '/plugin/*/app'), glob(base_path() . '/plugin/*/config'), glob(base_path() . '/plugin/*/api')),
+                base_path('plugins'),
+            ]),
             // Files with these suffixes will be monitored
             'monitorExtensions' => [
-                'php', 'html', 'htm', 'env'
+                'php', 'html', 'htm', 'env', 'json'
             ],
             'options' => [
                 'enable_file_monitor' => !in_array('-d', $argv) && DIRECTORY_SEPARATOR === '/',
