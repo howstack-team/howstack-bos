@@ -46,6 +46,10 @@ final readonly class AdminSiteThemeController
         $input = Validator::make($request->post(), ['revision' => 'required|integer|min:1', 'release_id' => 'required|integer|min:1', 'mobile_enabled' => 'required|boolean'])->validate();
         $input['revision'] = (int) $input['revision'];
         $input['release_id'] = (int) $input['release_id'];
+        $bindings = $this->service->bindings($this->context->account($request));
+        if ($input['release_id'] !== $bindings['release_id']) {
+            throw new \app\exception\BusinessException('当前版本暂不开放切换主题，仍可调整当前主题的移动端开关', \app\shared\http\ApiErrorCode::CONFLICT, 409);
+        }
         return $this->responses->success($request, $this->service->bind($this->context->account($request), $input), '主题已切换');
     }
 

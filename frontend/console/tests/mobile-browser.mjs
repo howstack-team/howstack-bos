@@ -71,7 +71,7 @@ try {
       return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
     }), true, '菜单必须位于正文前方并能接收点击')
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-    const lastAction = await page.getByRole('button', { name: '安全设置', exact: true }).boundingBox()
+    const lastAction = await page.getByRole('button', { name: '账户资料', exact: true }).boundingBox()
     assert.ok(lastAction && lastAction.y + lastAction.height <= bounds.y, '滚动到底后最后一项操作必须完整显示在菜单上方')
     await page.evaluate(() => window.scrollTo(0, 0))
   }

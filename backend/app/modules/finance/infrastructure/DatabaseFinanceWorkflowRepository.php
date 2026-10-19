@@ -25,11 +25,15 @@ use LogicException;
 
 final class DatabaseFinanceWorkflowRepository implements FinanceWorkflowRepositoryInterface
 {
-    public function begin(string $key, string $hash, int $actorId, string $resource, string $action): ?array
+    /** @param \app\modules\service_instance\contract\UndeliveredRefundGuardInterface $delivery 首次交付证据查询 */
+    public function __construct(private readonly \app\modules\service_instance\contract\UndeliveredRefundGuardInterface $delivery) {}
+
+    public function begin(string $key, string $hash, int $actorId, string $resource, string $action, array $audit = []): ?array
     {
         $this->requireTransaction();
         $inserted = FinanceOperationModel::query()->insertOrIgnore([
             'request_key' => $key, 'request_hash' => $hash, 'actor_id' => $actorId,
+            'client_ip' => $audit['client_ip'] ?? null, 'client_ip_location' => $audit['client_ip_location'] ?? null,
             'resource' => $resource, 'action' => $action, 'created_at' => date('Y-m-d H:i:s'),
         ]);
         $operation = FinanceOperationModel::query()->where('request_key', $key)->lockForUpdate()->firstOrFail();
@@ -117,7 +121,19 @@ final class DatabaseFinanceWorkflowRepository implements FinanceWorkflowReposito
     public function update(string $resource, int $id, array $values): void
     {
         $this->requireTransaction();
-        $this->query($resource)->whereKey($id)->firstOrFail()->fill($values)->save();
+        if ($resource === 'withdrawals' && isset($values['receipt_key'], $values['payout_reference'])
+            && WithdrawalRequestModel::query()->where('id', '<>', $id)
+                ->whereRaw('LOWER(TRIM(payout_reference)) = ?', [mb_strtolower(trim($values['payout_reference']))])->exists()) {
+            FinanceRules::conflict('此打款凭证已在历史单据登记，请核对实际资金退还结果');
+        }
+        try {
+            $this->query($resource)->whereKey($id)->firstOrFail()->fill($values)->save();
+        } catch (\Illuminate\Database\QueryException $error) {
+            if (($error->errorInfo[1] ?? null) === 1062 || str_contains($error->getMessage(), 'UNIQUE constraint')) {
+                FinanceRules::conflict('此打款凭证已经登记，请核对实际资金退还结果');
+            }
+            throw $error;
+        }
     }
 
     public function paymentForOrder(int $orderId): array
@@ -128,13 +144,6 @@ final class DatabaseFinanceWorkflowRepository implements FinanceWorkflowReposito
             FinanceRules::conflict('需要唯一且已核实的订单支付记录');
         }
         return $payments->first()->getAttributes();
-    }
-
-    public function serviceReleased(?int $serviceId): bool
-    {
-        // 未关联服务的实例未交付；已交付实例必须先由业务模块完成终止。
-        return $serviceId === null || Db::table('service_instances')->where('id', $serviceId)
-            ->where('status', 'terminated')->exists();
     }
 
     public function invoiceOccupations(array $unitIds): array
@@ -252,8 +261,7 @@ final class DatabaseFinanceWorkflowRepository implements FinanceWorkflowReposito
             ->selectRaw('order_unit_id, SUM(amount_minor) AS total')->groupBy('order_unit_id')->pluck('total', 'order_unit_id');
         $payments = PaymentTransactionModel::query()->where('purpose', 'order')->where('status', 'paid')
             ->whereIn('purpose_id', $orders->pluck('id'))->get(['purpose_id', 'channel', 'amount_minor', 'currency']);
-        $services = Db::table('service_instances')->whereIn('id', $units->pluck('service_id')->filter())
-            ->pluck('status', 'id');
+        $eligible = array_fill_keys($this->delivery->eligibleUnits($units->pluck('id')->map(static fn ($id): int => (int) $id)->all()), true);
         $invoices = InvoiceRecordModel::query()->whereIn('order_id', $orders->pluck('id'))
             ->whereIn('status', ['pending', 'approved', 'issued'])->get(['id', 'order_id', 'amount_minor']);
         $invoiceTotals = InvoiceAllocationModel::query()->whereIn('invoice_id', $invoices->pluck('id'))
@@ -276,7 +284,7 @@ final class DatabaseFinanceWorkflowRepository implements FinanceWorkflowReposito
                 $available = (int) $unit->allocated_minor - (int) $unit->refunded_minor
                     - (int) $unit->reserved_refund_minor - (int) ($occupied[$unit->id] ?? 0);
                 $total += max(0, $available);
-                if ($resource === 'refunds' && $available > 0 && ($unit->service_id === null || ($services[$unit->service_id] ?? '') === 'terminated')
+                if ($resource === 'refunds' && $available === (int) $unit->allocated_minor && $available > 0 && isset($eligible[$unit->id])
                     && $payments->where('purpose_id', $order->id)->count() === 1
                     && $payments->firstWhere('purpose_id', $order->id)?->channel === 'wallet') {
                     $item = $items->firstWhere('id', $unit->order_item_id);

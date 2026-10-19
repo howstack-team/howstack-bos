@@ -12,7 +12,7 @@ final class DiskTypeModel extends Model
 {
     protected $table = 'compute_disk_types';
     public $timestamps = true;
-    protected $fillable = ['code', 'name', 'description', 'status', 'sort', 'zone_id', 'min_gib', 'max_gib', 'step_gib', 'max_count', 'prices', 'read_mbps', 'write_mbps', 'read_iops', 'write_iops', 'created_at', 'updated_at'];
+    protected $fillable = ['code', 'name', 'description', 'status', 'sort', 'zone_id', 'min_gib', 'max_gib', 'step_gib', 'max_count', 'prices', 'zone_prices', 'read_mbps', 'write_mbps', 'read_iops', 'write_iops', 'created_at', 'updated_at'];
     protected $hidden = [];
     protected $casts = [
         'id' => 'integer',
@@ -27,6 +27,7 @@ final class DiskTypeModel extends Model
         'step_gib' => 'integer',
         'max_count' => 'integer',
         'prices' => 'array',
+        'zone_prices' => 'array',
         'read_mbps' => 'integer',
         'write_mbps' => 'integer',
         'read_iops' => 'integer',

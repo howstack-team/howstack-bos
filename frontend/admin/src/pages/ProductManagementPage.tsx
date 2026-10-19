@@ -3,7 +3,7 @@ import { Alert, Button, Drawer, Dropdown, Menu, Message, Modal, Select, Space, S
 import { IconEye, IconMore, IconSave } from '@arco-design/web-react/icon'
 import { Prompt, useHistory, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '../auth/AuthContext'
-import { cloudError, cloudProductApi, type ResourceKind } from '../api/cloudProductApi'
+import { cloudError, cloudProductApi } from '../api/cloudProductApi'
 import ComputeConfigurationPreview from '../components/ComputeConfigurationPreview'
 import ProviderMappingsPage from '../components/ProviderMappingsPage'
 import { CLOUD_AREAS, CloudWorkspaceContext, type CloudArea } from '../components/cloud-server/workspace'
@@ -18,22 +18,14 @@ import PurchaseSettings from '../components/cloud-server/PurchaseSettings'
 import { cloudSectionFromPath, cloudSectionPath, cloudSectionPermission } from '../components/cloud-server/navigation'
 import './cloud-products.css'
 
-const oldAreas: Record<string, { area: CloudArea; resource?: ResourceKind; manage?: string }> = {
-  overview: { area: 'deployment' }, regions: { area: 'deployment', manage: 'regions' }, zones: { area: 'deployment', manage: 'zones' },
-  flavors: { area: 'specification', resource: 'flavors' }, lines: { area: 'network', resource: 'lines' },
-  images: { area: 'storage', resource: 'images' }, offers: { area: 'purchase' }, delivery: { area: 'deployment' },
-}
-
 /** 五个页面共用一份配置，不提供销售方案新建列表。 */
 export default function ProductManagementPage() {
   const { permissions } = useAdminAuth()
   const history = useHistory()
   const location = useLocation()
   const params = new URLSearchParams(location.search)
-  const hasLegacyTab = params.has('tab')
-  const legacySpecification = !cloudSectionFromPath(location.pathname) && ['flavors', 'flavor_groups'].includes(params.get('resource') ?? '')
-  const requested = cloudSectionFromPath(location.pathname) ?? (legacySpecification ? 'specification' : params.get('tab') ?? 'deployment')
-  const active: CloudArea = CLOUD_AREAS.find(area => area.key === requested)?.key ?? oldAreas[requested]?.area ?? 'deployment'
+  const requested = cloudSectionFromPath(location.pathname) ?? 'deployment'
+  const active: CloudArea = CLOUD_AREAS.find(area => area.key === requested)?.key ?? 'deployment'
   const areas = CLOUD_AREAS.filter(area => permissions.includes(cloudSectionPermission(area.key)) && permissions.includes(area.key === 'purchase' ? 'admin.cloud-products.view' : 'admin.compute-resources.view'))
   const selectedArea = areas.some(area => area.key === active) ? active : areas[0]?.key
   const model = useWorkspaceConfiguration(selectedArea)
@@ -50,16 +42,9 @@ export default function ProductManagementPage() {
   const canEdit = state.offer ? permissions.includes('admin.cloud-products.update') : permissions.includes('admin.cloud-products.create')
   const isPurchase = selectedArea === 'purchase'
   useEffect(() => {
-    if (!selectedArea || location.pathname === cloudSectionPath(selectedArea) && !hasLegacyTab) return
-    const next = new URLSearchParams(location.search)
-    next.delete('tab')
-    const previous = oldAreas[requested]
-    if (previous?.resource) next.set('resource', previous.resource)
-    if (previous?.manage) next.set('manage', previous.manage)
-    if (['offers', 'delivery', 'overview', 'regions', 'zones'].includes(requested)) next.delete('edit')
-    if (requested === 'delivery') next.delete('mapping')
-    history.replace({ ...location, pathname: cloudSectionPath(selectedArea), search: next.toString() })
-  }, [requested, selectedArea, hasLegacyTab, location, history])
+    if (!selectedArea || location.pathname === cloudSectionPath(selectedArea)) return
+    history.replace({ ...location, pathname: cloudSectionPath(selectedArea) })
+  }, [selectedArea, location, history])
   useEffect(() => {
     if (!mappingId) return
     let active = true

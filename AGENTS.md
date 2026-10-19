@@ -14,7 +14,7 @@
 
 - 正式名称：皓量云擎云业务运营系统。
 - 仓库名称：`howstack-bos`，地址为 `https://github.com/howstack-team/howstack-bos`，不替代用户可见的正式名称。
-- 后端：PHP 8.4、Webman、MySQL 8.0、Redis。
+- 后端：PHP 8.3、Webman、MySQL 8.0、Redis。
 - 运营后台：React 18、TypeScript、Vite、Arco Design React，采用 Arco Design Pro 的后台布局。
 - 会员控制台：React 19、TypeScript、Vite、Arco Design React。
 - 在线安装器：React 19、TypeScript、Vite、Arco Design React。
@@ -37,6 +37,14 @@
 不要直接修改依赖目录、构建产物、运行时缓存或其他自动生成内容。具体目录由前后端规范进一步说明。
 
 ## 通用开发原则
+
+### 社区版 1.0 范围冻结
+
+- 当前暂停新增功能，交付范围与收尾顺序见 [社区版 1.0 上线范围与验收清单](docs/releases/community-1.0-scope-and-acceptance.md)。仅继续已确定的必补闭环、缺陷、安全、验证、部署和文档工作；用户后续明确调整范围时以新指令为准。
+- 工单为首发保留功能，须补齐会员、后台及 PC/移动会话闭环；不能当作延期占位功能隐藏。其他延期入口按清单统一收口，保留历史数据及必要收尾能力。
+- 范围冻结不表示已验收或已隐藏；不以此擅自删除业务表、历史交易、插件或主题文件。
+
+### 实施要求
 
 - 修改前先确认现有实现、目录边界和未提交改动，只处理本次任务范围。
 - 保留用户已有和与本次任务无关的改动，不擅自格式化、重构或删除无关内容。

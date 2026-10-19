@@ -1,3 +1,4 @@
+import ZonePricesEditor from '../components/cloud-server/ZonePricesEditor'
 import ZoneCascader from '../components/cloud-server/ZoneCascader'
 import SectionTitle from '../components/SectionTitle'
 import { applyClientTableQuery } from '../utils/clientTableQuery'
@@ -36,7 +37,7 @@ function resourceDefaults() {
     min_gib: 20, max_gib: 2048, step_gib: 1, max_count: 8,
     bandwidth_min: 1, bandwidth_max: 100, bandwidth_step: 1, ip_min: 1, ip_max: 1,
     default_username: 'root', default_port: 22, capacity_gbps: 0, icon_url: '', network_configuration: newLineNetwork(),
-    prices: { hour: 0, day: 0, month: 0, year: 0 },
+    prices: { hour: 0, day: 0, month: 0, year: 0 }, zone_prices: {},
   }
 }
 
@@ -106,6 +107,10 @@ export default function ComputeResourcesPage({ kinds = Object.keys(RESOURCE_LABE
     if (saving || !can(editing ? 'update' : 'create') || resourceEditor && (editorReady !== editor || editorError)) return
     let values: Record<string, unknown>
     try { values = await form.validate() as Record<string, unknown> } catch { return }
+    if (['flavors', 'disk_types'].includes(kind)) {
+      const ids = values.zone_ids as number[]
+      values.zone_prices = Object.fromEntries(Object.entries((values.zone_prices ?? {}) as Record<number, unknown>).filter(([id]) => ids.includes(Number(id))))
+    }
     setSaving(true)
     try { const saved = await cloudProductApi.saveResource(kind, editing?.id ?? null, values); if (shared) await shared.resourceSaved(kind, saved, !editing); closeEditor(); Message.success(shared?.editable ? '资源已保存；请保存更改以更新购买配置' : '已保存'); await load() }
     catch (e) { Message.error(cloudError(e)) } finally { setSaving(false) }
@@ -132,12 +137,10 @@ export default function ComputeResourcesPage({ kinds = Object.keys(RESOURCE_LABE
     ...(kind === 'images' ? [{ title: '最低配置', width: 240, ellipsis: true, render: (_: unknown, row: ComputeResource) => `${row.min_cpu} 核 / ${row.min_memory_mib} MiB / ${row.min_disk_gib} GiB 系统盘` }] : []),
     ...(kind === 'disk_types' ? [{ title: '读 / 写速度（MB/s）', width: 190, render: (_: unknown, row: ComputeResource) => `${tableCellText(row.read_mbps)} / ${tableCellText(row.write_mbps)}` },
       { title: '读 / 写 IOPS', width: 170, render: (_: unknown, row: ComputeResource) => `${tableCellText(row.read_iops)} / ${tableCellText(row.write_iops)}` }] : []),
-    ...(kind === 'network_policies' ? [{ title: '带宽（Mbps）', width: 170, render: (_: unknown, row: ComputeResource) => `${row.bandwidth_min}–${row.bandwidth_max}，步长 ${row.bandwidth_step}` },
-      { title: 'IPv4 数量', width: 120, render: (_: unknown, row: ComputeResource) => `${row.ip_min}–${row.ip_max}` }] : []),
-    ...(shared && ['flavors', 'disk_types', 'protections'].includes(kind) ? [{ title: kind === 'disk_types' ? '容量月价（元 / GiB）' : '月价（元）', width: kind === 'flavors' ? 110 : 150, render: (_: unknown, row: ComputeResource) => minorToYuanText(shared.draft.price_overrides[kind as 'flavors' | 'disk_types' | 'protections']?.[row.id]?.month ?? row.prices?.month ?? 0) }] : []),
+    ...(shared && ['flavors', 'disk_types', 'protections'].includes(kind) ? [{ title: kind === 'disk_types' ? `${scopeZoneId ? '当前区' : '默认'}容量月价（元 / GiB）` : `${scopeZoneId && kind === 'flavors' ? '当前区' : '默认'}月价（元）`, width: kind === 'flavors' ? 110 : 150, render: (_: unknown, row: ComputeResource) => minorToYuanText((scopeZoneId && ['flavors', 'disk_types'].includes(kind) ? row.zone_prices?.[scopeZoneId]?.month : undefined) ?? shared.draft.price_overrides[kind as 'flavors' | 'disk_types' | 'protections']?.[row.id]?.month ?? row.prices?.month ?? 0) }] : []),
     ...(!shared ? [{ title: '描述', dataIndex: 'description', width: 240, ellipsis: true, render: tableCellText }, { ...sortColumn('sort'), title: '排序', width: 90 }] : []),
     { ...filterColumn('status', { '0': '禁用', '1': '启用' }), title: '状态', width: 90, render: (_, row) => <EnabledStatus status={row.status} /> },
-    ...(shared && !['flavor_groups', 'image_types', 'network_policies', 'regions'].includes(kind) ? [{ title: '参与购买', width: 90, render: (_: unknown, row: ComputeResource) => <Checkbox aria-label={`${row.name}参与购买`} checked={shared.draft.resource_ids[kind].includes(row.id)} disabled={!shared.editable || row.status !== 1 || kind !== 'zones' && !(kind === 'protections' ? (row.line_ids ?? [row.line_id ?? 0]).some(id => shared.draft.resource_ids.lines.includes(id)) : resourceZones(row).some(id => shared.draft.resource_ids.zones.includes(id)))} onChange={value => shared.select(kind, row.id, value)} /> }] : []),
+    ...(shared && !['flavor_groups', 'image_types', 'regions'].includes(kind) ? [{ title: '参与购买', width: 90, render: (_: unknown, row: ComputeResource) => <Checkbox aria-label={`${row.name}参与购买`} checked={shared.draft.resource_ids[kind].includes(row.id)} disabled={!shared.editable || row.status !== 1 || kind !== 'zones' && !(kind === 'protections' ? (row.line_ids ?? [row.line_id ?? 0]).some(id => shared.draft.resource_ids.lines.includes(id)) : resourceZones(row).some(id => shared.draft.resource_ids.zones.includes(id)))} onChange={value => shared.select(kind, row.id, value)} /> }] : []),
     { title: '操作', width: kind === 'zones' && onConfigureZone ? 150 : 110, fixed: 'right', render: (_, row) => <TableActions actions={[...(can('update') ? [{ key: 'edit', label: '编辑', onClick: () => edit(row) }, ...(kind === 'flavors' ? [{ key: 'stock', label: '库存', onClick: () => setStockFlavor(row) }] : [])] : []), ...(kind === 'zones' && onConfigureZone ? [{ key: 'provider', label: '配置提供者', onClick: () => onConfigureZone(row) }] : [])]} /> },
   ]
   const numeric = (field: string, label: string, min: number, max: number, required = true, unit?: string) => <Form.Item key={field} field={field} label={label} tooltip={field.endsWith('_clock_mhz') ? '以 MHz 填写，例如 3.1 GHz 填写 3100；硬件参数仅用于展示，以实际供应能力为准。' : undefined} rules={[{ required, message: `请输入${label}` }]}><InputNumber mode="button" min={min} max={max} precision={0} suffix={unit} placeholder={`请输入${label}${required ? '' : '（选填）'}`} style={{ width: '100%' }} /></Form.Item>
@@ -162,12 +165,17 @@ export default function ComputeResourcesPage({ kinds = Object.keys(RESOURCE_LABE
         {kind === 'disk_types' && <div className="cloud-form-grid">{numeric('min_gib', '最小容量', 1, 65536, true, 'GiB')}{numeric('max_gib', '最大容量', 1, 65536, true, 'GiB')}{numeric('step_gib', '容量步长', 1, 65536, true, 'GiB')}{numeric('max_count', '最多数据盘数量', 0, 32, true, '块')}</div>}
         {kind === 'disk_types' && <Typography.Title heading={6}><SectionTitle>性能参数</SectionTitle></Typography.Title>}
         {kind === 'disk_types' && <div className="cloud-form-grid">{numeric('read_mbps', '读取速度', 1, 1000000, false, 'MB/s')}{numeric('write_mbps', '写入速度', 1, 1000000, false, 'MB/s')}{numeric('read_iops', '读取性能', 1, 100000000, false, 'IOPS')}{numeric('write_iops', '写入性能', 1, 100000000, false, 'IOPS')}</div>}
-        {kind === 'network_policies' && <div className="cloud-form-grid">{numeric('bandwidth_min', '最小带宽', 0, 1000000, true, 'Mbps')}{numeric('bandwidth_max', '最大带宽', 0, 1000000, true, 'Mbps')}{numeric('bandwidth_step', '带宽步长', 1, 1000000, true, 'Mbps')}{numeric('ip_min', '最少 IPv4 数量', 0, 64, true, '个')}{numeric('ip_max', '最多 IPv4 数量', 0, 64, true, '个')}</div>}
         {kind === 'disk_types' && <Typography.Title heading={6}><SectionTitle>周期价格</SectionTitle></Typography.Title>}
         {['flavors', 'disk_types', 'protections'].includes(kind) && <>
-          <div className="cloud-form-grid">{Object.entries(CYCLE_LABELS).filter(([cycle]) => !shared || cycle === 'month').map(([cycle, label]) => <Form.Item key={cycle} field={`prices.${cycle}`} label={`${label}价格`} rules={[{ required: true, message: `请输入${label}价格` }]}>
-            <PriceInput aria-label={`${label}价格`} unit={kind === 'disk_types' ? '元 / GiB' : '元 / 台'} />
+          <div className="cloud-form-grid">{Object.entries(CYCLE_LABELS).filter(([cycle]) => !shared || cycle === 'month').map(([cycle, label]) => <Form.Item key={cycle} field={`prices.${cycle}`} label={`${['flavors', 'disk_types'].includes(kind) ? '默认' : ''}${label}价格`} rules={[{ required: true, message: `请输入${label}价格` }]}>
+            <PriceInput aria-label={`${['flavors', 'disk_types'].includes(kind) ? '默认' : ''}${label}价格`} unit={kind === 'disk_types' ? '元 / GiB' : '元 / 台'} />
           </Form.Item>)}</div></>}
+        {['flavors', 'disk_types'].includes(kind) && <Form.Item noStyle shouldUpdate={(previous, current) => previous.zone_ids !== current.zone_ids || previous.prices !== current.prices}>
+          {values => <><Typography.Title heading={6}><SectionTitle>按可用区定价</SectionTitle></Typography.Title>
+            <Form.Item field="zone_prices"><ZonePricesEditor zoneIds={values.zone_ids ?? []} zones={resources?.zones ?? []} regions={resources?.regions ?? []}
+              defaults={values.prices ?? {}} cycles={shared ? ['month'] : ['hour', 'day', 'month', 'year']} unit={kind === 'disk_types' ? '元 / GiB' : '元 / 台'} /></Form.Item>
+          </>}
+        </Form.Item>}
         {numeric('sort', '排序', 0, 100000)}
         <Form.Item className="form-dialog-wide" field="description" label="描述"><Input.TextArea maxLength={1000} showWordLimit placeholder="请输入描述（选填）" /></Form.Item>
         <Form.Item field="status" label="状态" triggerPropName="checked" formatter={(value) => value === 1} normalize={(value) => value ? 1 : 0}><Switch type="round" checkedText="启用" uncheckedText="禁用" /></Form.Item>

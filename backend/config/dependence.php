@@ -84,6 +84,24 @@ use support\Log;
  */
 
 return [
+    \app\modules\support\contract\TicketConversationRepositoryInterface::class => DI\autowire(\app\modules\support\infrastructure\DatabaseTicketConversationRepository::class),
+    \app\modules\provider\contract\ProviderVncGatewayInterface::class => DI\autowire(\app\modules\provider\infrastructure\InstalledProviderVncGateway::class),
+    \app\modules\service_instance\contract\VncAuditLoggerInterface::class => DI\factory(static fn () => new \app\modules\service_instance\infrastructure\MonologVncAuditLogger(\support\Log::channel('default'))),
+    \app\modules\product\contract\PublishedVersionCatalogInterface::class => DI\autowire(\app\modules\product\infrastructure\DatabasePublishedVersionCatalog::class),
+    \app\modules\service_instance\contract\InstanceImageOptionsInterface::class => DI\autowire(\app\modules\compute\application\GetInstanceImagesService::class),
+    \app\modules\provider\contract\ProviderInstanceOperationsGatewayInterface::class => DI\autowire(\app\modules\provider\infrastructure\InstalledProviderLifecycleGateway::class),
+    \app\modules\service_instance\contract\InstanceOperationRepositoryInterface::class => DI\autowire(\app\modules\service_instance\infrastructure\DatabaseInstanceOperationRepository::class),
+    \app\modules\service_instance\contract\ServiceLifecycleRepositoryInterface::class => DI\autowire(\app\modules\service_instance\infrastructure\DatabaseServiceLifecycleRepository::class),
+    \app\modules\provider\contract\ProviderLifecycleGatewayInterface::class => DI\autowire(\app\modules\provider\infrastructure\InstalledProviderLifecycleGateway::class),
+    \app\modules\order\contract\RenewalOrderRepositoryInterface::class => DI\autowire(\app\modules\order\infrastructure\DatabaseRenewalOrderRepository::class),
+    \app\modules\product\contract\ProductRenewalPricingInterface::class => DI\autowire(\app\modules\compute\application\QuoteComputeRenewalService::class),
+    \app\modules\product\contract\RenewalSalesCatalogInterface::class => DI\autowire(\app\modules\product\infrastructure\DatabaseRenewalSalesCatalog::class),
+    \app\modules\service_instance\contract\MemberServiceRepositoryInterface::class => DI\autowire(\app\modules\service_instance\infrastructure\DatabaseMemberServiceRepository::class),
+    \app\modules\order\contract\OrderProvisioningInterface::class => DI\autowire(\app\modules\order\application\DispatchPaidOrderService::class),
+    \app\modules\order\contract\OrderProvisioningRepositoryInterface::class => DI\autowire(\app\modules\order\infrastructure\DatabaseOrderProvisioningRepository::class),
+    \app\modules\service_instance\contract\UndeliveredRefundGuardInterface::class => DI\autowire(\app\modules\service_instance\infrastructure\DatabaseUndeliveredRefundGuard::class),
+    \app\modules\service_instance\contract\ProvisioningRepositoryInterface::class => DI\autowire(\app\modules\service_instance\infrastructure\DatabaseProvisioningRepository::class),
+    \app\modules\provider\contract\ProviderProvisioningGatewayInterface::class => DI\autowire(\app\modules\provider\infrastructure\InstalledProviderProvisioningGateway::class),
     \app\modules\file\contract\FileRegistryInterface::class => DI\autowire(\app\modules\file\infrastructure\DatabaseFileRegistry::class),
     \app\modules\website\contract\SiteThemeRepositoryInterface::class => DI\autowire(\app\modules\website\infrastructure\DatabaseSiteThemeRepository::class),
     \app\modules\website\contract\WebsiteRepositoryInterface::class => DI\autowire(\app\modules\website\infrastructure\DatabaseWebsiteRepository::class),
@@ -99,12 +117,12 @@ return [
     \app\modules\member\contract\RegistrationRateLimiterInterface::class => DI\autowire(\app\modules\member\infrastructure\RedisRegistrationRateLimiter::class),
     \app\modules\member\application\SendRegistrationCodeService::class => DI\autowire()->constructorParameter('secret', (string) env('APP_KEY', '')),
 
-    \app\modules\product\contract\ProductPurchaseInputInterface::class => DI\autowire(\app\modules\product\infrastructure\ProductPurchaseInputRegistry::class),
+    \app\modules\product\contract\ProductPurchaseInputInterface::class => DI\get(\app\modules\product\infrastructure\ProductPurchaseRegistry::class),
     \app\modules\order\contract\OrderManagementRepositoryInterface::class => DI\autowire(\app\modules\order\infrastructure\DatabaseOrderManagementRepository::class),
     \app\modules\product\contract\OrderSalesCatalogInterface::class => DI\autowire(\app\modules\product\infrastructure\DatabaseOrderSalesCatalog::class),
-    \app\modules\product\contract\ProductPurchaseAvailabilityInterface::class => DI\autowire(\app\modules\product\infrastructure\ProductPurchaseAvailabilityRegistry::class),
+    \app\modules\product\contract\ProductPurchaseAvailabilityInterface::class => DI\get(\app\modules\product\infrastructure\ProductPurchaseRegistry::class),
     \app\modules\order\contract\MemberOrderRepositoryInterface::class => DI\autowire(\app\modules\order\infrastructure\DatabaseMemberOrderRepository::class),
-    \app\modules\product\contract\ProductOrderCapacityInterface::class => DI\autowire(\app\modules\product\infrastructure\ProductOrderCapacityRegistry::class),
+    \app\modules\product\contract\ProductOrderCapacityInterface::class => DI\get(\app\modules\product\infrastructure\ProductPurchaseRegistry::class),
 
     \app\modules\compute\contract\ComputeInventoryRepositoryInterface::class => \DI\autowire(\app\modules\compute\infrastructure\DatabaseComputeInventoryRepository::class),
     \app\modules\official_platform\contract\InstallationIdentityInterface::class => DI\factory(
@@ -166,9 +184,14 @@ return [
         )),
 
     \app\modules\compute\contract\ComputeResourceRepositoryInterface::class => DI\autowire(\app\modules\compute\infrastructure\DatabaseComputeResourceRepository::class),
-    \app\modules\product\contract\ProductTypeRegistryInterface::class => DI\autowire(\app\modules\product\infrastructure\ProductTypeRegistry::class),
-    \app\modules\product\contract\ProductRepositoryInterface::class => DI\autowire(\app\modules\product\infrastructure\DatabaseProductRepository::class),
-    \app\modules\product\contract\CloudDeliveryRuleRepositoryInterface::class => DI\autowire(\app\modules\product\infrastructure\DatabaseCloudDeliveryRuleRepository::class),
+    \app\modules\product\contract\ProductPublicPurchaseInterface::class => DI\get(\app\modules\product\infrastructure\ProductPurchaseRegistry::class),
+    \app\modules\product\infrastructure\ProductPurchaseRegistry::class => DI\autowire()->constructorParameter('handlers', [DI\get(\app\modules\compute\application\ComputePurchaseHandler::class)]),
+    \app\modules\product\contract\ProductTypeRegistryInterface::class => DI\autowire(\app\modules\product\infrastructure\ProductTypeRegistry::class)->constructorParameter('handlers', [DI\get(\app\modules\compute\domain\ComputeTypeHandler::class)]),
+    'compute.sales_repository' => DI\autowire(\app\modules\product\infrastructure\DatabaseProductRepository::class)->constructorParameter('definitionKey', 'cloud_server'),
+    \app\modules\compute\application\ManageCloudProductsService::class => DI\autowire()->constructorParameter('products', DI\get('compute.sales_repository')),
+    \app\modules\compute\application\ManageCloudWorkspaceConfigurationService::class => DI\autowire()->constructorParameter('products', DI\get('compute.sales_repository')),
+    \app\modules\compute\application\GetCloudServerWorkspaceService::class => DI\autowire()->constructorParameter('products', DI\get('compute.sales_repository')),
+    \app\modules\compute\contract\CloudDeliveryRuleRepositoryInterface::class => DI\autowire(\app\modules\compute\infrastructure\DatabaseCloudDeliveryRuleRepository::class)->constructorParameter('products', DI\get('compute.sales_repository')),
     \app\modules\provider\contract\ProviderRepositoryInterface::class => DI\autowire(\app\modules\provider\infrastructure\DatabaseProviderRepository::class),
     \app\modules\plugin\contract\PluginPackageRegistryInterface::class => DI\factory(
         static fn (): \app\modules\plugin\infrastructure\LocalPluginPackageRegistry => new \app\modules\plugin\infrastructure\LocalPluginPackageRegistry(
@@ -274,6 +297,7 @@ return [
     \app\modules\finance\contract\OnlinePaymentRepositoryInterface::class => DI\autowire(\app\modules\finance\infrastructure\DatabaseOnlinePaymentRepository::class),
     \app\modules\finance\contract\OnlinePaymentGatewayInterface::class => DI\autowire(\app\modules\finance\infrastructure\ChannelOnlinePaymentGateway::class),
     WalletLedgerRepositoryInterface::class => DI\autowire(DatabaseWalletLedgerRepository::class),
+    \app\modules\finance\contract\MemberWalletEntryRepositoryInterface::class => DI\autowire(\app\modules\finance\infrastructure\DatabaseMemberWalletEntryRepository::class),
     SensitiveDataCipherInterface::class => DI\factory(static fn (): SodiumSensitiveDataCipher => new SodiumSensitiveDataCipher((string) getenv('APP_KEY'))),
     SystemSettingsRepositoryInterface::class => DI\autowire(DatabaseSystemSettingsRepository::class),
     \app\modules\system_settings\contract\AdminEntryRepositoryInterface::class => DI\autowire(FileInstallationStateRepository::class),
@@ -325,6 +349,7 @@ return [
     \app\modules\message\contract\MessageRecipientDirectoryInterface::class => DI\autowire(\app\modules\message\infrastructure\DatabaseMessageRecipientDirectory::class),
     \app\modules\message\contract\MessageTransportInterface::class => DI\autowire(\app\modules\message\infrastructure\InstalledMessageTransport::class),
     \app\modules\message\contract\MessageQueueInterface::class => DI\autowire(\app\modules\message\infrastructure\RedisMessageQueue::class),
+    \app\modules\finance\contract\PaymentAcceptanceReadRepositoryInterface::class => DI\autowire(\app\modules\finance\infrastructure\DatabasePaymentAcceptanceReadRepository::class),
     \app\modules\finance\contract\FinanceWorkflowRepositoryInterface::class => DI\autowire(\app\modules\finance\infrastructure\DatabaseFinanceWorkflowRepository::class),
     \app\modules\order\contract\OrderFinanceRepositoryInterface::class => DI\autowire(\app\modules\order\infrastructure\DatabaseOrderFinanceRepository::class),
 ];

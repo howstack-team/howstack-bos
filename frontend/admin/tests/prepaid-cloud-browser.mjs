@@ -121,7 +121,7 @@ try {
  }
  assert.equal(await page.getByRole('button',{name:'发布配置',exact:true}).count(),0);assert.equal(publishes,0)
  // 管理抽屉内的编辑必须保持 Modal，取消保留父抽屉，保存只关闭子编辑。
- const nested=await setup();await nested.page.goto(`${base}/products/cloud-servers?tab=deployment&manage=regions`)
+ const nested=await setup();await nested.page.goto(`${base}/products/cloud-servers/deployment?manage=regions`)
  const management=nested.page.locator('.arco-drawer:visible')
  await management.getByText('上海',{exact:true}).waitFor()
  assert.equal(new URL(nested.page.url()).pathname,'/admin/products/cloud-servers/deployment');assert.equal(new URL(nested.page.url()).searchParams.has('tab'),false)
@@ -140,7 +140,7 @@ try {
  // 旧全局周期展开为独立可用区配置，修改第二区不能影响第一区。
  for(const width of [1440,390]){
   const scoped=await setup(),scopedPage=scoped.page
-  await scopedPage.setViewportSize({width,height:900});await scopedPage.goto(`${base}/products/cloud-servers?tab=purchase&zone=1`)
+  await scopedPage.setViewportSize({width,height:900});await scopedPage.goto(`${base}/products/cloud-servers/purchase?zone=1`)
   const names=scopedPage.getByRole('textbox',{name:'周期显示名称'})
   await names.first().waitFor();assert.equal(await names.count(),2)
   await names.first().fill('一区月付')
@@ -172,7 +172,7 @@ try {
   await assertEventually(async()=>assert.equal(await periodSelect.innerText(),'二区月付（1个月）'))
   await scoped.context.close()
  }
- const read=await setup({readonly:true});await read.page.goto(`${base}/products/cloud-servers?tab=purchase`);await read.page.getByText('购买限制',{exact:true}).waitFor();assert.equal(await read.page.getByRole('button',{name:'保存配置',exact:true}).count(),0);assert.ok(await read.page.getByRole('button',{name:'增加周期',exact:true}).isDisabled())
+ const read=await setup({readonly:true});await read.page.goto(`${base}/products/cloud-servers/purchase`);await read.page.getByText('购买限制',{exact:true}).waitFor();assert.equal(await read.page.getByRole('button',{name:'保存配置',exact:true}).count(),0);assert.ok(await read.page.getByRole('button',{name:'增加周期',exact:true}).isDisabled())
  // 非零历史费用不能被隐藏收费或默默清零，只能主动取消后保存。
  for(const width of [1440,390]){
   const historical=await setup({setupMinor:350}),p=historical.page

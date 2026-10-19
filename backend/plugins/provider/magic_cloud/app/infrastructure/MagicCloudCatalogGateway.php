@@ -26,7 +26,7 @@ final readonly class MagicCloudCatalogGateway
      */
     public function test(array $config): void
     {
-        $this->login($config);
+        $this->authenticate($config);
     }
 
     /**
@@ -42,7 +42,7 @@ final readonly class MagicCloudCatalogGateway
         if (!in_array($kind, ['areas', 'nodes', 'images', 'stores', 'ip_groups', 'image_groups'], true)) {
             throw new PluginException('供应目录类型不支持');
         }
-        $token = $this->login($config);
+        $token = $this->authenticate($config);
         $raw = $this->request($config['api_url'], 'GET', $kind, ['headers' => ['access-token' => $token], 'query' =>
             ['list_type' => 'page', 'orderby' => 'id', 'sort' => 'asc'] + $query]);
         $list = $raw['data'] ?? $raw['list'] ?? $raw;
@@ -78,7 +78,7 @@ final readonly class MagicCloudCatalogGateway
     }
 
     /** @param array{api_url: string, username: string, password: string} $config 配置 @return string 本次调用令牌 */
-    private function login(array $config): string
+    public function authenticate(array $config): string
     {
         $raw = $this->request($config['api_url'], 'POST', 'login', ['json' => ['username' => $config['username'], 'password' => $config['password']]], true);
         $token = is_string($raw) ? $raw : ($raw['token'] ?? (is_array($raw['data'] ?? null) ? ($raw['data']['token'] ?? '') : ($raw['data'] ?? '')));

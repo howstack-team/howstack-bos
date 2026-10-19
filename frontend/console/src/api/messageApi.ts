@@ -1,6 +1,10 @@
 import { isObject, request } from './httpClient'
 
-export interface InboxMessage { id: number; title: string; body: string; unread: boolean; created_at: string }
+export interface InboxMessage { id: number; title: string; body: string; unread: boolean; created_at: string; business_type?: string; business_id?: number }
+/** 只为已知业务构造本机路由，不将消息正文当作跳转地址。 */
+export function messageTicketPath(message: InboxMessage): string | null {
+  return message.business_type === 'ticket' && Number.isSafeInteger(message.business_id) && Number(message.business_id) > 0 ? `/support/tickets/${message.business_id}` : null
+}
 export const messageApi = {
   async summary(signal?: AbortSignal) {
     const value = await request('get', '/messages/summary', undefined, signal)

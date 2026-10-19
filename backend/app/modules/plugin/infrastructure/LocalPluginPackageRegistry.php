@@ -178,9 +178,7 @@ final class LocalPluginPackageRegistry implements PluginPackageRegistryInterface
                     throw new RuntimeException('供应插件缺少必要能力');
                 }
             }
-            if (($capabilities['cloud_server.provision'] ?? null) !== false) {
-                throw new RuntimeException('当前 SDK 尚未开放资源生产契约');
-            }
+            if (!is_bool($capabilities['cloud_server.provision'] ?? null)) throw new RuntimeException('供应生产能力须明确声明');
             $network = $this->network($raw['network'] ?? [], $fields);
             $entryName = 'ProviderAdapter';
             $interface = ProviderAdapterInterface::class;
@@ -217,6 +215,10 @@ final class LocalPluginPackageRegistry implements PluginPackageRegistryInterface
         }
         if (!is_subclass_of($entry, $interface)) {
             throw new RuntimeException('固定入口不符合该类别 v1 契约');
+        }
+        if ($category === 'provider' && ($capabilities['cloud_server.provision'] ?? false)
+            && !is_subclass_of($entry, \app\shared\plugin\contract\ProviderProvisioningInterface::class)) {
+            throw new RuntimeException('声明生产能力的供应插件必须实现创建与查询契约');
         }
         // 可选能力由实际接口识别，清单不重复声明或假装提供审核功能。
         $templateReview = [
@@ -383,7 +385,7 @@ final class LocalPluginPackageRegistry implements PluginPackageRegistryInterface
         }
         foreach ($network['endpoints'] as $endpoint) {
             if (!is_array($endpoint) || array_diff(array_keys($endpoint), ['method', 'path']) !== [] || !in_array($endpoint['method'] ?? '', ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], true)
-                || !is_string($endpoint['path'] ?? null) || !preg_match('~^/[a-zA-Z0-9_/-]{1,128}$~D', $endpoint['path'])
+                || !is_string($endpoint['path'] ?? null) || !preg_match('~^(?=.{1,128}$)(?:/[a-zA-Z0-9_-]+|/\{[a-z][a-z0-9_]*\})+$~D', $endpoint['path'])
                 || str_contains($endpoint['path'], '//')) {
                 throw new RuntimeException('端点必须是固定相对路径');
             }

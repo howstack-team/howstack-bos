@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: 运营后台财务管理
   version: 1.1.0
-  description: 社区版财务查询、线下充值入账、余额单实例退款、开票与红冲登记、充值来源提现。在线收款与原渠道退款须通过支付模块另行接入。
+  description: 社区版财务查询、线下充值入账、余额单实例退款、开票与红冲登记、未消费充值人工退还。在线收款与原渠道退款须通过支付模块另行接入。
 paths:
   /api/admin/v1/finance/{resource}:
     get:
@@ -17,22 +17,37 @@ paths:
         - { name: sort_order, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
         - $ref: '#/components/parameters/resource'
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
         - { name: status, in: query, schema: { type: string, maxLength: 24 } }
         - { name: number, in: query, description: 单号字面包含查询，与其他条件按 AND 组合, schema: { type: string, maxLength: 48 } }
         - { name: member_id, in: query, schema: { type: integer, minimum: 1 } }
         - { name: created_from, in: query, schema: { type: string, format: date } }
         - { name: created_to, in: query, description: 包含结束当天，不能早于开始日期, schema: { type: string, format: date } }
       responses:
-        '200': { description: 统一响应 data 包含 data 数组与 total 数量 }
+        '200':
+          description: 财务记录分页
+          headers:
+            X-Request-Id: { schema: { type: string }, description: 请求追踪标识 }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [code, message, data, request_id]
+                properties:
+                  code: { type: integer, enum: [0] }
+                  message: { type: string }
+                  request_id: { type: string }
+                  data: { type: object, required: [data, total], additionalProperties: false, properties: { data: { type: array, items: { $ref: '#/components/schemas/FinanceRecord' } }, total: { type: integer, minimum: 0 } } }
         '401': { description: 未登录 }
         '403': { description: 缺少对应记录的查看权限 }
     post:
       summary: 创建财务单据
       description: >-
-        仅 recharges/refunds/invoices/withdrawals；要求对应 view 和 create 权限。
+        社区版 1.0 开放 recharges/refunds/withdrawals 新建；invoices 新建返回 404，历史开票与红冲收尾保留。
+        契约资源标识仍包括 recharges/refunds/invoices/withdrawals；要求对应 view 和 create 权限。
         金额为整数分，当前币种固定 CNY。recharges 是人工核实线下收款并立即入账；
-        refunds 仅允许已核实的余额支付订单实例、资源未交付或已终止；
+        refunds 仅允许已核实的余额支付订单、首次开通已确认未创建的单台全额退款；结果未知、无开通任务或曾交付后终止均拒绝。
         invoices 按净实付分配实例金额；withdrawals 仅退还指定充值来源的剩余资金并立即冻结。
         同一 request_key 重放返回原单据；同键不同内容返回 409；失败时单据、账本及审计一同回滚。
       parameters:
@@ -44,10 +59,24 @@ paths:
             schema:
               $ref: '#/components/schemas/FinanceCreate'
       responses:
-        '200': { description: 统一响应 data 为包含整数 id 的单据标识对象 }
+        '200':
+          description: 已创建的财务单据
+          headers:
+            X-Request-Id: { schema: { type: string }, description: 请求追踪标识 }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [code, message, data, request_id]
+                properties:
+                  code: { type: integer, enum: [0] }
+                  message: { type: string }
+                  request_id: { type: string }
+                  data: { $ref: '#/components/schemas/FinanceId' }
         '403': { description: 缺少查看或创建权限 }
-        '404': { description: 会员或订单不存在 }
-        '409': { description: 超额、重复凭证、来源不符、资源未终止或金额归属不完整 }
+        '404': { description: 暂缓新建业务，或会员/订单不存在 }
+        '409': { description: 超额、重复凭证、来源不符、交付结果未知、曾交付、证据缺失或金额归属不完整 }
         '422': { description: 参数验证失败，data.errors 为字段错误 }
   /api/admin/v1/finance/{resource}/{id}:
     get:
@@ -56,7 +85,21 @@ paths:
         - $ref: '#/components/parameters/resource'
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
       responses:
-        '200': { description: 统一响应 data 为详情对象，不包含支付原始报文和收款人资料 }
+        '200':
+          description: 财务详情，不含支付原文及收款账号
+          headers:
+            X-Request-Id: { schema: { type: string }, description: 请求追踪标识 }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [code, message, data, request_id]
+                properties:
+                  code: { type: integer, enum: [0] }
+                  message: { type: string }
+                  request_id: { type: string }
+                  data: { $ref: '#/components/schemas/FinanceRecord' }
         '401': { description: 未登录 }
         '403': { description: 缺少对应记录的查看权限 }
         '404': { description: 财务记录不存在 }
@@ -68,7 +111,21 @@ paths:
         - $ref: '#/components/parameters/resource'
         - { name: search, in: query, description: 按会员昵称、手机号或 ID 查找, schema: { type: string, maxLength: 64 } }
       responses:
-        '200': { description: 统一响应 data 为 id/label 选项数组 }
+        '200':
+          description: 会员选择
+          headers:
+            X-Request-Id: { schema: { type: string }, description: 请求追踪标识 }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [code, message, data, request_id]
+                properties:
+                  code: { type: integer, enum: [0] }
+                  message: { type: string }
+                  request_id: { type: string }
+                  data: { type: array, items: { $ref: '#/components/schemas/FinanceOption' } }
         '403': { description: 缺少创建权限 }
   /api/admin/v1/finance/{resource}/options:
     get:
@@ -81,7 +138,21 @@ paths:
         - $ref: '#/components/parameters/resource'
         - { name: member_id, in: query, required: true, schema: { type: integer, minimum: 1 } }
       responses:
-        '200': { description: 统一响应 data 为可用业务来源数组 }
+        '200':
+          description: 受控业务来源，最终仍需事务内复核
+          headers:
+            X-Request-Id: { schema: { type: string }, description: 请求追踪标识 }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [code, message, data, request_id]
+                properties:
+                  code: { type: integer, enum: [0] }
+                  message: { type: string }
+                  request_id: { type: string }
+                  data: { type: array, items: { $ref: '#/components/schemas/FinanceOption' } }
         '403': { description: 缺少创建权限 }
   /api/admin/v1/finance/{resource}/{id}/{action}:
     post:
@@ -89,8 +160,8 @@ paths:
       description: >-
         refunds 支持 approve/reject/execute；invoices 支持 approve/reject/issue/red；withdrawals 支持 approve/reject/payout。
         approve/reject 需要 review 权限，其他动作需要对应 execute/issue/red/payout 权限，同时必须有 view 权限。
-        驳回必须填写 review_reason；issue/red/payout 必须填写 external_reference，且应先在外部完成真实开票、红冲或打款。
-        execute 真实退回原余额资金来源；issue/red/payout 只登记外部处理结果，不调用厂商接口。
+        退款/充值退还的通过与驳回均须填写 review_reason，申请人与审核人必须不同；退款审核和执行均重新核验交付证据。issue/red/payout 必须填写 external_reference，且应先在外部完成真实开票、红冲或打款。
+        payout 必须填写 payout_note 和唯一真实凭证 external_reference，先审批后人工打款；不自动打款、不接原路退款。execute 真实退回原余额资金来源；issue/red/payout 只登记外部处理结果，不调用厂商接口。
         新流程未核对的历史单据保持只读；资金流水和审核记录不得编辑或删除。
       parameters:
         - $ref: '#/components/parameters/resource'
@@ -103,7 +174,21 @@ paths:
             schema:
               $ref: '#/components/schemas/FinanceAction'
       responses:
-        '200': { description: 统一响应 data 为原单据标识 }
+        '200':
+          description: 已处理的财务单据
+          headers:
+            X-Request-Id: { schema: { type: string }, description: 请求追踪标识 }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [code, message, data, request_id]
+                properties:
+                  code: { type: integer, enum: [0] }
+                  message: { type: string }
+                  request_id: { type: string }
+                  data: { $ref: '#/components/schemas/FinanceId' }
         '403': { description: 缺少对应处置权限 }
         '404': { description: 单据不存在 }
         '409': { description: 状态已变化、资金来源未核对或历史单据只读 }
@@ -141,5 +226,73 @@ components:
       required: [request_key]
       properties:
         request_key: { type: string, pattern: '^[A-Za-z0-9_-]{16,64}$' }
-        review_reason: { type: string, maxLength: 255, description: 驳回必填 }
-        external_reference: { type: string, maxLength: 80, description: 开票、红冲及打款登记必填 }
+        review_reason: { type: string, maxLength: 255, description: 驳回必填；退款及充值退还审核通过也必填 }
+        external_reference: { type: string, maxLength: 80, description: 开票、红冲及打款登记必填；打款凭证规范化后跨退还单唯一 }
+        payout_note: { type: string, maxLength: 500, description: payout必填；真实渠道、时间与核对说明，不含收款账号 }
+
+    FinanceId:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: { type: integer, minimum: 1 }
+    FinanceOption:
+      type: object
+      additionalProperties: false
+      required: [id, label]
+      properties:
+        id: { type: integer, minimum: 1 }
+        label: { type: string }
+        available_minor: { type: integer, minimum: 0 }
+        order_id: { type: integer, minimum: 1 }
+    FinanceRecord:
+      type: object
+      additionalProperties: false
+      required: [id, member_id, created_at]
+      description: 按资源返回明确字段；退款保存核查任务、证据、申请/审核/执行人及时间，充值退还保存原充值来源和真实打款凭证。不返回收款账号及凭据摘要。
+      properties:
+        id: { type: integer, nullable: true }
+        member_id: { type: integer, nullable: true }
+        purpose_id: { type: integer, nullable: true }
+        source_id: { type: integer, nullable: true }
+        payment_id: { type: integer, nullable: true }
+        order_id: { type: integer, nullable: true }
+        red_of_id: { type: integer, nullable: true }
+        reviewer_id: { type: integer, nullable: true }
+        amount_minor: { type: integer, nullable: true }
+        available_after_minor: { type: integer, nullable: true }
+        operator_id: { type: integer, nullable: true }
+        executor_id: { type: integer, nullable: true }
+        delivery_task_id: { type: integer, nullable: true }
+        created_at: { type: string, nullable: true }
+        recharge_no: { type: string, nullable: true }
+        channel: { type: string, nullable: true }
+        currency: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        paid_at: { type: string, nullable: true }
+        remark: { type: string, nullable: true }
+        external_reference: { type: string, nullable: true }
+        payment_no: { type: string, nullable: true }
+        purpose: { type: string, nullable: true }
+        channel_trade_no: { type: string, nullable: true }
+        entry_no: { type: string, nullable: true }
+        entry_type: { type: string, nullable: true }
+        source_type: { type: string, nullable: true }
+        refund_no: { type: string, nullable: true }
+        destination: { type: string, nullable: true }
+        reason: { type: string, nullable: true }
+        reviewed_at: { type: string, nullable: true }
+        completed_at: { type: string, nullable: true }
+        review_reason: { type: string, nullable: true }
+        delivery_evidence: { type: string, nullable: true }
+        invoice_no: { type: string, nullable: true }
+        invoice_type: { type: string, nullable: true }
+        title: { type: string, nullable: true }
+        external_number: { type: string, nullable: true }
+        issued_at: { type: string, nullable: true }
+        red_number: { type: string, nullable: true }
+        red_at: { type: string, nullable: true }
+        withdrawal_no: { type: string, nullable: true }
+        payout_reference: { type: string, nullable: true }
+        payout_at: { type: string, nullable: true }
+        payout_note: { type: string, nullable: true }

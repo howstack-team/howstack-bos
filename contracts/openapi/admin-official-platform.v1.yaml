@@ -121,9 +121,10 @@ paths:
                 $ref: "#/components/schemas/Envelope"
   /system-updates/check:
     post:
+      x-community-release: deferred
       operationId: admin.system-updates.check
       summary: 检查适配当前版本和级别的稳定发布
-      description: 远程接口缺失或错误返回失败，不生成“已最新”结果。
+      description: 远程接口缺失或错误返回失败，不生成“已最新”结果。 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
       x-permissions:
         - admin.updates.view
         - admin.updates.check
@@ -137,9 +138,10 @@ paths:
                 $ref: "#/components/schemas/Envelope"
   /system-updates/start:
     post:
+      x-community-release: deferred
       operationId: admin.system-updates.start
       summary: 受理已明确批准的更新目标
-      description: 受理前重新检查并验签新清单，目标版本或摘要变化时拒绝安装并刷新摘要，要求管理员重新确认。任务 UUID
+      description: 受理前重新检查并验签新清单，目标版本或摘要变化时拒绝安装并刷新摘要，要求管理员重新确认。任务 UUID 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
         与批准的版本及摘要绑定，重复请求复用原任务。查询 jobs 的终态核实结果。
       x-permissions:
         - admin.updates.view
@@ -227,6 +229,8 @@ paths:
           description: 仍有业务引用、状态已变化、未停用或有活跃安装任务
   /application-center/prepare:
     post:
+      description: 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
+      x-community-release: deferred
       operationId: admin.application-center.prepare
       summary: 验签应用发布清单并返回确认资料
       x-permission: admin.app-center.view
@@ -252,9 +256,10 @@ paths:
                 $ref: "#/components/schemas/Envelope"
   /application-center/install:
     post:
+      x-community-release: deferred
       operationId: admin.application-center.install
       summary: 创建固定目标的安装或更新任务
-      description: install 需要 install 权限，update 需要 update 权限；当前只开放供应插件 v1，更新前须停用并排空。
+      description: install 需要 install 权限，update 需要 update 权限；当前只开放供应插件 v1，更新前须停用并排空。 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
       x-permission: admin.app-center.view
       x-action-permissions:
         install: admin.app-center.install
@@ -288,9 +293,10 @@ paths:
                 $ref: "#/components/schemas/Envelope"
   /official-platform/license/activate:
     post:
+      x-community-release: deferred
       operationId: admin.official-platform.activate
       summary: 填写授权码激活软件
-      description: 安装UUID及公钥自动生成；不进行官网账号配对、不返回凭证。激活后校验签名证书，续费无需更换授权码。
+      description: 安装UUID及公钥自动生成；不进行官网账号配对、不返回凭证。激活后校验签名证书，续费无需更换授权码。 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
       x-permission-all:
         - admin.platform.connect
         - admin.license.manage

@@ -1,0 +1,538 @@
+openapi: 3.1.0
+info:
+  title: 云服务器交付与实例接口
+  version: 1.0.0
+  description: 付款事务中为每台实例创建持久任务。未知结果只查询原请求，不重复创建；每个实例独立开通、失败或待人工核查。初始密码独立加密保存，不进入订单快照，全部开通后48小时清理。
+paths:
+  /api/console/v1/services:
+    get:
+      summary: 分页查询本人云服务器
+      security: &a3
+        - memberSession: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: &a1
+                type: string
+              description: 请求追踪标识
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Service"
+                      total:
+                        type: integer
+                        minimum: 0
+                    required:
+                      - data
+                      - total
+                  request_id: *a1
+        "401": &a2
+          description: 认证、权限、状态或参数错误
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message: *a1
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id: *a1
+                additionalProperties: false
+        "404": *a2
+        "422": *a2
+  /api/console/v1/services/{id}:
+    get:
+      summary: 查询本人实例状态和地址
+      security: *a3
+      parameters: &a4
+        - in: path
+          name: id
+          required: true
+          description: 服务实例内部标识
+          schema: &a5
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+              description: 请求追踪标识
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/Service"
+                  request_id: *a1
+        "401": *a2
+        "404": *a2
+        "422": *a2
+  /api/console/v1/services/{id}/initial-password:
+    post:
+      summary: 查看本人实例初始密码
+      description: 必须本人已开通服务及同源请求。响应禁止缓存；密码不进入普通实例或订单查询。所有实例成功后48小时清理。
+      security: *a3
+      parameters: *a4
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+              description: 请求追踪标识
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      password:
+                        type: string
+                        minLength: 8
+                        maxLength: 72
+                    required:
+                      - password
+                  request_id: *a1
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/admin/v1/service-instances/{id}/retry-provisioning:
+    post:
+      summary: 重新处理单台云服务器开通任务
+      description: 需要 admin.services.cloud-servers.view 和 admin.services.cloud-servers.provision 权限及同源请求。仅失败或待人工核查任务可重试。未知结果仍然只查单。存在已退金额或退款占用时拒绝。
+      security:
+        - adminSession: []
+      parameters: *a4
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+              description: 请求追踪标识
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: "null"
+                  request_id: *a1
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/admin/v1/service-instances/{id}/confirm-not-created:
+    post:
+      summary: 人工确认供应商未创建实例
+      description: 需要 admin.services.cloud-servers.view 和 admin.services.cloud-servers.resolve 权限及同源请求。仅待核查且没有外部实例标识时允许；管理员必须先在供应商核实无资源并填写说明。确认后标记未开通，允许原任务重试或按原财务流程退款，不自动退款或释放库存。操作人、实例及说明记录到后台操作审计。
+      security:
+        - adminSession: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: 服务实例内部标识
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+              description: 请求追踪标识
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message:
+                    type: string
+                  data:
+                    type: "null"
+                  request_id:
+                    type: string
+        "401":
+          description: 认证、权限、状态或参数错误
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message:
+                    type: string
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id:
+                    type: string
+                additionalProperties: false
+        "403":
+          description: 认证、权限、状态或参数错误
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message:
+                    type: string
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id:
+                    type: string
+                additionalProperties: false
+        "404":
+          description: 认证、权限、状态或参数错误
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message:
+                    type: string
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id:
+                    type: string
+                additionalProperties: false
+        "409":
+          description: 认证、权限、状态或参数错误
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message:
+                    type: string
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id:
+                    type: string
+                additionalProperties: false
+        "422":
+          description: 认证、权限、状态或参数错误
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message:
+                    type: string
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id:
+                    type: string
+                additionalProperties: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - acknowledged
+                - reason
+                - evidence_reference
+              properties:
+                acknowledged:
+                  type: boolean
+                  const: true
+                evidence_reference:
+                  type: string
+                  minLength: 1
+                  maxLength: 160
+                  description: 供应商工单、日志或核查凭证编号，需真实核查后登记
+                reason:
+                  type: string
+                  minLength: 5
+                  maxLength: 500
+components:
+  securitySchemes:
+    memberSession:
+      type: apiKey
+      in: cookie
+      name: hlyq_member_token
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+  schemas:
+    Service:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *a5
+        instance_no: *a1
+        display_name: *a1
+        status:
+          type: string
+          enum:
+            - provisioning
+            - active
+            - suspended
+            - expired
+            - terminated
+            - failed
+        provisioning_status:
+          type:
+            - string
+            - "null"
+          enum:
+            - queued
+            - processing
+            - waiting
+            - succeeded
+            - failed
+            - attention
+            - null
+        addresses:
+          type: array
+          items: *a1
+        activated_at:
+          type:
+            - string
+            - "null"
+        expires_at:
+          type:
+            - string
+            - "null"
+        created_at: *a1
+        order_id:
+          type:
+            - integer
+            - "null"
+        order_no:
+          type:
+            - string
+            - "null"
+        can_renew:
+          type: boolean
+        lifecycle_action: &a6
+          type:
+            - string
+            - "null"
+        lifecycle_status: *a6
+        lifecycle_error: *a6
+        renewal_order_id:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        renewal_payment_pending:
+          type: boolean
+        power_status:
+          type:
+            - string
+            - "null"
+        power_checked_at:
+          type:
+            - string
+            - "null"
+        installed_image:
+          anyOf:
+            - type: object
+              additionalProperties: false
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                name: &a8
+                  type: string
+                default_username: *a8
+                default_port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+              required:
+                - id
+                - name
+                - default_username
+                - default_port
+            - type: "null"
+        initial_password_available:
+          type: boolean
+      required:
+        - id
+        - instance_no
+        - display_name
+        - status
+        - provisioning_status
+        - addresses
+        - activated_at
+        - expires_at
+        - created_at
+        - order_id
+        - order_no

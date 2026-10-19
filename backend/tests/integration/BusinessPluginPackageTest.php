@@ -21,6 +21,7 @@ final class BusinessPluginPackageTest extends TestCase
         mkdir($this->root . '/provider/sample_provider', 0700, true);
         copy(dirname(__DIR__) . '/fixtures/sample_provider/ProviderAdapter.php', $this->root . '/provider/sample_provider/ProviderAdapter.php');
         $this->manifest = json_decode(file_get_contents(dirname(__DIR__, 2) . '/plugins/provider/magic_cloud/plugin.json'), true, flags: JSON_THROW_ON_ERROR);
+        $this->manifest['capabilities']['cloud_server.provision'] = false; // 此测试替身仅声明只读目录。
         $this->manifest['id'] = 'sample_provider';
         $this->schema = json_decode(file_get_contents(dirname(__DIR__, 2) . '/plugins/provider/magic_cloud/configuration.schema.json'), true, flags: JSON_THROW_ON_ERROR);
     }

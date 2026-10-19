@@ -110,7 +110,7 @@ final class AdminTableSortingTest extends TestCase
 
     public function testOfferPublicationAndStatusFiltersShareSortedTotals(): void
     {
-        $offers = new DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter());
+        $offers = new \app\modules\product\infrastructure\DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter(), 'cloud_server');
         $ids = [];
         foreach (['方案甲', '方案乙', '方案丙'] as $index => $name) {
             $offer = $offers->save(null, [

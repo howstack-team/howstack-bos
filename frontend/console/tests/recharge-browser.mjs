@@ -1,14 +1,21 @@
 import assert from 'node:assert/strict'
 import { consoleBootstrap } from './console-bootstrap-fixture.mjs'
-const { chromium, expect } = await import(process.env.HOWSTACK_PLAYWRIGHT_MODULE ?? 'playwright')
+const { chromium } = await import(process.env.HOWSTACK_PLAYWRIGHT_MODULE ?? 'playwright')
 const browser = await chromium.launch({ headless: true })
 let scenarios = 0
 const errors = []
+async function until(check) {
+  const deadline = Date.now() + 5000
+  while (!await check()) {
+    assert.ok(Date.now() < deadline, '支付测试等待状态超时')
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+}
 try {
   for (const mobile of [false, true]) {
     console.log(mobile ? '验证移动端充值' : '验证PC充值')
     const base = `http://127.0.0.1:${mobile ? 5177 : 5176}/console`
-    const context = await browser.newContext({ viewport: { width: mobile ? 390 : 1440, height: 1000 } })
+    const context = await browser.newContext({ viewport: { width: mobile ? 390 : 1440, height: 1000 }, isMobile: mobile, hasTouch: mobile, ...(mobile ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' } : {}) })
     await context.addInitScript(() => { Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true }) })
     const page = await context.newPage(); page.setDefaultTimeout(12000); page.on('pageerror', e => errors.push(e.message))
     let rows = [], writes = [], mode = 'pending', available = 0, enabled = true
@@ -51,12 +58,16 @@ try {
     else assert.equal(await page.locator('.arco-message').getByText('后端金额验证失败', { exact: true }).count(), 0)
     scenarios++
     mode = 'network'; await page.getByRole('button', { name: '前往付款', exact: true }).click()
-    await expect.poll(() => writes.length).toBe(2)
+    await until(() => writes.length === 2)
     await page.reload(); await fill(); mode = 'pending'; await page.getByRole('button', { name: '前往付款', exact: true }).click()
     await page.waitForURL(`${base}/finance/recharge?id=1`)
     assert.equal(writes[2].request_key, writes[1].request_key)
     await page.getByAltText('支付二维码', { exact: true }).waitFor()
     assert.match(await page.getByAltText('支付二维码').getAttribute('src'), /^data:image\/png;/)
+    if (mobile) await page.getByText('请使用另一台设备扫码付款；本页不会直接唤起支付应用。', { exact: true }).waitFor()
+    const download = page.waitForEvent('download')
+    await page.getByText('保存二维码', { exact: true }).click()
+    assert.equal((await download).suggestedFilename(), 'payment-qr.png')
     scenarios++
     await page.reload(); await page.getByAltText('支付二维码').waitFor(); assert.equal(writes.length, 3)
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
@@ -66,7 +77,7 @@ try {
     await page.getByText('支付结果待确认', { exact: true }).waitFor()
     assert.equal(await page.getByText('已到账', { exact: true }).count(), 0)
     scenarios++
-    mode = 'paid'; await expect(page.getByRole('button', { name: '查询支付结果', exact: true })).toBeEnabled(); await page.getByRole('button', { name: '查询支付结果', exact: true }).click()
+    mode = 'paid'; await until(() => page.getByRole('button', { name: '查询支付结果', exact: true }).isEnabled()); await page.getByRole('button', { name: '查询支付结果', exact: true }).click()
     await page.getByText('返回继续', { exact: true }).waitFor()
     assert.equal(await page.getByAltText('支付二维码').count(), 0)
     await page.getByText('返回继续', { exact: true }).click(); await page.waitForURL(`${base}/finance/wallet`)

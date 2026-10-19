@@ -1,0 +1,283 @@
+openapi: 3.1.0
+info:
+  title: 云服务器VNC远程控制台
+  version: 1.0.0
+paths:
+  /api/console/v1/services/{id}/vnc:
+    get:
+      security: &a3
+        - memberSession: []
+      parameters: &a4
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      summary: 重新核验VNC访问资格
+      description: 不签发或返回任何凭据。核验本人归属、实例已开通且未到期、原供应插件VNC能力；后台要求实例查看和 admin.services.cloud-servers.vnc 权限。连接中每30秒复核，失去资格则客户端断开。
+      responses:
+        "200":
+          description: 成功，禁止缓存VNC凭据
+          headers:
+            X-Request-Id:
+              schema: &a1
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      allowed:
+                        type: boolean
+                        const: true
+                    required:
+                      - allowed
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": &a2
+          description: 认证、同源、权限、归属、资格、限流或供应VNC错误
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message: *a1
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "429": *a2
+        "503": *a2
+    post:
+      security: *a3
+      parameters: *a4
+      summary: 签发本次VNC连接
+      description: 认证、对象归属、同源与签发限流。后台独立VNC操作权限。固定原连接、实例ID和首次主机名，使用当前审核通过的同ID插件VNC能力。外呼后再次核验归属和供应绑定；无数据库事务持锁。仅允许WSS，不返回供应HTML页面、API账号或系统密码。凭据不缓存、不存储、不得写入页面URL、日志或React Query。前端只由用户明确点击签发，每次重连重新申请。
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties: {}
+              required: []
+      responses:
+        "200":
+          description: 成功，禁止缓存VNC凭据
+          headers:
+            X-Request-Id:
+              schema: *a1
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/VncConnection"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "429": *a2
+        "503": *a2
+  /api/admin/v1/service-instances/{id}/vnc:
+    get:
+      security: &a5
+        - adminSession: []
+      parameters: &a6
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      summary: 重新核验VNC访问资格
+      description: 不签发或返回任何凭据。核验本人归属、实例已开通且未到期、原供应插件VNC能力；后台要求实例查看和 admin.services.cloud-servers.vnc 权限。连接中每30秒复核，失去资格则客户端断开。
+      responses:
+        "200":
+          description: 成功，禁止缓存VNC凭据
+          headers:
+            X-Request-Id:
+              schema: *a1
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      allowed:
+                        type: boolean
+                        const: true
+                    required:
+                      - allowed
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "429": *a2
+        "503": *a2
+    post:
+      security: *a5
+      parameters: *a6
+      summary: 签发本次VNC连接
+      description: 认证、对象归属、同源与签发限流。后台独立VNC操作权限。固定原连接、实例ID和首次主机名，使用当前审核通过的同ID插件VNC能力。外呼后再次核验归属和供应绑定；无数据库事务持锁。仅允许WSS，不返回供应HTML页面、API账号或系统密码。凭据不缓存、不存储、不得写入页面URL、日志或React Query。前端只由用户明确点击签发，每次重连重新申请。
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties: {}
+              required: []
+      responses:
+        "200":
+          description: 成功，禁止缓存VNC凭据
+          headers:
+            X-Request-Id:
+              schema: *a1
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store, private
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/VncConnection"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "429": *a2
+        "503": *a2
+components:
+  schemas:
+    VncConnection:
+      type: object
+      additionalProperties: false
+      properties:
+        websocket_url:
+          type: string
+          format: uri
+          maxLength: 8192
+          pattern: ^wss://
+          description: 供应商直接WSS连接，可能包含临时令牌，仅当前内存使用；不是浏览器导航地址
+        password:
+          type: string
+          maxLength: 2048
+          description: VNC认证密码，绝不回传实例系统登录密码
+        connect_timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 60
+          description: 客户端连接超时秒数，不表示上游令牌有效期
+        session_timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 900
+          description: 本机客户端本次最大会话秒数，受剩余订阅期限约束；上游会话由供应商管理
+      required:
+        - websocket_url
+        - password
+        - connect_timeout_seconds
+        - session_timeout_seconds
+  securitySchemes:
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: admin_session
+    memberSession:
+      type: apiKey
+      in: cookie
+      name: member_session

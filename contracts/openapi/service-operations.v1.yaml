@@ -1,0 +1,361 @@
+openapi: 3.1.0
+info:
+  title: 云服务器实例运维
+  version: 1.0.0
+paths:
+  /api/console/v1/services/{id}/operations:
+    get:
+      security: &a3
+        - memberSession: []
+      parameters: &a4
+        - name: id
+          in: path
+          required: true
+          schema: &a8
+            type: integer
+            minimum: 1
+      summary: 读取实例运维能力与最近操作
+      description: 核验对象归属或后台实例查看权限。只读取原供应插件声明和本机任务，未开通或已到期返回空动作。密码和供应标识不回显。
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: &a1
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/InstanceOperations"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": &a2
+          description: 认证、同源、归属、权限、输入或实例状态错误
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message: *a1
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "503": *a2
+    post:
+      security: *a3
+      parameters: *a4
+      summary: 受理开关机、重启、重装或重置密码
+      description: 会员仅限本人。后台分别要求 admin.services.cloud-servers.power/reinstall/reset-password。要求同源、明确确认、固定幂等键；重装只允许原封存镜像映射且符合硬件要求，固定保留数据盘。密码8至64位可打印ASCII非空格，只短期加密。受理后异步查询原供应任务，不因超时重发。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: &a11
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  properties:
+                    request_key: &a5
+                      type: string
+                      minLength: 16
+                      maxLength: 64
+                      pattern: ^[a-zA-Z0-9_-]+$
+                    acknowledged: &a6
+                      type: boolean
+                      const: true
+                    action:
+                      type: string
+                      enum:
+                        - power_on
+                        - power_off
+                        - reboot
+                  required:
+                    - request_key
+                    - acknowledged
+                    - action
+                - type: object
+                  additionalProperties: false
+                  properties:
+                    request_key: *a5
+                    acknowledged: *a6
+                    action:
+                      const: reset_password
+                      type: string
+                    password: &a7
+                      type: string
+                      format: password
+                      writeOnly: true
+                      minLength: 8
+                      maxLength: 64
+                      pattern: ^[!-~]+$
+                  required:
+                    - request_key
+                    - acknowledged
+                    - action
+                    - password
+                - type: object
+                  additionalProperties: false
+                  properties:
+                    request_key: *a5
+                    acknowledged: *a6
+                    action:
+                      const: reinstall
+                      type: string
+                    password: *a7
+                    image_id: *a8
+                  required:
+                    - request_key
+                    - acknowledged
+                    - action
+                    - password
+                    - image_id
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/InstanceOperationResult"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "503": *a2
+  /api/admin/v1/service-instances/{id}/operations:
+    get:
+      security: &a9
+        - adminSession: []
+      parameters: &a10
+        - name: id
+          in: path
+          required: true
+          schema: *a8
+      summary: 读取实例运维能力与最近操作
+      description: 核验对象归属或后台实例查看权限。只读取原供应插件声明和本机任务，未开通或已到期返回空动作。密码和供应标识不回显。
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/InstanceOperations"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "503": *a2
+    post:
+      security: *a9
+      parameters: *a10
+      summary: 受理开关机、重启、重装或重置密码
+      description: 会员仅限本人。后台分别要求 admin.services.cloud-servers.power/reinstall/reset-password。要求同源、明确确认、固定幂等键；重装只允许原封存镜像映射且符合硬件要求，固定保留数据盘。密码8至64位可打印ASCII非空格，只短期加密。受理后异步查询原供应任务，不因超时重发。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *a11
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/InstanceOperationResult"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+        "503": *a2
+components:
+  schemas:
+    InstanceOperations:
+      type: object
+      additionalProperties: false
+      properties:
+        installed_image:
+          anyOf:
+            - &a12
+              type: object
+              additionalProperties: false
+              properties:
+                id: *a8
+                name: *a1
+                default_username: *a1
+                default_port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+              required:
+                - id
+                - name
+                - default_username
+                - default_port
+            - type: "null"
+        actions:
+          type: array
+          items: &a14
+            type: string
+            enum:
+              - power_on
+              - power_off
+              - reboot
+              - reinstall
+              - reset_password
+        images:
+          type: array
+          items: *a12
+        busy:
+          type: boolean
+        power_status: &a13
+          type:
+            - string
+            - "null"
+        power_checked_at: *a13
+        history:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id: *a8
+              action: *a14
+              status: &a15
+                type: string
+                enum:
+                  - queued
+                  - processing
+                  - waiting
+                  - succeeded
+                  - failed
+                  - attention
+                  - cancelled
+              error_code: *a13
+              created_at: *a1
+              updated_at: *a1
+            required:
+              - id
+              - action
+              - status
+              - error_code
+              - created_at
+              - updated_at
+        vnc_available:
+          type: boolean
+          description: 原插件支持且具备当前入口权限；VNC连接独立再次核权
+      required:
+        - installed_image
+        - actions
+        - images
+        - busy
+        - power_status
+        - power_checked_at
+        - history
+        - vnc_available
+    InstanceOperationResult:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *a8
+        status: *a15
+      required:
+        - id
+        - status
+  securitySchemes:
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: admin_session
+    memberSession:
+      type: apiKey
+      in: cookie
+      name: member_session

@@ -34,6 +34,15 @@ final readonly class DatabaseProviderRepository implements ProviderRepositoryInt
         return json_decode($this->cipher->decrypt($row->credentials_encrypted), true, flags: JSON_THROW_ON_ERROR);
     }
 
+    /** @inheritDoc */
+    public function credentialsAtRevision(int $id, int $revision): array
+    {
+        if ((new ProviderConnectionModel())->getConnection()->transactionLevel() < 1) throw new \LogicException('固定生产连接必须与付款共用事务');
+        $row = ProviderConnectionModel::query()->whereKey($id)->lockForUpdate()->first();
+        if (!$row || $row->revision !== $revision || $row->status !== 1 || $row->tested_at === null) throw new BusinessException('资源供应商配置已变化，请重新核对购买配置', ApiErrorCode::CONFLICT, 409);
+        return json_decode($this->cipher->decrypt($row->credentials_encrypted), true, flags: JSON_THROW_ON_ERROR);
+    }
+
     public function save(?int $id, array $data): array
     {
         return $this->transactions->run(function () use ($id, $data): array {

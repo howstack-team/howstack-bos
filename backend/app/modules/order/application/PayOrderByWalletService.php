@@ -22,6 +22,7 @@ final readonly class PayOrderByWalletService
         private OutboxWriterInterface $outbox,
         private \app\modules\message\contract\MessagePublisherInterface $messages,
         private \app\modules\product\contract\ProductOrderCapacityInterface $capacity,
+        private \app\modules\order\contract\OrderProvisioningInterface $provisioning,
     ) {
     }
 
@@ -53,6 +54,7 @@ final readonly class PayOrderByWalletService
                 $this->capacity->occupy($item['type'], $item['configuration'], $item['unit_ids']);
             }
             $this->orders->markPaid($orderId, $order->payableMinor, date('Y-m-d H:i:s'));
+            $this->provisioning->enqueue($orderId);
             $this->outbox->append('order.paid.' . $orderId, 'order.paid', $orderId, ['order_id' => $orderId]);
             $this->messages->publish('order.paid.' . $orderId, 'order_paid', 'order', $orderId, $memberId,
                 ['site_name' => '云业务运营系统', 'order_no' => $order->number,

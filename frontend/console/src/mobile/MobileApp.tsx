@@ -1,3 +1,4 @@
+import { isDeferredMemberPath } from '../../../packages/community-release'
 import { useEffect, useRef } from 'react'
 import Button from '@arco-design/mobile-react/esm/button'
 import { useFeedback } from './feedback'
@@ -12,11 +13,14 @@ import { loginReturnPath } from '../utils/loginReturnPath'
 import { LoginPage, RegisterPage, ResetPasswordPage } from './AuthPages'
 import { MessagesPage, OverviewPage, PendingPage, ProfilePage, WalletPage } from './MemberPages'
 import { memberLinks } from './navigation'
-import { Brand, Busy, Footer, Glyph } from './ui'
+import { Brand, Busy, Footer, Glyph, Status } from './ui'
 import OAuthBindPage from './OAuthBindPage'
 import RechargePage from './RechargePage'
+import MobileWalletEntriesPage from './WalletEntriesPage'
 import MobileCloudPurchasePage from './CloudPurchasePage'
+import MobileMemberServicesPage from './MemberServicesPage'
 import MobileMemberOrdersPage from './MemberOrdersPage'
+import TicketsPage from './TicketsPage'
 
 const tabs = [
   { title: '总览', path: paths.overview, icon: <Glyph name="home" /> },
@@ -31,10 +35,10 @@ export default function MobileApp() {
     if (auth.error && reportedError.current !== auth.error) feedback(auth.error.message)
     reportedError.current = auth.error
   }, [auth.error, feedback])
-  const pathname = location.pathname
+  const pathname = location.pathname.replace(/\/+$/, '') || '/'
   const name = ({ [paths.oauthBind]: '关联平台账号', [paths.login]: '会员登录', [paths.register]: '会员注册', '/forgot-password': '找回密码',
     [paths.overview]: '总览', [paths.messages]: '消息中心', [paths.profile]: '我的账户', [paths.wallet]: '资金账户', [paths.purchase]: '购买云服务器', [paths.orders]: '我的订单' } as Record<string, string>)[pathname]
-    || (pathname.startsWith(`${paths.orders}/`) ? '订单详情' : '')
+    || (pathname.startsWith(`${paths.orders}/`) ? '订单详情' : pathname.startsWith(`${paths.tickets}/`) ? '工单详情' : '')
     || memberLinks.find(item => item.path === pathname)?.name || '会员中心'
   useEffect(() => { document.title = consolePageTitle(name, theme.site.name) }, [name, theme.site.name])
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
@@ -54,9 +58,11 @@ export default function MobileApp() {
     leftContent={pathname === paths.overview ? null : undefined} onClickLeft={() => history.push(paths.overview)} /></header>
     <main className="m-main"><Switch>
       <Route path={paths.overview} exact component={OverviewPage} /><Route path={paths.wallet} exact component={WalletPage} />
-      <Route path={paths.recharge} exact component={RechargePage} /><Route path={paths.profile} exact component={ProfilePage} /><Route path={paths.messages} exact component={MessagesPage} />
+      <Route path={paths.recharge} exact component={RechargePage} /><Route path={paths.transactions} exact component={MobileWalletEntriesPage} /><Route path={paths.profile} exact component={ProfilePage} /><Route path={paths.messages} exact component={MessagesPage} />
+      <Route path={paths.cloudServers} exact component={MobileMemberServicesPage} />
       <Route path={paths.orders} exact component={MobileMemberOrdersPage} /><Route path={paths.orderDetail} exact component={MobileMemberOrdersPage} />
-      <Route render={() => <PendingPage path={pathname} />} />
+      <Route path={paths.tickets} exact component={TicketsPage} /><Route path={paths.ticketDetail} exact component={TicketsPage} />
+      <Route render={() => isDeferredMemberPath(pathname) ? <Status title="页面不存在" text="请通过底部导航返回会员中心" /> : <PendingPage path={pathname} />} />
     </Switch><Footer /></main>
     <TabBar activeIndex={active} dataSource={tabs.map(item => ({ ...item, onClick: () => history.push(item.path) }))} className="m-bottom-nav" />
   </div>

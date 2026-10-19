@@ -11,8 +11,8 @@ export interface PermissionGroup { kind: 'module'; key: string; title: string; c
 /** 权限表中用于展示层级的行。 */
 export type PermissionRow = PermissionPage | PermissionGroup
 
-const actionOrder = ['create', 'update', 'publish', 'preview', 'test', 'sync', 'map', 'delete']
-const actionLabels: Record<string, string> = { create: '新增', update: '修改', publish: '发布', preview: '预览', test: '测试连接', sync: '获取供应商资源', map: '设置资源对应', delete: '删除' }
+const actionOrder = ['create', 'update', 'reply', 'close', 'publish', 'preview', 'test', 'sync', 'map', 'delete']
+const actionLabels: Record<string, string> = { reply: '回复', close: '关闭', resolve: '确认未开通', provision: '重试开通', create: '新增', update: '修改', publish: '发布', preview: '预览', test: '测试连接', sync: '获取供应商资源', map: '设置资源对应', delete: '删除' }
 
 /** 按路由递归保留菜单层级，仅展示在后端目录中存在的页面权限，移除空分组。 */
 export function buildPermissionTree(items: readonly IRoute[], catalog: PermissionCatalog): PermissionRow[] {

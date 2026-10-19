@@ -122,7 +122,7 @@ GET /connection返回安全上下文，POST /connection/disconnect解除绑定�
   "version_id": 2,
   "from_version": "0.1.0",
   "version": "0.2.0",
-  "minimum_php": "8.4.0",
+  "minimum_php": "8.3.0",
   "files": {
     "app/example.php": "文件SHA-256",
     "config/version.php": "文件SHA-256"

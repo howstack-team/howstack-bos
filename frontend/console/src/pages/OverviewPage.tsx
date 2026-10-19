@@ -1,7 +1,8 @@
+import { isDeferredMemberPath } from '../../../packages/community-release'
 import { useConsoleTheme } from '../ConsoleThemeContext'
 import type { MouseEvent, ReactNode } from 'react'
 import { useRef, useState } from 'react'
-import { Avatar, Button, Card, Drawer, Link, Space, Statistic, Typography } from '@arco-design/web-react'
+import { Avatar, Button, Card, Drawer, Link, Space, Typography } from '@arco-design/web-react'
 import { IconArrowRight, IconBook, IconCalendar, IconCloud, IconCustomerService, IconDesktop, IconFile, IconNotification, IconRefresh, IconSafe, IconStamp, IconStorage } from '@arco-design/web-react/icon'
 import { useHistory } from 'react-router-dom'
 import { useMemberAuth } from '../auth/AuthContext'
@@ -84,27 +85,15 @@ export default function OverviewPage() {
         </section>
         <section aria-label="我的产品">
           <Card className="console-page-card" title={cardTitle('我的产品')}
-            extra={pageLink('续费管理', paths.renewals, <IconArrowRight />)}>
+            extra={pageLink('购买云服务器', paths.purchase, <IconArrowRight />)}>
             <div className="overview-products">
-              {products.map(product => <div className="overview-product" key={product.path}>
+              {products.filter(product => !isDeferredMemberPath(product.path)).map(product => <div className="overview-product" key={product.path}>
                 <span className="overview-product-icon" aria-hidden="true">{product.icon}</span>
-                <Statistic title={product.name} value="--" styleValue={{ fontSize: 24 }} />
+                <Typography.Text bold>{product.name}</Typography.Text>
                 {pageLink('查看产品', product.path)}
               </div>)}
             </div>
-            <div className="overview-section-note">产品信息暂未开放，您可通过上方入口进入对应产品页面。</div>
-          </Card>
-        </section>
-        <section aria-label="费用概览">
-          <Card className="console-page-card" title={cardTitle('费用概览')}
-            extra={pageLink('订单管理', paths.orders, <IconArrowRight />)}>
-            <div className="overview-expenses">
-              {['本月消费（元）', '待付金额（元）', '待续费金额（元）'].map(title => <Statistic key={title} title={<span className="overview-expense-title">{title}</span>} value="--" styleValue={{ fontSize: 24 }} />)}
-            </div>
-            <div className="overview-card-footer">
-              <Typography.Text type="secondary">费用统计暂未开放</Typography.Text>
-              {pageLink('查看资金明细', paths.transactions)}
-            </div>
+            <div className="overview-section-note">进入云服务器列表查看实例、办理续费和管理服务。</div>
           </Card>
         </section>
       </div>
@@ -113,7 +102,7 @@ export default function OverviewPage() {
           <Card className="console-page-card" title={cardTitle('快捷入口')}
             extra={<Button id="overview-more-shortcuts" type="text" size="small" onClick={() => setAllShortcutsOpen(true)}>查看更多</Button>}>
             <div className="overview-shortcuts">
-              {shortcuts.map((shortcut, index) => <Button key={shortcut.path} type="text"
+              {shortcuts.filter(shortcut => !isDeferredMemberPath(shortcut.path)).map((shortcut, index) => <Button key={shortcut.path} type="text"
                 className={index === 0 ? 'overview-shortcut overview-shortcut-primary' : 'overview-shortcut'}
                 onClick={() => history.push(shortcut.path)}>
                 <span className="overview-shortcut-content"><span className="overview-shortcut-icon" aria-hidden="true">{shortcut.icon}</span><span>{shortcut.name}</span></span>

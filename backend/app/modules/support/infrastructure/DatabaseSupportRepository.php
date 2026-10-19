@@ -8,12 +8,10 @@ use app\shared\infrastructure\TableQueryOrder;
 
 use app\modules\support\infrastructure\model\TicketTypeModel;
 use app\modules\support\infrastructure\model\TicketModel;
-use app\modules\support\infrastructure\model\TicketMessageModel;
 use app\modules\support\infrastructure\model\TicketQuickReplyModel;
 use support\Model;
 use app\modules\support\contract\SupportRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
-use support\Db;
 
 /** 工单管理持久化，表名只接受应用层固定映射。 */
 final class DatabaseSupportRepository implements SupportRepositoryInterface
@@ -102,27 +100,6 @@ final class DatabaseSupportRepository implements SupportRepositoryInterface
     public function ticket(int $id): ?array
     {
         return $this->reads->ticket($id);
-    }
-
-    public function messages(int $ticketId): array
-    {
-        return array_map(self::normalize(...), TicketMessageModel::query()
-            ->where('ticket_id', $ticketId)->orderBy('id')->get()->all());
-    }
-
-    public function reply(int $ticketId, int $adminId, string $content): ?int
-    {
-        return Db::connection()->transaction(static function () use ($ticketId, $adminId, $content): ?int {
-            $ticket = TicketModel::query()->where('id', $ticketId)->lockForUpdate()->first();
-            if (!$ticket instanceof Model || $ticket->status === 'closed') return null;
-            $now = date('Y-m-d H:i:s');
-            $reply = TicketMessageModel::query()->create([
-                'ticket_id' => $ticketId, 'author_type' => 'admin', 'author_id' => $adminId,
-                'content' => $content, 'created_at' => $now,
-            ]);
-            $ticket->fill(['status' => 'waiting_member'])->save();
-            return (int) $reply->id;
-        });
     }
 
     /** @return array<string, mixed> */

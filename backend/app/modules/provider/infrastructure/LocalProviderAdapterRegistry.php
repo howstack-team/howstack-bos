@@ -90,7 +90,7 @@ final readonly class LocalProviderAdapterRegistry implements ProviderAdapterRegi
             'requires' => array_intersect_key($package['requires'], array_flip(['core_min', 'core_max_exclusive'])),
             'configuration_fields' => $package['configuration_fields'], 'catalogs' => $package['catalogs'],
             'capabilities' => ['product_types' => $package['provider']['product_types'],
-                'type_version' => $package['provider']['type_version'], 'catalog' => true, 'production_ready' => false, 'operations' => []],
+                'type_version' => $package['provider']['type_version'], 'catalog' => true, 'production_ready' => $package['capabilities']['cloud_server.provision'], 'operations' => $package['capabilities']['cloud_server.provision'] ? ['provision', 'query_provision'] : []],
             'manifest_hash' => $package['package_hash'],
         ];
     }

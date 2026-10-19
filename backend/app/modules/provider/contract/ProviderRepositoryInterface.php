@@ -13,6 +13,8 @@ interface ProviderRepositoryInterface
     public function find(int $id): ?array;
     /** @param int $id 连接 @return array<string, string|int|bool> 插件私有调用配置 */
     public function credentials(int $id): array;
+    /** @param int $id 连接 @param int $revision 报价绑定所用修订 @return array<string,string|int|bool> 锁定并确认同一修订后的配置，仅在付款事务内使用 */
+    public function credentialsAtRevision(int $id, int $revision): array;
     /** @param int|null $id 连接 @param array<string, mixed> $data 已验证字段 @return array<string, mixed> 安全资料 */
     public function save(?int $id, array $data): array;
     /** @param int $id 连接 @param int $revision 版本 @param int $status 启停 @return array<string, mixed> 安全资料 */

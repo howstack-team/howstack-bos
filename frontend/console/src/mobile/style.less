@@ -2,8 +2,10 @@
 @import '@arco-design/mobile-react/style/public.less';
 @import '@arco-design/mobile-react/esm/button/style/index.less';
 @import '@arco-design/mobile-react/esm/input/style/index.less';
+@import '@arco-design/mobile-react/esm/textarea/style/index.less';
 @import '@arco-design/mobile-react/esm/form/style/index.less';
 @import '@arco-design/mobile-react/esm/checkbox/style/index.less';
+@import '@arco-design/mobile-react/esm/radio/style/index.less';
 @import '@arco-design/mobile-react/esm/tabs/style/index.less';
 @import '@arco-design/mobile-react/esm/tab-bar/style/index.less';
 @import '@arco-design/mobile-react/esm/nav-bar/style/index.less';
@@ -14,6 +16,8 @@
 @import '@arco-design/mobile-react/esm/transition/style/index.less';
 @import '@arco-design/mobile-react/esm/masking/style/index.less';
 @import '@arco-design/mobile-react/esm/portal/style/index.less';
+@import '@arco-design/mobile-react/esm/popup/style/index.less';
+@import '@arco-design/mobile-react/esm/picker-view/style/index.less';
 @import '@arco-design/mobile-react/esm/picker/style/index.less';
 // 启用官方公开 token；认证布局使用公开属性，控件保持默认外观。
 @use-css-vars: 1;
@@ -167,3 +171,27 @@ h2 { font-size: 0.32rem; font-weight: 600; }
 .m-pagination { display: flex; align-items: center; justify-content: space-between; font-size: 0.26rem; padding: 0.24rem 0; }
 .m-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
 @media (max-width: 350px) { .m-auth-hero, .m-auth-content, .m-auth > .m-footer { padding-inline: 20px; } .m-main { --m-main-gutter: 0.24rem; } }
+
+.m-instance-operations { text-align: left; max-height: 62vh; max-height: 62dvh; overflow-y: auto; overscroll-behavior: contain; }
+.m-instance-operations h3 { margin: 20px 0 8px; font-size: 15px; }
+.m-operation-warning { color: var(--warning-color, #b26b00); line-height: 1.6; }
+.m-operation-history { padding: 8px 0; border-bottom: 1px solid var(--line-color, #e5e6eb); }
+.m-operation-history p { margin: 4px 0; }
+
+.m-vnc-panel { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom)); background: var(--color-bg-1, #fff); }
+.m-vnc-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.m-vnc-header p { margin: 4px 0 0; color: var(--color-text-3, #86909c); font-size: 12px; }
+.m-vnc-actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.m-vnc-display { flex: 1; min-height: 120px; overflow: hidden; background: #15171c; }
+.m-vnc-note { margin: 0; font-size: 12px; color: var(--color-text-3, #86909c); line-height: 1.5; }
+.m-vnc-keyboard { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.m-vnc-keyboard textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #e5e6eb; border-radius: 2px; font-size: 16px; resize: none; background: #fff; color: #1d2129; }
+
+// 资金单号允许完整换行，避免窄屏隐藏对账所需信息。
+.m-wallet-entry-fields { margin: 0; display: grid; gap: 6px; }
+.m-wallet-entry-fields dt { color: var(--color-text-3); }
+.m-wallet-entry-fields dd { margin: 0 0 8px; overflow-wrap: anywhere; }
+.m-ticket { overflow-wrap: anywhere; }
+.m-ticket .m-row { flex-wrap: wrap; gap: 10px; }
+.m-ticket-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+.m-ticket-message { padding: 12px 0; border-bottom: 1px solid var(--color-border-2); }

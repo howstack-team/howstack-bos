@@ -27,7 +27,7 @@ export default function App() {
   const pathname = location.pathname.replace(/\/+$/, '') || '/'
   const platform = useConsoleTheme()?.site.name ?? ''
   const pageName = pathname === paths.oauthBind ? '关联平台账号' : pathname === paths.login ? '会员登录' : pathname === paths.register ? '会员注册'
-    : pathname === paths.purchase ? '购买云服务器' : pathname.startsWith(`${paths.orders}/`) ? '订单详情'
+    : pathname === paths.purchase ? '购买云服务器' : pathname.startsWith(`${paths.orders}/`) ? '订单详情' : pathname.startsWith(`${paths.tickets}/`) ? '工单详情'
     : pathname === '/' ? '控制台' : consoleRoutes.find(route => route.path === pathname)?.name ?? '页面不存在'
   useEffect(() => { document.title = consolePageTitle(pageName, platform) }, [pageName, platform])
   if (loading) return <PageLoading fullPage />

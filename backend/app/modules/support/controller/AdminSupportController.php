@@ -8,6 +8,9 @@ use app\modules\admin\auth\application\AdminAuthenticationContext;
 use app\modules\admin\auth\middleware\AdminAuthMiddleware;
 use app\modules\support\application\ManageSupportService;
 use app\modules\support\validation\SupportValidator;
+use app\modules\support\validation\MemberTicketValidator;
+use app\modules\support\middleware\TicketWriteRateLimitMiddleware;
+use app\shared\http\middleware\SameOriginWriteMiddleware;
 use app\shared\http\ApiResponse;
 use app\shared\validation\TableListQueryValidator;
 use support\annotation\Middleware;
@@ -73,13 +76,30 @@ final readonly class AdminSupportController
     #[Get(path: '/tickets/{id:\d+}', name: 'admin.tickets.show')]
     public function ticket(Request $request, mixed $id): Response
     {
-        return $this->responses->success($request, $this->service->ticket($this->context->account($request), SupportValidator::id($id)));
+        return $this->responses->success($request, $this->service->ticket($this->context->account($request), SupportValidator::id($id)))
+            ->withHeaders(['Cache-Control' => 'no-store, private', 'Pragma' => 'no-cache']);
     }
 
     #[Post(path: '/tickets/{id:\d+}/replies', name: 'admin.tickets.reply')]
+    #[Middleware(SameOriginWriteMiddleware::class, TicketWriteRateLimitMiddleware::class)]
     public function reply(Request $request, mixed $id): Response
     {
-        $this->service->reply($this->context->account($request), SupportValidator::id($id), SupportValidator::reply($request->post()));
-        return $this->responses->success($request, null, '回复成功');
+        $input = MemberTicketValidator::command($request->post(), true);
+        return $this->responses->success($request, $this->service->reply($this->context->account($request), SupportValidator::id($id), $input['content'], $input['request_key']), '回复成功');
+    }
+
+    #[Post(path: '/tickets/{id:\d+}/close', name: 'admin.tickets.close')]
+    #[Middleware(SameOriginWriteMiddleware::class, TicketWriteRateLimitMiddleware::class)]
+    public function close(Request $request, mixed $id): Response
+    {
+        $input = MemberTicketValidator::command($request->post(), false);
+        return $this->responses->success($request, $this->service->close($this->context->account($request), SupportValidator::id($id), $input['request_key']), '工单已关闭');
+    }
+
+    #[Get(path: '/tickets/{id:\d+}/messages', name: 'admin.tickets.messages')]
+    public function messages(Request $request, mixed $id): Response
+    {
+        return $this->responses->success($request, $this->service->messages($this->context->account($request), SupportValidator::id($id), MemberTicketValidator::cursor($request->get())))
+            ->withHeaders(['Cache-Control' => 'no-store, private', 'Pragma' => 'no-cache']);
     }
 }

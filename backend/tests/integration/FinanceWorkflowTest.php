@@ -25,6 +25,7 @@ use tests\support\MessageRuntimeFactory;
 final class FinanceWorkflowTest extends TestCase
 {
     use IsolatedBusinessDatabase;
+    use \tests\support\UndeliveredOrderFixture;
 
     private function actor(bool $founder = true): AdminAccount
     {
@@ -36,9 +37,9 @@ final class FinanceWorkflowTest extends TestCase
         $ledger = new DatabaseWalletLedgerRepository();
         $transactions = new DatabaseTransactionManager();
         return new ManageFinanceService(new AdminAccessControlService(new DatabaseAdminAccessRepository()),
-            new DatabaseFinanceWorkflowRepository(), $ledger,
+            new DatabaseFinanceWorkflowRepository(new \app\modules\service_instance\infrastructure\DatabaseUndeliveredRefundGuard()), $ledger,
             new WalletLedgerService($ledger, $transactions, MessageRuntimeFactory::publisher()),
-            new DatabaseOrderFinanceRepository(new \app\modules\product\infrastructure\ProductOrderCapacityRegistry(new \app\modules\compute\application\OrderComputeCapacityService(new \app\modules\compute\infrastructure\DatabaseComputeInventoryRepository()))), $transactions, $outbox ?? new DatabaseOutboxWriter());
+            new DatabaseOrderFinanceRepository(\tests\support\ProductRuntimeFactory::purchases()), $transactions, $outbox ?? new DatabaseOutboxWriter(), new \app\modules\service_instance\infrastructure\DatabaseUndeliveredRefundGuard());
     }
 
     private function input(array $values): array
@@ -61,7 +62,8 @@ final class FinanceWorkflowTest extends TestCase
         $transactions = new DatabaseTransactionManager();
         (new PayOrderByWalletService(new DatabaseOrderPaymentRepository(),
             new WalletLedgerService($ledger, $transactions, MessageRuntimeFactory::publisher()),
-            $transactions, new DatabaseOutboxWriter(), MessageRuntimeFactory::publisher(), new \app\modules\product\infrastructure\ProductOrderCapacityRegistry(new \app\modules\compute\application\OrderComputeCapacityService(new \app\modules\compute\infrastructure\DatabaseComputeInventoryRepository()))))->pay($member, $order);
+            $transactions, new DatabaseOutboxWriter(), MessageRuntimeFactory::publisher(), \tests\support\ProductRuntimeFactory::purchases(), new \tests\support\RecordingOrderProvisioning()))->pay($member, $order);
+        $this->confirmFixtureUndelivered($order);
         return $order;
     }
 
@@ -98,17 +100,17 @@ final class FinanceWorkflowTest extends TestCase
         $units = Db::table('order_item_units')->orderBy('id')->pluck('id');
         $service = $this->finance();
         $refund = $service->create($this->actor(), 'refunds', $this->input([
-            'member_id' => $member, 'source_id' => $units[0], 'amount_minor' => 500, 'reason' => '实例退款',
+            'member_id' => $member, 'source_id' => $units[0], 'amount_minor' => 600, 'reason' => '实例退款',
         ]));
-        self::assertSame(500, (int) Db::table('order_item_units')->where('id', $units[0])->value('reserved_refund_minor'));
-        $service->act($this->actor(), 'refunds', $refund['id'], 'approve', $this->input([]));
+        self::assertSame(600, (int) Db::table('order_item_units')->where('id', $units[0])->value('reserved_refund_minor'));
+        $service->act($this->reviewer(), 'refunds', $refund['id'], 'approve', $this->input(['review_reason' => '已核对来源及未交付证据']));
         $execute = $this->input([]);
         $service->act($this->actor(), 'refunds', $refund['id'], 'execute', $execute);
         $service->act($this->actor(), 'refunds', $refund['id'], 'execute', $execute);
-        self::assertSame(800, (int) Db::table('wallet_accounts')->value('available_minor'));
-        self::assertSame(800, (int) Db::table('wallet_funding_lots')->value('remaining_minor'));
-        self::assertSame(500, (int) Db::table('wallet_consumptions')->value('restored_minor'));
-        self::assertSame(500, (int) Db::table('orders')->where('id', $order)->value('refunded_minor'));
+        self::assertSame(900, (int) Db::table('wallet_accounts')->value('available_minor'));
+        self::assertSame(900, (int) Db::table('wallet_funding_lots')->value('remaining_minor'));
+        self::assertSame(600, (int) Db::table('wallet_consumptions')->value('restored_minor'));
+        self::assertSame(600, (int) Db::table('orders')->where('id', $order)->value('refunded_minor'));
         self::assertSame('partial_refund', Db::table('orders')->where('id', $order)->value('payment_status'));
         self::assertSame(0, (int) Db::table('order_item_units')->where('id', $units[1])->value('refunded_minor'));
         self::assertSame(1, Db::table('wallet_entries')->where('entry_type', 'refund_credit')->count());
@@ -129,7 +131,7 @@ final class FinanceWorkflowTest extends TestCase
         ]));
         self::assertCount(0, $service->options($this->actor(), 'refunds', $member));
         self::assertCount(0, $service->options($this->actor(), 'invoices', $member));
-        $service->act($this->actor(), 'invoices', $invoice['id'], 'approve', $this->input([]));
+        $service->act($this->actor(), 'invoices', $invoice['id'], 'approve', $this->input(['review_reason' => '已核对来源及未交付证据']));
         $service->act($this->actor(), 'invoices', $invoice['id'], 'issue', $this->input(['external_reference' => 'INVOICE-001']));
         $service->act($this->actor(), 'invoices', $invoice['id'], 'red', $this->input(['external_reference' => 'RED-001']));
         self::assertCount(2, $service->options($this->actor(), 'refunds', $member));
@@ -146,11 +148,11 @@ final class FinanceWorkflowTest extends TestCase
         self::assertSame(1000, (int) Db::table('wallet_accounts')->value('available_minor'));
         self::assertSame(500, (int) Db::table('wallet_accounts')->value('frozen_minor'));
         self::assertSame(1000, (int) Db::table('wallet_funding_lots')->value('remaining_minor'));
-        $service->act($this->actor(), 'withdrawals', $withdraw['id'], 'reject', $this->input(['review_reason' => '资料不符']));
+        $service->act($this->reviewer(), 'withdrawals', $withdraw['id'], 'reject', $this->input(['review_reason' => '资料不符']));
         self::assertSame(1500, (int) Db::table('wallet_accounts')->value('available_minor'));
         $withdraw = $service->create($this->actor(), 'withdrawals', $this->input($input));
-        $service->act($this->actor(), 'withdrawals', $withdraw['id'], 'approve', $this->input([]));
-        $payout = $this->input(['external_reference' => 'BANK-PAYOUT-001']);
+        $service->act($this->reviewer(), 'withdrawals', $withdraw['id'], 'approve', $this->input(['review_reason' => '已核对来源及未交付证据']));
+        $payout = $this->input(['external_reference' => 'BANK-PAYOUT-001', 'payout_note' => '已通过银行核对实际打款']);
         $service->act($this->actor(), 'withdrawals', $withdraw['id'], 'payout', $payout);
         $service->act($this->actor(), 'withdrawals', $withdraw['id'], 'payout', $payout);
         self::assertSame(1000, (int) Db::table('wallet_accounts')->value('available_minor'));
@@ -188,7 +190,7 @@ final class FinanceWorkflowTest extends TestCase
         $service = $this->finance();
         $input = ['member_id' => $member, 'source_id' => $unit, 'amount_minor' => 600, 'reason' => '退款测试'];
         $refund = $service->create($this->actor(), 'refunds', $this->input($input));
-        $service->act($this->actor(), 'refunds', $refund['id'], 'reject', $this->input(['review_reason' => '不符合政策']));
+        $service->act($this->reviewer(), 'refunds', $refund['id'], 'reject', $this->input(['review_reason' => '不符合政策']));
         self::assertSame(0, (int) Db::table('order_item_units')->where('id', $unit)->value('reserved_refund_minor'));
         foreach ([0, -1, 601] as $invalid) {
             try {
@@ -211,7 +213,7 @@ final class FinanceWorkflowTest extends TestCase
         $refund = $this->finance()->create($this->actor(), 'refunds', $this->input([
             'member_id' => $member, 'source_id' => $unit, 'amount_minor' => 600, 'reason' => '故障测试',
         ]));
-        $this->finance()->act($this->actor(), 'refunds', $refund['id'], 'approve', $this->input([]));
+        $this->finance()->act($this->reviewer(), 'refunds', $refund['id'], 'approve', $this->input(['review_reason' => '已核对来源及未交付证据']));
         $before = Db::table('finance_operations')->count();
         $outbox = new class implements \app\shared\contract\OutboxWriterInterface {
             public function append(string $key, string $type, int $aggregateId, array $payload): void
@@ -221,7 +223,7 @@ final class FinanceWorkflowTest extends TestCase
             }
         };
         try {
-            $this->finance($outbox)->act($this->actor(), 'refunds', $refund['id'], 'execute', $this->input([]));
+            $this->finance($outbox)->act($this->actor(), 'refunds', $refund['id'], 'execute', $this->input(['review_reason' => '已核对来源及未交付证据']));
             self::fail('故障必须传播');
         } catch (\RuntimeException $error) {
             self::assertStringContainsString('故障注入', $error->getMessage());
@@ -241,7 +243,7 @@ final class FinanceWorkflowTest extends TestCase
         $member = $this->member();
         $context = new \app\modules\admin\auth\application\AdminAuthenticationContext();
         $responses = new \app\shared\http\ApiResponse();
-        $controller = new \app\modules\finance\controller\AdminFinanceWorkflowController($this->finance(), $context, $responses);
+        $controller = new \app\modules\finance\controller\AdminFinanceWorkflowController($this->finance(), $context, $responses, new \app\shared\infrastructure\TrustedProxyClientIpResolver(), new \app\shared\infrastructure\Ip2RegionLocationResolver(new \Ip2Region()));
         $payload = json_encode($this->input(['member_id' => $member, 'amount_minor' => 321, 'external_reference' => 'HTTP-TEST']), JSON_THROW_ON_ERROR);
         $request = new \support\Request("POST /api/admin/v1/finance/recharges HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: " . strlen($payload) . "\r\n\r\n" . $payload);
         $context->set($request, $this->actor());
@@ -309,6 +311,118 @@ final class FinanceWorkflowTest extends TestCase
         self::assertSame(500, (int) Db::table('wallet_funding_lots')->value('remaining_minor'));
     }
 
+    public function testUnknownMissingAndPreviouslyDeliveredCannotRefundEvenWhenTerminated(): void
+    {
+        $member = $this->member();
+        $this->paidOrder($member);
+        $unit = (int) Db::table('order_item_units')->orderBy('id')->value('id');
+        $task = \app\modules\service_instance\infrastructure\model\ProvisioningTaskModel::query()->where('order_unit_id', $unit)->firstOrFail();
+        $input = ['member_id' => $member, 'source_id' => $unit, 'amount_minor' => 600, 'reason' => '未交付退款'];
+        foreach (['queued', 'processing', 'waiting', 'attention', 'succeeded'] as $status) {
+            $task->fill(['status' => $status])->save();
+            $this->assertRejectedRefund($input);
+            self::assertNotContains($unit, array_column($this->finance()->options($this->actor(), 'refunds', $member), 'id'));
+        }
+        $task->fill(['status' => 'failed', 'external_id' => 'external-created'])->save();
+        $this->assertRejectedRefund($input);
+        $task->fill(['external_id' => null, 'error_code' => 'operator_confirmed_not_created'])->save();
+        $this->assertRejectedRefund($input, '无人工凭证的历史确认也不能退款');
+        $task->fill(['not_created_by' => 1, 'not_created_at' => date('Y-m-d H:i:s'), 'not_created_reason' => '供应商核实未创建', 'not_created_reference' => 'CHECK-001'])->save();
+        self::assertContains($unit, array_column($this->finance()->options($this->actor(), 'refunds', $member), 'id'));
+        \app\modules\service_instance\infrastructure\model\ServiceInstanceModel::query()->whereKey($task->service_id)->update(['activated_at' => date('Y-m-d H:i:s')]);
+        $this->assertRejectedRefund($input, '曾交付后终止也不能退款');
+        $task->delete();
+        $this->assertRejectedRefund($input, '缺失交付任务不能推断为未交付');
+        self::assertSame(0, Db::table('refund_requests')->count());
+        self::assertSame(300, (int) Db::table('wallet_accounts')->value('available_minor'));
+    }
+
+    public function testFullRefundRequiresIndependentReviewAndRechecksBeforeExecution(): void
+    {
+        $member = $this->member();
+        $this->paidOrder($member);
+        $unit = (int) Db::table('order_item_units')->orderBy('id')->value('id');
+        $input = ['member_id' => $member, 'source_id' => $unit, 'amount_minor' => 599, 'reason' => '未交付'];
+        $this->assertRejectedRefund($input, '未交付不允许部分退款');
+        $refund = $this->finance()->create($this->actor(), 'refunds', $this->input(array_replace($input, ['amount_minor' => 600])), ['client_ip' => '127.0.0.1', 'client_ip_location' => '本机']);
+        self::assertNotNull(Db::table('refund_requests')->value('delivery_task_id'));
+        self::assertSame('本机', Db::table('finance_operations')->where('resource', 'refunds')->value('client_ip_location'));
+        foreach ([$this->actor(), $this->reviewer()] as $reviewer) {
+            try {
+                $this->finance()->act($reviewer, 'refunds', $refund['id'], 'approve', $this->input($reviewer->id === 1 ? ['review_reason' => '自己审核'] : []));
+                self::fail('自己审核或无审核意见必须拒绝');
+            } catch (BusinessException $error) { self::assertSame(409, $error->httpStatus()); }
+        }
+        $this->finance()->act($this->reviewer(), 'refunds', $refund['id'], 'approve', $this->input(['review_reason' => '已核实未创建']));
+        Db::table('service_provisioning_tasks')->where('order_unit_id', $unit)->update(['status' => 'attention']);
+        try {
+            $this->finance()->act($this->actor(), 'refunds', $refund['id'], 'execute', $this->input([]));
+            self::fail('执行时证据变为未知必须拒绝');
+        } catch (BusinessException $error) { self::assertSame(409, $error->httpStatus()); }
+        self::assertSame('approved', Db::table('refund_requests')->value('status'));
+        self::assertSame(600, (int) Db::table('order_item_units')->where('id', $unit)->value('reserved_refund_minor'));
+        self::assertSame(0, Db::table('wallet_entries')->where('entry_type', 'refund_credit')->count());
+    }
+
+    public function testWithdrawalReceiptIsUniqueAndFailedRegistrationKeepsFrozenFunds(): void
+    {
+        $member = $this->member();
+        $recharge = $this->deposit($member);
+        $base = ['member_id' => $member, 'source_id' => $recharge['id'], 'amount_minor' => 500, 'reason' => '退还未消费充值'];
+        $first = $this->finance()->create($this->actor(), 'withdrawals', $this->input($base));
+        $second = $this->finance()->create($this->actor(), 'withdrawals', $this->input($base));
+        foreach ([$first, $second] as $record) $this->finance()->act($this->reviewer(), 'withdrawals', $record['id'], 'approve', $this->input(['review_reason' => '已核对原充值及冻结']));
+        $payout = ['external_reference' => 'BANK-UNIQUE-001', 'payout_note' => '本日银行转账已核对'];
+        $this->finance()->act($this->reviewer(), 'withdrawals', $first['id'], 'payout', $this->input($payout));
+        foreach ([$payout, ['external_reference' => 'BANK-002']] as $invalid) {
+            try {
+                $this->finance()->act($this->reviewer(), 'withdrawals', $second['id'], 'payout', $this->input($invalid));
+                self::fail('重复凭证或缺少核对说明必须拒绝');
+            } catch (BusinessException $error) { self::assertSame(409, $error->httpStatus()); }
+        }
+        self::assertSame('approved', Db::table('withdrawal_requests')->where('id', $second['id'])->value('status'));
+        self::assertSame(500, (int) Db::table('wallet_accounts')->value('available_minor'));
+        self::assertSame(500, (int) Db::table('wallet_accounts')->value('frozen_minor'));
+        self::assertSame(1, Db::table('wallet_entries')->where('entry_type', 'withdrawal_payout')->count());
+        self::assertSame(2, (int) Db::table('withdrawal_requests')->where('id', $first['id'])->value('executor_id'));
+        self::assertSame($payout['payout_note'], Db::table('withdrawal_requests')->where('id', $first['id'])->value('payout_note'));
+    }
+
+    public function testMysqlRefundAndRetryCannotBothReserveTheSameInstance(): void
+    {
+        if (getenv('HOWSTACK_MYSQL_TEST') !== '1' || !function_exists('pcntl_fork')) self::markTestSkipped('需要独立MySQL及pcntl');
+        $member = $this->member();
+        $order = $this->paidOrder($member);
+        $unit = (int) Db::table('order_item_units')->orderBy('id')->value('id');
+        $task = Db::table('service_provisioning_tasks')->where('order_unit_id', $unit)->first();
+        Db::table('service_provisioning_tasks')->where('id', $task->id)->update(['connection_encrypted' => 'fixture']);
+        (new DatabaseTransactionManager())->run(fn () => $this->provisioner()->prepare($order, 'Test@123456'));
+        $input = ['member_id' => $member, 'source_id' => $unit, 'amount_minor' => 600, 'reason' => '与重试竞争'];
+        $results = $this->concurrently('refunds', [$this->input($input), ['_retry_service' => (int) $task->service_id]]);
+        $codes = array_column($results, 'code'); sort($codes);
+        self::assertSame([0, 409], $codes);
+        $reserved = (int) Db::table('order_item_units')->where('id', $unit)->value('reserved_refund_minor');
+        self::assertSame($reserved > 0 ? 'failed' : 'waiting', Db::table('service_provisioning_tasks')->where('id', $task->id)->value('status'));
+        self::assertSame($reserved > 0 ? 1 : 0, Db::table('refund_requests')->count());
+    }
+
+    private function assertRejectedRefund(array $input, string $message = '非明确失败不能退款'): void
+    {
+        try { $this->finance()->create($this->actor(), 'refunds', $this->input($input)); self::fail($message); }
+        catch (BusinessException $error) { self::assertSame(409, $error->httpStatus()); }
+    }
+
+    private function provisioner(): \app\modules\service_instance\application\ProvisionPaidOrderService
+    {
+        $gateway = new class implements \app\modules\provider\contract\ProviderProvisioningGatewayInterface {
+            public function capture(array $binding, array $configuration): array { return []; }
+            public function execute(array $task, string $password): \app\shared\plugin\dto\provider\ProvisionResult { throw new \LogicException('此测试禁止调用外部供应商'); }
+        };
+        return new \app\modules\service_instance\application\ProvisionPaidOrderService(new \app\modules\order\infrastructure\DatabaseOrderProvisioningRepository(),
+            new \app\modules\service_instance\infrastructure\DatabaseProvisioningRepository(new \app\shared\infrastructure\SodiumSensitiveDataCipher(str_repeat('test-key-', 8))),
+            $gateway, new DatabaseTransactionManager());
+    }
+
     /** 两个独立数据库连接同步竞争，不共享父进程连接或事务。 */
     private function concurrently(string $resource, array $inputs): array
     {
@@ -332,7 +446,12 @@ final class FinanceWorkflowTest extends TestCase
                 }
                 try {
                     Db::statement('SET SESSION innodb_lock_wait_timeout = 5');
-                    $result = ['code' => 0] + $this->finance()->create($this->actor(), $resource, $input);
+                    if (isset($input['_retry_service'])) {
+                        $this->provisioner()->retry($input['_retry_service']);
+                        $result = ['code' => 0];
+                    } else {
+                        $result = ['code' => 0] + $this->finance()->create($this->actor(), $resource, $input);
+                    }
                 } catch (BusinessException $error) {
                     $result = ['code' => $error->httpStatus()];
                 } catch (\Throwable $error) {

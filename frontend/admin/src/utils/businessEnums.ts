@@ -39,7 +39,7 @@ export const SERVICE_STATUSES: StatusMap = {
 }
 /** 工单处理中才使用 processing，等待会员按中性等待展示。 */
 export const TICKET_STATUSES: StatusMap = {
-  open: { text: '待处理', status: 'warning' }, processing: { text: '处理中', status: 'processing' },
+  open: { text: '等待后台', status: 'warning' }, processing: { text: '处理中', status: 'processing' },
   waiting_member: { text: '等待会员', status: 'default' }, closed: { text: '已关闭', status: 'default' },
 }
 /** 工单优先级以文字展示，保持每个表格只有一列流程徽标。 */

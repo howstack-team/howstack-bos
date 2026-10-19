@@ -127,7 +127,9 @@ paths:
                     minLength: 1
     post:
       summary: 按已发布配置创建待支付购买订单
-      description: 需要查看及 admin.page.order-list.create 权限；当前支持云服务器、人民币正价订单，创建不扣款、不占库存、不调用供应商。发布版本须仍可售，费用与服务端重算结果一致；同管理员同 request_key 同内容返回原订单，异内容返回409。未知类型字段由购买输入契约剔除，不保存密码、供应密钥或客户端价格状态。
+      description: 需要查看及 admin.page.order-list.create
+        权限；当前支持云服务器、人民币正价订单，创建不扣款、不占库存、不调用供应商。发布版本须仍可售，费用与服务端重算结果一致；同管理员同 request_key
+        同内容返回原订单，异内容返回409。未知类型字段由购买输入契约剔除，不保存密码、供应密钥或客户端价格状态。
       requestBody:
         required: true
         content:
@@ -158,6 +160,14 @@ paths:
                       type: string
                       maxLength: 255
                       default: ""
+              properties:
+                login_password:
+                  type: string
+                  format: password
+                  writeOnly: true
+                  minLength: 8
+                  maxLength: 72
+                  description: 可选实例初始密码，仅独立加密保存，不进入配置或报价快照；留空由系统生成。
       responses:
         "200":
           description: 统一响应 data.id 为原订单或新订单标识
@@ -298,7 +308,8 @@ paths:
                         - price
       responses:
         "200":
-          description: 统一响应 data 为选项或费用；费用含 configuration、currency、quantity、amount_minor、subtotal_minor、discount_minor 和费用分项
+          description: 统一响应 data 为选项或费用；费用含 configuration、currency、quantity、amount_minor、subtotal_minor、discount_minor
+            和费用分项
         "403":
           description: 缺少权限
         "409":
@@ -308,7 +319,8 @@ paths:
   /api/admin/v1/orders/{id}/{action}:
     post:
       summary: 余额付款、取消未支付订单或编辑备注
-      description: 需要查看及对应 admin.page.order-list.pay/cancel/update 权限。付款锁定订单、账户、消费来源和库存，异常整体回滚；重复已核实余额付款不重复扣款。只取消待付款且未付金额为0的订单，重复取消幂等。update携带原备注避免并发覆盖。付款不代表外部实例已开通。
+      description: 需要查看及对应 admin.page.order-list.pay/cancel/update
+        权限。付款锁定订单、账户、消费来源和库存，异常整体回滚；重复已核实余额付款不重复扣款。只取消待付款且未付金额为0的订单，重复取消幂等。update携带原备注避免并发覆盖。付款不代表外部实例已开通。
       parameters:
         - name: id
           in: path

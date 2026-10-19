@@ -161,15 +161,6 @@
                 "minimum": 1,
                 "maximum": 4294967295
               }
-            },
-            "network_policies": {
-              "type": "array",
-              "maxItems": 500,
-              "uniqueItems": true,
-              "items": {
-                "type": "integer",
-                "minimum": 1
-              }
             }
           },
           "required": [
@@ -241,86 +232,6 @@
           },
           "required": []
         },
-        "network": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "bandwidth_min": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 1000000
-            },
-            "bandwidth_max": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 1000000
-            },
-            "bandwidth_step": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 1000000
-            },
-            "ip_min": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 64
-            },
-            "ip_max": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 64
-            },
-            "bandwidth_prices": {
-              "$ref": "#/$defs/prices"
-            },
-            "ip_prices": {
-              "$ref": "#/$defs/prices"
-            },
-            "bandwidth_billing_mode": {
-              "enum": [
-                "flat",
-                "graduated",
-                "volume"
-              ],
-              "default": "flat"
-            },
-            "bandwidth_tiers": {
-              "type": "array",
-              "maxItems": 40,
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "up_to_mbps",
-                  "prices"
-                ],
-                "properties": {
-                  "up_to_mbps": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
-                    "minimum": 1,
-                    "maximum": 1000000
-                  },
-                  "prices": {
-                    "$ref": "#/$defs/prices"
-                  }
-                }
-              }
-            }
-          },
-          "required": [
-            "bandwidth_min",
-            "bandwidth_max",
-            "bandwidth_step",
-            "ip_min",
-            "ip_max",
-            "bandwidth_prices",
-            "ip_prices"
-          ],
-          "deprecated": true
-        },
         "trial_policy": {
           "type": "object",
           "additionalProperties": false,
@@ -386,12 +297,6 @@
             "pricing",
             "auto_renew_enabled"
           ]
-        },
-        "network_policy_id": {
-          "type": "integer",
-          "minimum": 0,
-          "default": 0,
-          "deprecated": true
         },
         "delivery_rule_id": {
           "type": "integer",
@@ -618,7 +523,6 @@
         "setup_minor",
         "provider_connection_id",
         "price_overrides",
-        "network",
         "trial_policy",
         "refund_policy",
         "renewal_policy",

@@ -48,6 +48,8 @@ final class PrepaidComputeTypeHandler
                 $this->fail('zone_provider_bindings', '供应商只能关联当前配置中的可用区');
             }
         }
+        // 复用资源校验时的零网络适配仅为计算内部结构，不作为第二套销售规则封存。
+        unset($snapshot['network'], $snapshot['resources']['network_policies']);
         return array_replace($snapshot, $policy, ['zone_provider_bindings' => $draft['zone_provider_bindings'] ?? []]);
     }
 

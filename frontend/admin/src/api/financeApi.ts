@@ -41,6 +41,7 @@ export interface FinanceInput {
   title?: string
   invoice_type?: string
   review_reason?: string
+  payout_note?: string
   external_reference?: string
 }
 

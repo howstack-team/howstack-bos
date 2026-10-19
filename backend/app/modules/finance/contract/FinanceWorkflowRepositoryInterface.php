@@ -7,7 +7,7 @@ namespace app\modules\finance\contract;
 /** 财务单据持久化。只写财务表，订单写入使用订单公开契约。 */
 interface FinanceWorkflowRepositoryInterface
 {
-    public function begin(string $key, string $hash, int $actorId, string $resource, string $action): ?array;
+    public function begin(string $key, string $hash, int $actorId, string $resource, string $action, array $audit = []): ?array;
     public function finish(string $key, array $result): void;
     public function members(string $search): array;
     public function managed(string $resource, int $id): bool;
@@ -17,7 +17,6 @@ interface FinanceWorkflowRepositoryInterface
     public function lock(string $resource, int $id): array;
     public function update(string $resource, int $id, array $values): void;
     public function paymentForOrder(int $orderId): array;
-    public function serviceReleased(?int $serviceId): bool;
     public function invoiceOccupations(array $unitIds): array;
     public function invoiceOccupied(int $unitId): int;
     public function allocateInvoice(int $invoiceId, int $unitId, int $amount): void;

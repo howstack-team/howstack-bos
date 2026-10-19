@@ -1,3 +1,5 @@
+import { communityRelease } from '../../../packages/community-release'
+import { useLocation } from 'react-router-dom'
 import { StatusBadge } from '../components/TableEnum'
 import { ORDER_STATUSES as statuses, ORDER_TYPES, PAYMENT_STATUSES, PRODUCT_TYPES } from '../utils/businessEnums'
 import { enumLabels, enumText } from '../utils/tableEnum'
@@ -44,7 +46,8 @@ export default function OrdersPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const location = useLocation()
+  const [selectedId, setSelectedId] = useState<number | null>(() => { const value = new URLSearchParams(location.search).get('detail'); return value && /^[1-9][0-9]*$/.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : null })
   const [detail, setDetail] = useState<OrderDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
@@ -156,7 +159,7 @@ export default function OrdersPage() {
       {detailError && <Alert type="error" content={detailError} style={{ marginBottom: 16 }} />}
       {detailLoading && <div style={{ padding: 16 }}>正在加载订单详情…</div>}
       {detail && <>
-        {['paid', 'partial_refund'].includes(detail.payment_status) && detail.paid_minor > detail.refunded_minor && permissions.includes('admin.finance.invoices.create') && permissions.includes('admin.finance.invoices.view') && <div style={{ marginBottom: 16 }}><Button icon={<IconPlus />} onClick={() => { setSelectedId(null); setFinance({ resource: 'invoices', initial: { member_id: detail.member_id, source_id: detail.id } }) }}>申请开票</Button></div>}
+        {communityRelease.newInvoices && ['paid', 'partial_refund'].includes(detail.payment_status) && detail.paid_minor > detail.refunded_minor && permissions.includes('admin.finance.invoices.create') && permissions.includes('admin.finance.invoices.view') && <div style={{ marginBottom: 16 }}><Button icon={<IconPlus />} onClick={() => { setSelectedId(null); setFinance({ resource: 'invoices', initial: { member_id: detail.member_id, source_id: detail.id } }) }}>申请开票</Button></div>}
         <Descriptions title="订单信息" data={descriptionRows} column={DESCRIPTION_COLUMNS} border />
         <div style={{ marginTop: 24 }}><h3>订单项</h3><Table<OrderItem> rowKey="id" columns={itemColumns} data={detail.items} pagination={false} scroll={{ x: 710 }} /></div>
         {detail.units && <div style={{ marginTop: 24 }}><h3>实例金额明细</h3><Table rowKey="id" columns={unitColumns} data={detail.units} pagination={false} scroll={{ x: 820 }} /></div>}

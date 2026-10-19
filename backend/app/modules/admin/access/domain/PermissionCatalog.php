@@ -88,8 +88,7 @@ final class PermissionCatalog
         }
         foreach ([
             'cloud-servers' => ['云服务器概览', ['view' => '查看']],
-            'cloud-products' => ['云服务器配置', ['view' => '查看', 'create' => '新增', 'update' => '编辑与启停', 'publish' => '发布', 'preview' => '预览']],
-            'cloud-delivery-rules' => ['云服务器交付规则', ['view' => '查看', 'create' => '新增', 'update' => '编辑与启停']],
+            'cloud-products' => ['云服务器配置', ['view' => '查看', 'create' => '新增', 'update' => '编辑与启停', 'preview' => '预览']],
             'compute-resources' => ['云服务器配置资源', ['view' => '查看', 'create' => '新增', 'update' => '编辑']],
             'plugins' => ['插件管理', ['view' => '查看', 'install' => '安装', 'update' => '启停与停止接单', 'upgrade' => '升级', 'uninstall' => '卸载']],
             'provider-connections' => ['资源供应商', ['view' => '查看', 'create' => '新增', 'update' => '编辑与启停', 'test' => '测试连接', 'sync' => '获取供应商资源', 'map' => '设置资源对应']],
@@ -104,8 +103,16 @@ final class PermissionCatalog
         ] as $resource => $label) {
             $catalog['admin.services.' . $resource . '.view'] = ['label' => '查看' . $label . '实例', 'group' => '业务管理'];
         }
+        $catalog['admin.services.cloud-servers.vnc'] = ['label' => '连接云服务器VNC远程控制台', 'group' => '业务管理'];
+        $catalog['admin.services.cloud-servers.power'] = ['label' => '云服务器开关机与重启', 'group' => '业务管理'];
+        $catalog['admin.services.cloud-servers.reinstall'] = ['label' => '云服务器重装系统', 'group' => '业务管理'];
+        $catalog['admin.services.cloud-servers.reset-password'] = ['label' => '云服务器重置密码', 'group' => '业务管理'];
+        $catalog['admin.services.cloud-servers.renew'] = ['label' => '创建云服务器续费订单', 'group' => '业务管理'];
+        $catalog['admin.services.cloud-servers.lifecycle'] = ['label' => '重试云服务器生命周期与运维查单', 'group' => '业务管理'];
+        $catalog['admin.services.cloud-servers.resolve'] = ['label' => '确认云服务器未开通', 'group' => '业务管理'];
+        $catalog['admin.services.cloud-servers.provision'] = ['label' => '重试云服务器开通', 'group' => '业务管理'];
         foreach (['types' => '工单类型', 'quick-replies' => '快捷回复', 'list' => '工单列表'] as $resource => $label) {
-            foreach (($resource === 'list' ? ['view' => '查看', 'reply' => '回复'] :
+            foreach (($resource === 'list' ? ['view' => '查看', 'reply' => '回复', 'close' => '关闭'] :
                 ['view' => '查看', 'create' => '新增', 'update' => '编辑', 'delete' => '删除']) as $action => $verb) {
                 $catalog['admin.tickets.' . $resource . '.' . $action] = ['label' => $verb . $label, 'group' => '服务管理'];
             }
@@ -119,7 +126,7 @@ final class PermissionCatalog
         }
         foreach ([
             'recharges' => '充值记录', 'payments' => '支付记录', 'transactions' => '资金流水',
-            'refunds' => '退款记录', 'invoices' => '发票记录', 'withdrawals' => '提现记录',
+            'refunds' => '退款记录', 'invoices' => '发票记录', 'withdrawals' => '充值退还',
         ] as $resource => $label) {
             $catalog['admin.finance.' . $resource . '.view'] = ['label' => '查看' . $label, 'group' => '财务管理'];
         }

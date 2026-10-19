@@ -9,6 +9,18 @@ use support\Model;
 /** service_instances 的持久化模型；接口输出由仓储显式映射。 */
 final class ServiceInstanceModel extends Model
 {
+    /** @return \Illuminate\Database\Eloquent\Relations\HasOne 首次交付任务 */
+    public function provisioningTask(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProvisioningTaskModel::class, 'service_id');
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Relations\HasMany 生命周期及提醒去重记录 */
+    public function lifecycleTasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LifecycleTaskModel::class, 'service_id');
+    }
+
     protected $table = 'service_instances';
 
     public $timestamps = true;
@@ -24,11 +36,13 @@ final class ServiceInstanceModel extends Model
         'created_at',
         'updated_at',
         'origin_order_unit_id',
+        'power_status', 'power_checked_at', 'installed_image', 'initial_password_disabled_at',
     ];
 
     protected $hidden = [];
 
     protected $casts = [
+        'installed_image' => 'array',
         'id' => 'integer',
         'instance_no' => 'string',
         'product_type' => 'string',

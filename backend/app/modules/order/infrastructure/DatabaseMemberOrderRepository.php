@@ -10,7 +10,7 @@ use app\modules\order\infrastructure\model\{OrderModel, OrderItemModel};
 /** 在查询条件中约束归属，并按客户展示白名单选择列。 */
 final class DatabaseMemberOrderRepository implements MemberOrderRepositoryInterface
 {
-    private const array COLUMNS = ['id', 'order_no', 'status', 'payment_status', 'currency', 'payable_minor', 'paid_minor', 'created_at'];
+    private const array COLUMNS = ['id', 'order_no', 'order_type', 'status', 'payment_status', 'currency', 'payable_minor', 'paid_minor', 'created_at'];
 
     /** @inheritDoc */
     public function paginate(int $memberId, int $page, int $size): array
@@ -28,6 +28,13 @@ final class DatabaseMemberOrderRepository implements MemberOrderRepositoryInterf
         $order = $this->map($row);
         $order['items'] = OrderItemModel::query()->where('order_id', $id)->orderBy('line_no')->get(['product_name', 'quantity', 'total_minor'])->map(
             static fn (OrderItemModel $item): array => ['product_name' => $item->product_name, 'quantity' => $item->quantity, 'total_minor' => $item->total_minor])->all();
+        $order['units'] = \support\Db::table('order_item_units as u')->join('order_items as i', 'i.id', '=', 'u.order_item_id')
+            ->leftJoin('service_instances as s', 's.id', '=', 'u.service_id')->leftJoin('service_provisioning_tasks as p', 'p.order_unit_id', '=', 'u.id')
+            ->where('i.order_id', $id)->orderBy('u.id')->get(['u.id', 'u.unit_index', 'u.service_id', 's.instance_no', 's.status', 'p.status as provisioning_status'])
+            ->map(static fn (object $r): array => ['id' => (int) $r->id, 'unit_index' => (int) $r->unit_index, 'service_id' => $r->service_id === null ? null : (int) $r->service_id,
+                'instance_no' => $r->instance_no, 'status' => $r->status, 'provisioning_status' => $r->provisioning_status])->all();
+        $order['renewal'] = \support\Db::table('service_lifecycle_tasks')->where('order_id', $id)->first(['service_id', 'months', 'expected_expires_at', 'target_expires_at', 'status']);
+        if ($order['renewal'] !== null) $order['renewal'] = (array) $order['renewal'];
         return $order;
     }
 

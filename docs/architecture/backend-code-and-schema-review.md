@@ -1,3 +1,5 @@
+> 本文保留历史审阅证据，部分结论已由后续实现修复；当前产品解耦与旧入口清理情况见[产品模块边界](product-module-boundaries.md)。原行号对应审阅时快照。
+
 # 后端代码与数据库遗留审查
 
 基准日期：2026-10-10。范围：当前 `howstack-bos` 后端工作区，以及 `.env` 指向的本地开发数据库。这里的行数是本地检查时的快照，不代表其他环境或平台规模。
@@ -45,9 +47,9 @@ Controller、Application、Contract、Infrastructure 的目录和职责总体成
 
 ### C02 隐藏了旧功能的界面，后端入口仍保留
 
-**依据**：[ComputeResources](../../backend/app/modules/compute/domain/ComputeResources.php) 第 10 行仍注册 `network_policies`；[ComputeResourceValidator](../../backend/app/modules/compute/validation/ComputeResourceValidator.php) 第 36–37 行允许其保存；[ManageCloudProductsService](../../backend/app/modules/product/application/ManageCloudProductsService.php) 第 46–48、101–104、191–247 行仍查询旧交付规则并保留回退。
+**依据**：[ComputeResources](../../backend/app/modules/compute/domain/ComputeResources.php) 第 10 行仍注册 `network_policies`；[ComputeResourceValidator](../../backend/app/modules/compute/validation/ComputeResourceValidator.php) 第 36–37 行允许其保存；[ManageCloudProductsService](../../backend/app/modules/compute/application/ManageCloudProductsService.php) 第 46–48、101–104、191–247 行仍查询旧交付规则并保留回退。
 
-[AdminCloudProductController](../../backend/app/modules/product/controller/AdminCloudProductController.php) 第 49–67 行保留销售方案新增/更新和独立发布入口；[CloudOfferValidator](../../backend/app/modules/product/validation/CloudOfferValidator.php) 第 28、81–95 行仍允许旧版本写入。[前端 API 包装](../../frontend/admin/src/api/cloudProductApi.ts) 第 134、138、156 行仍声明独立发布和旧交付规则方法，是否从页面触发应在前端会话收敛时核对。
+[AdminCloudProductController](../../backend/app/modules/compute/controller/AdminCloudProductController.php) 第 49–67 行保留销售方案新增/更新和独立发布入口；[CloudOfferValidator](../../backend/app/modules/compute/validation/CloudOfferValidator.php) 第 28、81–95 行仍允许旧版本写入。[前端 API 包装](../../frontend/admin/src/api/cloudProductApi.ts) 第 134、138、156 行仍声明独立发布和旧交付规则方法，是否从页面触发应在前端会话收敛时核对。
 
 **影响**：系统同时维护社区工作台保存生效和旧销售发布两种可写模型。隐藏菜单不能消除接口、权限、契约和代码的维护成本。
 
@@ -87,7 +89,7 @@ Controller、Application、Contract、Infrastructure 的目录和职责总体成
 
 ### C07 页面拆分后，读取仍返回所有资源
 
-**依据**：[GetCloudConfigurationSectionService](../../backend/app/modules/product/application/GetCloudConfigurationSectionService.php) 第 36–39 行，每个配置子页仍取得共用完整 references 和库存；[ManageCloudProductsService](../../backend/app/modules/product/application/ManageCloudProductsService.php) 第 46 行遍历全部 10 类资源。[GetCloudServerWorkspaceService](../../backend/app/modules/product/application/GetCloudServerWorkspaceService.php) 第 26–28 行为了统计数量，读取完整资源列表。
+**依据**：[GetCloudConfigurationSectionService](../../backend/app/modules/compute/application/GetCloudConfigurationSectionService.php) 第 36–39 行，每个配置子页仍取得共用完整 references 和库存；[ManageCloudProductsService](../../backend/app/modules/compute/application/ManageCloudProductsService.php) 第 46 行遍历全部 10 类资源。[GetCloudServerWorkspaceService](../../backend/app/modules/compute/application/GetCloudServerWorkspaceService.php) 第 26–28 行为了统计数量，读取完整资源列表。
 
 **影响**：页面拆开了，API 与查询范围没有随之收敛。资源多时增加 SQL、序列化和响应体积；本轮没有测量生产延迟，不给出性能提升百分比。
 

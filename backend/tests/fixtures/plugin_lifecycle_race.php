@@ -25,7 +25,7 @@ $connections = new DatabaseProviderRepository(new SodiumSensitiveDataCipher(str_
 echo "ready\n";
 flush();
 try {
-    $connections->save(null, ['name' => '并发测试连接', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://fixture.example.test', 'username' => 'fixture', 'password' => 'fixture-secret'], 'status' => 0, 'revision' => 0]);
+    $connections->save(null, ['name' => '并发测试连接', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://fixture.example.test', 'username' => 'fixture', 'password' => 'fixture-secret', 'client_id' => 98], 'status' => 0, 'revision' => 0]);
     echo json_encode(['status' => 201]);
 } catch (BusinessException $error) {
     echo json_encode(['status' => $error->httpStatus()]);

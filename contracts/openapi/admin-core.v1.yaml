@@ -1979,8 +1979,9 @@ paths:
             minimum: 1
   /api/admin/v1/member-levels:
     post:
+      x-community-release: deferred
       summary: 创建会员等级
-      description: 受后端操作权限及数据范围控制。
+      description: 受后端操作权限及数据范围控制。 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
       security:
         - adminCookie: []
         - adminBearer: []
@@ -2061,8 +2062,9 @@ paths:
               $ref: "#/components/schemas/LevelInput"
   /api/admin/v1/member-levels/{id}:
     put:
+      x-community-release: deferred
       summary: 更新会员等级
-      description: 受后端操作权限及数据范围控制。
+      description: 受后端操作权限及数据范围控制。 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
       security:
         - adminCookie: []
         - adminBearer: []
@@ -2149,8 +2151,9 @@ paths:
             schema:
               $ref: "#/components/schemas/LevelInput"
     delete:
+      x-community-release: deferred
       summary: 删除会员等级
-      description: 受后端操作权限及数据范围控制。
+      description: 受后端操作权限及数据范围控制。 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
       security:
         - adminCookie: []
         - adminBearer: []
@@ -3843,225 +3846,6 @@ paths:
           schema:
             type: integer
             minimum: 1
-  /api/admin/v1/tickets/{id}:
-    get:
-      summary: 查看工单及回复记录
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "200":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    required:
-                      - ticket
-                      - messages
-                    properties:
-                      ticket:
-                        type: object
-                        properties:
-                          id:
-                            type: integer
-                            minimum: 1
-                          ticket_no:
-                            type: string
-                          subject:
-                            type: string
-                          content:
-                            type: string
-                          status:
-                            type: string
-                          priority:
-                            type: string
-                      messages:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              minimum: 1
-                            ticket_id:
-                              type: integer
-                              minimum: 1
-                            author_type:
-                              type: string
-                            author_id:
-                              type: integer
-                              minimum: 1
-                            content:
-                              type: string
-                            created_at:
-                              type: string
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-  /api/admin/v1/tickets/{id}/replies:
-    post:
-      summary: 回复工单
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "200":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    type: "null"
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - content
-              properties:
-                content:
-                  type: string
-                  maxLength: 10000
-                  minLength: 1
   /api/admin/v1/service-instances/{id}:
     get:
       summary: 查看服务实例
@@ -5150,179 +4934,7 @@ paths:
                   minimum: 1
                   maximum: 100
                   default: 50
-  /api/admin/v1/cloud-products:
-    post:
-      summary: 创建云服务器配置草稿
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "201":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    description: 当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。
-                    x-schema-status: partial
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CloudInput"
   /api/admin/v1/cloud-products/{id}:
-    put:
-      summary: 更新云服务器配置草稿
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "200":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    description: 当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。
-                    x-schema-status: partial
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CloudInput"
     get:
       summary: 读取云服务器配置详情
       description: 受后端操作权限及数据范围控制。
@@ -5406,83 +5018,6 @@ paths:
           schema:
             type: integer
             minimum: 1
-  /api/admin/v1/cloud-products/references:
-    get:
-      summary: 读取云服务器引用选项
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "200":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    description: 当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。
-                    x-schema-status: partial
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
   /api/admin/v1/cloud-products/{id}/versions:
     get:
       summary: 读取不可变历史配置版本
@@ -5570,242 +5105,6 @@ paths:
   /api/admin/v1/cloud-servers/workspace:
     get:
       summary: 读取云服务器配置统计
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "200":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    description: 当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。
-                    x-schema-status: partial
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /api/admin/v1/cloud-servers/delivery-rules:
-    get:
-      summary: 读取供应交付规则
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "200":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    description: 当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。
-                    x-schema-status: partial
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-    post:
-      summary: 创建供应交付规则
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "201":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    description: 当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。
-                    x-schema-status: partial
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DeliveryRuleInput"
-  /api/admin/v1/cloud-servers/delivery-rules/references:
-    get:
-      summary: 读取交付规则引用选项
       description: 受后端操作权限及数据范围控制。
       security:
         - adminCookie: []
@@ -5970,108 +5269,16 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/StatusRevision"
-  /api/admin/v1/cloud-servers/delivery-rules/{id}:
-    put:
-      summary: 修改供应交付规则
-      description: 受后端操作权限及数据范围控制。
-      security:
-        - adminCookie: []
-        - adminBearer: []
-      responses:
-        "200":
-          description: 成功；X-Request-Id 与响应 request_id 一致。
-          headers:
-            X-Request-Id:
-              schema:
-                type: string
-              description: 请求追踪标识
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - data
-                  - request_id
-                properties:
-                  code:
-                    type: integer
-                    const: 0
-                  message:
-                    type: string
-                  data:
-                    description: 当前契约只约束通用响应信封，业务数据字段尚待逐项补齐。
-                    x-schema-status: partial
-                  request_id:
-                    type: string
-        "401":
-          description: 未认证或会话失效
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: 权限、同源或归属校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: 资源不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: 版本冲突或业务状态不允许
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: 字段或业务校验失败
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "429":
-          description: 超过请求频率
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: 服务暂时不可用
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DeliveryRuleInput"
   /api/install/bootstrap:
     get:
       summary: 读取安装会话、协议及环境
-      description: 仅在尚未安装且已验证服务器安装授权码时可用；匿名返回403，已安装返回409。不能通过API文档取得部署授权或重新安装系统。环境检测包含可选的
-        OPcache 扩展检查，未安装时返回推荐安装提示，不影响环境检测整体通过及继续安装。
+      description: 仅在尚未安装且已验证服务器安装授权码时可用；匿名返回403，已安装返回409。不能通过API文档取得部署授权或重新安装系统。环境检测包含可选的 OPcache 扩展检查，未安装时返回推荐安装提示，不影响环境检测整体通过及继续安装。
       security: []
       parameters:
         - name: X-Install-Key
           in: header
           required: false
-          description: 服务器执行php webman
-            install:key得到的一小时授权码。首次必须提供，后续同一授权Session可省略；轮换、到期或安装完成后失效。不得放入URL。
+          description: 服务器执行php webman install:key得到的一小时授权码。首次必须提供，后续同一授权Session可省略；轮换、到期或安装完成后失效。不得放入URL。
           schema:
             type: string
             pattern: ^[a-f0-9]{64}$
@@ -6227,8 +5434,7 @@ paths:
           schema:
             type: string
             pattern: ^[a-f0-9]{64}$
-          description: 从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session
-            Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。
+          description: 从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。
   /api/install/test-connections:
     post:
       summary: 测试安装数据库与缓存连接
@@ -6311,8 +5517,7 @@ paths:
           schema:
             type: string
             pattern: ^[a-f0-9]{64}$
-          description: 从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session
-            Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。
+          description: 从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。
       requestBody:
         required: true
         content:
@@ -6454,8 +5659,7 @@ paths:
           schema:
             type: string
             pattern: ^[a-f0-9]{64}$
-          description: 从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session
-            Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。
+          description: 从已验证服务器授权码的bootstrap获取，并与同一浏览器安装Session Cookie一起发送；服务器授权码轮换、到期或安装完成后拒绝。
       requestBody:
         required: true
         content:
@@ -7199,6 +6403,91 @@ components:
             - "null"
         created_at:
           type: string
+        provisioning_status:
+          type:
+            - string
+            - "null"
+          enum:
+            - queued
+            - processing
+            - waiting
+            - succeeded
+            - failed
+            - attention
+            - null
+        provisioning_attempts:
+          type:
+            - integer
+            - "null"
+        provisioning_error:
+          type:
+            - string
+            - "null"
+        addresses:
+          type: array
+          items:
+            type: string
+        not_created_reference:
+          type: [string, "null"]
+          description: 人工核查凭证编号
+        not_created_reason:
+          type: [string, "null"]
+          description: 人工核查说明
+        not_created_by:
+          type: [integer, "null"]
+          description: 核查管理员内部ID
+        not_created_at:
+          type: [string, "null"]
+          description: 核查时间
+        can_confirm_not_created:
+          type: boolean
+          description: 结果不明且未关联供应实例时为true；执行仍需独立resolve权限
+        can_renew:
+          type: boolean
+        lifecycle_action: &a1
+          type:
+            - string
+            - "null"
+        lifecycle_status: *a1
+        lifecycle_error: *a1
+        renewal_order_id:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        renewal_payment_pending:
+          type: boolean
+        power_status:
+          type:
+            - string
+            - "null"
+        power_checked_at:
+          type:
+            - string
+            - "null"
+        installed_image:
+          anyOf:
+            - type: object
+              additionalProperties: false
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                name: &a5
+                  type: string
+                default_username: *a5
+                default_port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+              required:
+                - id
+                - name
+                - default_username
+                - default_port
+            - type: "null"
+        initial_password_available:
+          type: boolean
     Administrator:
       type: object
       required:
@@ -7444,8 +6733,7 @@ components:
                 admin_path:
                   type: string
                   pattern: ^[a-z][a-z0-9-]{2,31}$
-                  description: 不能使用
-                    api、api-docs、console、install、install-assets、assets、plugin-assets。
+                  description: 不能使用 api、api-docs、console、install、install-assets、assets、plugin-assets。
             admin:
               type: object
               required:
@@ -7478,20 +6766,20 @@ components:
         - browser
         - operating_system
       properties:
-        id: &a2
+        id: &a3
           type: integer
-        logged_at: &a1
+        logged_at: &a2
           type: string
-        nickname: *a1
+        nickname: *a2
         status:
           type: integer
           enum:
             - 0
             - 1
-        client_ip: *a1
-        client_ip_location: *a1
-        browser: *a1
-        operating_system: *a1
+        client_ip: *a2
+        client_ip_location: *a2
+        browser: *a2
+        operating_system: *a2
     OperationLog:
       type: object
       required:
@@ -7505,19 +6793,19 @@ components:
         - client_ip_location
         - duration_ms
       properties:
-        id: *a2
-        operated_at: *a1
-        operator_nickname: *a1
-        module: *a1
-        operation: *a1
+        id: *a3
+        operated_at: *a2
+        operator_nickname: *a2
+        module: *a2
+        operation: *a2
         status:
           type: integer
           enum:
             - 0
             - 1
-        client_ip: *a1
-        client_ip_location: *a1
-        duration_ms: *a2
+        client_ip: *a2
+        client_ip_location: *a2
+        duration_ms: *a3
     Ticket:
       type: object
       required:
@@ -7536,19 +6824,19 @@ components:
         - updated_at
         - closed_at
       properties:
-        id: *a2
-        ticket_no: *a1
-        member_id: *a2
-        member_nickname: *a1
-        member_mobile: *a1
-        type_id: *a2
-        type_name: *a1
-        subject: *a1
-        content: *a1
-        priority: *a1
-        status: *a1
-        created_at: *a1
-        updated_at: *a1
+        id: *a3
+        ticket_no: *a2
+        member_id: *a3
+        member_nickname: *a2
+        member_mobile: *a2
+        type_id: *a3
+        type_name: *a2
+        subject: *a2
+        content: *a2
+        priority: *a2
+        status: *a2
+        created_at: *a2
+        updated_at: *a2
         closed_at:
           type:
             - string

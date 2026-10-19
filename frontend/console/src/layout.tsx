@@ -33,7 +33,7 @@ export default function ConsoleLayout({ children }: { children: ReactNode }) {
     try { return localStorage.getItem('console-theme') === 'dark' } catch { return false }
   })
   const pathname = location.pathname.replace(/\/+$/, '') || '/'
-  const current = consoleRoutes.find((route) => route.path === pathname) ?? (pathname.startsWith(`${paths.orders}/`) ? consoleRoutes.find(route => route.key === 'orders') : undefined)
+  const current = consoleRoutes.find((route) => route.path === pathname) ?? (pathname.startsWith(`${paths.orders}/`) ? consoleRoutes.find(route => route.key === 'orders') : pathname.startsWith(`${paths.tickets}/`) ? consoleRoutes.find(route => route.key === 'tickets') : undefined)
 
   useEffect(() => {
     document.body.setAttribute('arco-theme', dark ? 'dark' : 'light')

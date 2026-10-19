@@ -15,6 +15,9 @@ final class DatabaseProviderPluginUsageInspector implements PluginUsageInspector
     {
         $counts = ProviderConnectionModel::query()->where('adapter_id', $id)
             ->selectRaw('COUNT(*) AS total, COALESCE(SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END), 0) AS active')->first();
-        return ['references' => (int) $counts->total, 'active_references' => (int) $counts->active];
+        $tasks = \support\Db::table('service_provisioning_tasks as p')->join('service_instances as s', 's.id', '=', 'p.service_id')->where('p.adapter_id', $id);
+        $total = (clone $tasks)->count('p.id');
+        $active = (clone $tasks)->where(function ($q): void { $q->whereIn('p.status', ['queued', 'processing', 'waiting', 'attention'])->orWhereIn('s.status', ['active', 'suspended', 'expired']); })->count('p.id');
+        return ['references' => (int) $counts->total + $total, 'active_references' => (int) $counts->active + $active];
     }
 }

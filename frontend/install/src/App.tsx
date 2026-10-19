@@ -387,7 +387,7 @@ function InstallerContent() {
               render: (_, item) => (
                 <Text>
                   {item.key === 'php_version'
-                    ? 'PHP 8.4 或更高版本'
+                    ? 'PHP 8.3 或更高版本'
                     : item.required ? '必须安装或可用' : '非必需'}
                 </Text>
               ),

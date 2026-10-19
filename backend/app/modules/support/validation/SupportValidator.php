@@ -18,7 +18,7 @@ final class SupportValidator
             'page_size' => 'sometimes|integer|in:10,20,50,100',
         ])->validate();
         return ['keyword' => trim((string) ($data['keyword'] ?? '')), 'status' => isset($data['status']) ? (string) $data['status'] : null,
-            'page' => (int) ($data['page'] ?? 1), 'page_size' => (int) ($data['page_size'] ?? 10)];
+            'page' => (int) ($data['page'] ?? 1), 'page_size' => (int) ($data['page_size'] ?? 20)];
     }
 
     /** @return array<string, mixed> */
@@ -37,15 +37,8 @@ final class SupportValidator
 
     public static function id(mixed $id): int
     {
-        $data = Validator::make(['id' => $id], ['id' => 'required|integer|min:1'])->validate();
+        $data = Validator::make(['id' => $id], ['id' => 'required|integer|min:1|max:4294967295'])->validate();
         return (int) $data['id'];
     }
 
-    public static function reply(array $input): string
-    {
-        $data = Validator::make(array_intersect_key($input, ['content' => true]), [
-            'content' => 'required|string|min:1|max:10000',
-        ])->validate();
-        return (string) $data['content'];
-    }
 }

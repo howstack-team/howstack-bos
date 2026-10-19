@@ -12,7 +12,7 @@ final class FlavorModel extends Model
 {
     protected $table = 'compute_flavors';
     public $timestamps = true;
-    protected $fillable = ['code', 'name', 'description', 'status', 'sort', 'zone_id', 'group_id', 'cpu', 'memory_mib', 'architecture', 'prices', 'created_at', 'updated_at'];
+    protected $fillable = ['code', 'name', 'description', 'status', 'sort', 'zone_id', 'group_id', 'cpu', 'memory_mib', 'architecture', 'prices', 'zone_prices', 'created_at', 'updated_at'];
     protected $hidden = [];
     protected $casts = [
         'id' => 'integer',
@@ -27,6 +27,7 @@ final class FlavorModel extends Model
         'memory_mib' => 'integer',
         'architecture' => 'string',
         'prices' => 'array',
+        'zone_prices' => 'array',
         'created_at' => 'datetime:Y-m-d H:i:s',
         'updated_at' => 'datetime:Y-m-d H:i:s',
     ];

@@ -3,13 +3,13 @@
   "id": "magic_cloud",
   "category": "provider",
   "name": "魔方云",
-  "version": "1.1.0",
+  "version": "1.5.0",
   "publisher": "howstack-team",
   "license": "AGPL-3.0-or-later",
   "requires": {
     "core_min": "0.1.0",
     "core_max_exclusive": "1.0.0",
-    "php_min": "8.4",
+    "php_min": "8.3",
     "plugin_sdk": "1.0",
     "provider_sdk": "1.0"
   },
@@ -18,10 +18,10 @@
     "provider.connection_test": true,
     "provider.catalog": true,
     "provider.binding_validation": true,
-    "cloud_server.provision": false
+    "cloud_server.provision": true
   },
   "provider": {
-    "type_version": "1.0.0",
+    "type_version": "2.0.0",
     "product_types": [
       "cloud_server"
     ],
@@ -83,6 +83,58 @@
       {
         "method": "GET",
         "path": "/v1/image_groups"
+      },
+      {
+        "method": "POST",
+        "path": "/v1/clouds"
+      },
+      {
+        "method": "GET",
+        "path": "/v1/clouds"
+      },
+      {
+        "method": "GET",
+        "path": "/v1/clouds/{id}"
+      },
+      {
+        "method": "POST",
+        "path": "/v1/clouds/{id}/suspend"
+      },
+      {
+        "method": "POST",
+        "path": "/v1/clouds/{id}/unsuspend"
+      },
+      {
+        "method": "GET",
+        "path": "/v1/tasks/{id}"
+      },
+      {
+        "method": "GET",
+        "path": "/v1/clouds/{id}/status"
+      },
+      {
+        "method": "POST",
+        "path": "/v1/clouds/{id}/on"
+      },
+      {
+        "method": "POST",
+        "path": "/v1/clouds/{id}/off"
+      },
+      {
+        "method": "POST",
+        "path": "/v1/clouds/{id}/reboot"
+      },
+      {
+        "method": "PUT",
+        "path": "/v1/clouds/{id}/password"
+      },
+      {
+        "method": "PUT",
+        "path": "/v1/clouds/{id}/reinstall"
+      },
+      {
+        "method": "POST",
+        "path": "/v1/clouds/{id}/vnc"
       }
     ]
   },

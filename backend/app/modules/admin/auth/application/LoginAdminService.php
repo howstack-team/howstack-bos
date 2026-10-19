@@ -18,8 +18,8 @@ use app\modules\admin\auth\exception\AdminAuthenticationException;
  */
 final readonly class LoginAdminService
 {
-    // 假哈希不是密钥；保持与 PHP 8.4 的 PASSWORD_DEFAULT 算法和成本一致。
-    private const string DUMMY_PASSWORD_HASH = '$2y$12$yQV9LRqZiZ713M/aLmGQtulk/tMe2T2A5496vpdz/AUUeijRMjlX6';
+    // 假哈希不是密钥；按当前PHP的PASSWORD_DEFAULT算法与成本初始化，避免版本切换造成枚举时序差异。
+    private string $dummyPasswordHash;
 
     /**
      * 初始化管理员登录服务。
@@ -34,6 +34,7 @@ final readonly class LoginAdminService
         private RecordAdminLoginService $loginLogs,
         private AdminMfaService $mfa,
     ) {
+        $this->dummyPasswordHash = password_hash(self::class, PASSWORD_DEFAULT);
     }
 
     /**
@@ -47,7 +48,7 @@ final readonly class LoginAdminService
     public function execute(AdminLoginCredentials $credentials, string $clientAddress, string $userAgent = ''): AdminLoginResult|AdminMfaLoginChallenge
     {
         $account = $this->accounts->findByUsername($credentials->username);
-        $passwordHash = $account?->passwordHash ?? self::DUMMY_PASSWORD_HASH;
+        $passwordHash = $account?->passwordHash ?? $this->dummyPasswordHash;
         $passwordMatches = password_verify($credentials->password, $passwordHash);
 
         if ($account === null || !$passwordMatches) {

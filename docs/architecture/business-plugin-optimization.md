@@ -137,7 +137,7 @@ plugins/provider/magic_cloud/
   "requires": {
     "core_min": "0.1.0",
     "core_max_exclusive": "1.0.0",
-    "php_min": "8.4",
+    "php_min": "8.3",
     "plugin_sdk": "1.0",
     "provider_sdk": "1.0"
   },

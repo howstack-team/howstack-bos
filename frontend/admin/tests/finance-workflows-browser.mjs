@@ -18,7 +18,7 @@ async function setup(readOnly = false) {
   await page.route('**/api/admin/v1/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname.replace('/api/admin/v1', '')
     let data = null
-    if (path === '/auth/me') data = { user: { id: 1, username: 'mock', nickname: '模拟财务管理员', is_founder: false }, permissions: readOnly ? permissions.filter(code => code.endsWith('.view')) : permissions }
+    if (path === '/auth/me') data = { user: { id: 2, username: 'mock', nickname: '模拟财务管理员', is_founder: false }, permissions: readOnly ? permissions.filter(code => code.endsWith('.view')) : permissions }
     const parts = path.split('/').filter(Boolean), resource = parts[1]
     if (parts[0] === 'finance') {
       if (request.method() === 'GET') {
@@ -80,12 +80,13 @@ try {
     const apply = await drawer(page, '申请退款')
     await choose(apply, 0, '测试会员')
     await choose(apply, 1, 'ORDER-TEST')
-    await apply.getByPlaceholder('请输入金额', { exact: true }).fill('5.00')
-    await apply.getByPlaceholder('请输入申请原因').fill('实例已终止')
+    assert.equal(await apply.getByPlaceholder('请输入金额', { exact: true }).isDisabled(), true)
+    await apply.getByPlaceholder('请输入申请原因').fill('已确认未交付')
     await apply.getByRole('button', { name: '确认申请退款', exact: true }).click()
     await apply.waitFor({ state: 'hidden' })
     await page.getByRole('link', { name: '通过', exact: true }).click()
     const approve = await drawer(page, '审核通过')
+    await approve.getByPlaceholder('请输入审核意见').fill('已核对原交易及交付结果')
     await approve.getByRole('button', { name: '确认审核通过', exact: true }).click()
     await approve.waitFor({ state: 'hidden' })
     await page.getByRole('link', { name: '执行退款', exact: true }).click()
@@ -93,9 +94,9 @@ try {
     await execute.getByRole('button', { name: '确认执行余额退款', exact: true }).click()
     await execute.waitFor({ state: 'hidden' })
     await page.getByText('已完成', { exact: true }).waitFor()
-    for (const resource of ['invoices', 'withdrawals']) {
+    for (const resource of ['withdrawals']) {
       await page.goto(`${base}/${resource}`)
-      const createTitle = resource === 'invoices' ? '申请开票' : '申请提现'
+      const createTitle = resource === 'invoices' ? '申请开票' : '申请充值退还'
       await page.getByRole('button', { name: createTitle, exact: true }).click()
       const create = await drawer(page, createTitle)
       await choose(create, 0, '测试会员')
@@ -107,12 +108,14 @@ try {
       await create.waitFor({ state: 'hidden' })
       await page.getByRole('link', { name: '通过', exact: true }).click()
       const approve = await drawer(page, '审核通过')
-      await approve.getByRole('button', { name: '确认审核通过', exact: true }).click()
+      await approve.getByPlaceholder('请输入审核意见').fill('已核对原交易及交付结果')
+    await approve.getByRole('button', { name: '确认审核通过', exact: true }).click()
       await approve.waitFor({ state: 'hidden' })
       const nextTitle = resource === 'invoices' ? '登记开票' : '登记打款'
       await page.getByRole('link', { name: nextTitle, exact: true }).click()
       const record = await drawer(page, nextTitle)
       await record.getByPlaceholder(resource === 'invoices' ? '请输入真实发票号码' : '请输入真实打款凭证编号').fill(`EXTERNAL-${width}-${resource}`)
+      if (resource === 'withdrawals') await record.getByPlaceholder('填写实际打款渠道、时间及核对依据，不要填写收款账号').fill('银行打款核对通过')
       await record.getByRole('button', { name: `确认${nextTitle}`, exact: true }).click()
       await record.waitFor({ state: 'hidden' })
       if (resource === 'invoices') {

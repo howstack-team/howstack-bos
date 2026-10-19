@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { hiddenAdminMenuKeys } from '../../packages/community-release';
 import auth, { type AuthParams, type UserPermission } from './utils/authentication.ts';
 
 export type IRoute = AuthParams & {
@@ -34,7 +35,7 @@ export const routes: IRoute[] = [
     { name: '资金流水', key: 'finance/transactions', path: '/transactions', permission: 'admin.finance.transactions.view', requiredPermissions: [{ resource: 'admin.finance.transactions.view', actions: ['read'] }] },
     { name: '退款记录', key: 'finance/refunds', path: '/refunds', permission: 'admin.finance.refunds.view', requiredPermissions: [{ resource: 'admin.finance.refunds.view', actions: ['read'] }] },
     { name: '发票记录', key: 'finance/invoices', path: '/invoices', permission: 'admin.finance.invoices.view', requiredPermissions: [{ resource: 'admin.finance.invoices.view', actions: ['read'] }] },
-    { name: '提现记录', key: 'finance/withdrawals', path: '/withdrawals', permission: 'admin.finance.withdrawals.view', requiredPermissions: [{ resource: 'admin.finance.withdrawals.view', actions: ['read'] }] },
+    { name: '充值退还', key: 'finance/withdrawals', path: '/withdrawals', permission: 'admin.finance.withdrawals.view', requiredPermissions: [{ resource: 'admin.finance.withdrawals.view', actions: ['read'] }] },
   ] },
   { name: '产品管理', key: 'products', children: [
     { name: '云服务器', key: 'products/cloud-servers', children: [
@@ -47,7 +48,7 @@ export const routes: IRoute[] = [
     { name: '资源供应商', key: 'products/provider-connections', path: '/providers/connections', permission: 'admin.provider-connections.view', requiredPermissions: [{ resource: 'admin.provider-connections.view', actions: ['read'] }] },
   ] },
   { name: '业务管理', key: 'services', children: [
-    { name: '云服务器', key: 'services/cloud-servers', path: '/services/cloud-servers', permission: 'admin.services.cloud-servers.view', requiredPermissions: [{ resource: 'admin.services.cloud-servers.view', actions: ['read'] }] },
+    { name: '云服务器', key: 'services/cloud-servers', path: '/services/cloud-servers', permission: 'admin.services.cloud-servers.view', operationPermissions: ['admin.services.cloud-servers.vnc', 'admin.services.cloud-servers.power', 'admin.services.cloud-servers.reinstall', 'admin.services.cloud-servers.reset-password', 'admin.services.cloud-servers.renew', 'admin.services.cloud-servers.lifecycle', 'admin.services.cloud-servers.provision', 'admin.services.cloud-servers.resolve'], requiredPermissions: [{ resource: 'admin.services.cloud-servers.view', actions: ['read'] }] },
     { name: '物理服务器', key: 'services/physical-servers', path: '/services/physical-servers', permission: 'admin.services.physical-servers.view', requiredPermissions: [{ resource: 'admin.services.physical-servers.view', actions: ['read'] }] },
     { name: '服务器托管', key: 'services/server-colocations', path: '/services/server-colocations', permission: 'admin.services.server-colocations.view', requiredPermissions: [{ resource: 'admin.services.server-colocations.view', actions: ['read'] }] },
   ] },
@@ -94,7 +95,7 @@ export const routes: IRoute[] = [
       { name: '第三方登录', key: 'system/channels/oauth', path: '/channels/oauth', permission: 'admin.channels.oauth.view', requiredPermissions: [{ resource: 'admin.channels.oauth.view', actions: ['read'] }] },
       { name: '人机验证', key: 'system/channels/captcha', path: '/channels/captcha', permission: 'admin.channels.captcha.view', requiredPermissions: [{ resource: 'admin.channels.captcha.view', actions: ['read'] }] },
     ] },
-    { name: '授权与更新', key: 'system/maintenance', path: '/maintenance', oneOfPerm: true, requiredPermissions: [{ resource: 'admin.license.view', actions: ['read'] }, { resource: 'admin.updates.view', actions: ['read'] }] },
+    { name: '系统版本', key: 'system/maintenance', path: '/maintenance', permission: 'admin.page.settings.view', requiredPermissions: [{ resource: 'admin.page.settings.view', actions: ['read'] }] },
     { name: '应用中心', key: 'system/application-center', path: '/application-center', permission: 'admin.app-center.view', requiredPermissions: [{ resource: 'admin.app-center.view', actions: ['read'] }] },
   ] },
   { name: '日志审计', key: 'audit', children: [
@@ -110,9 +111,9 @@ export function toUserPermission(codes: string[]): UserPermission {
 }
 
 function filterRoute(source: IRoute[], userPermission: UserPermission): IRoute[] {
-  return source.flatMap((route) => {
+  return source.flatMap((route): IRoute[] => {
     if (!auth(route, userPermission)) return [];
-    if (!route.children) return [{ ...route }];
+    if (!route.children) return [{ ...route, ignore: route.ignore || hiddenAdminMenuKeys.has(route.key) }];
     const children = filterRoute(route.children, userPermission);
     return children.length ? [{ ...route, children }] : [];
   });

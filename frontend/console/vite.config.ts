@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
   const template = mode === 'template' || mode === 'template-mobile'
   return {
     base: template ? './' : '/console/',
+    // PC和移动开发服务器并行运行时隔离依赖预构建，避免动态加载noVNC时互相覆盖缓存。
+    cacheDir: mobile ? 'node_modules/.vite-mobile' : 'node_modules/.vite-pc',
     publicDir: 'public',
     // Mobile 的 Less 使用官方 Webpack 风格的 ~ 导入，Vite 显式解析该公共包。
     resolve: { alias: { '~@arco-design/mobile-utils': mobileUtils } },
@@ -21,6 +23,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), {
       name: 'console-licenses',
       generateBundle() {
+        const novnc = dirname(dirname(require.resolve('@novnc/novnc')))
+        const novncNotices = ['LICENSE.txt', 'AUTHORS', 'docs/LICENSE.MPL-2.0', 'docs/LICENSE.BSD-2-Clause', 'docs/LICENSE.BSD-3-Clause', 'vendor/pako/LICENSE'].map(file => ({ file, text: readFileSync(`${novnc}/${file}`, 'utf8') }))
+        this.emitFile({ type: 'asset', fileName: 'licenses-novnc.json', source: JSON.stringify({ name: '@novnc/novnc', version: '1.7.0', source: 'https://github.com/novnc/noVNC/tree/v1.7.0', unmodified: true, notices: novncNotices }, null, 2) })
+
         const packages = ['qrcode', 'dijkstrajs', ...(mobile ? ['@arco-design/mobile-react', '@arco-design/mobile-utils', 'react-transition-group'] : [])]
         const notices = packages.map(name => {
           const directory = dirname(require.resolve(`${name}/package.json`, name === 'dijkstrajs' ? { paths: [dirname(require.resolve('qrcode/package.json'))] } : undefined))

@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, Typography } from '@arco-design/web-react'
+import { Button, Card, Descriptions, Space, Typography } from '@arco-design/web-react'
 import { IconRefresh } from '@arco-design/web-react/icon'
 import PageHeading from '../components/PageHeading'
 import WalletSummary from '../components/WalletSummary'
@@ -12,7 +12,7 @@ export default function WalletPage() {
   return <div className="page-stack">
     <PageHeading title="资金账户" group="财务管理" description="查询您的可用余额和冻结余额。"
       action={<Button icon={<IconRefresh />} loading={wallet.isFetching} onClick={() => { void wallet.refetch() }}>刷新余额</Button>} />
-    <Card className="console-page-card" title="账户余额" bordered={false}><WalletSummary /><Button type="primary" style={{ marginTop: 16 }} onClick={() => history.push(paths.recharge)}>在线充值</Button></Card>
+    <Card className="console-page-card" title="账户余额" bordered={false}><WalletSummary /><Space wrap style={{ marginTop: 16 }}><Button type="primary" onClick={() => history.push(paths.recharge)}>在线充值</Button><Button onClick={() => history.push(paths.transactions)}>资金明细</Button></Space></Card>
     <Card className="console-page-card" title="账户说明" bordered={false}>
       <Descriptions column={1} data={[
         { label: '结算币种', value: '人民币（CNY）' },

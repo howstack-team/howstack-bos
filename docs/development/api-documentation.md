@@ -39,7 +39,7 @@ backend/public/api-docs/assets/           生成的本地 Scalar 和配套资源
 
 ## 构建、检查和发行
 
-需要 PHP 8.4、已安装的后端 Composer 依赖、Node.js 24 和 pnpm 11.22.0。构建只注册路由，不执行业务请求、连接数据库或启动服务，不依赖客户 `.env`。
+需要 PHP 8.3、已安装的后端 Composer 依赖、Node.js 24 和 pnpm 11.22.0。构建只注册路由，不执行业务请求、连接数据库或启动服务，不依赖客户 `.env`。
 
 ```bash
 cd tools/api-docs

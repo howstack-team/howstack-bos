@@ -2,8 +2,7 @@ openapi: 3.0.3
 info:
   title: 会员购买与订单接口
   version: 1.0.0
-  description: 会员归属由 Cookie
-    认证确定。匿名选配在登录后重新报价，提交订单重新校验销售版本、金额及库存。同一会员同一请求键只能创建一次订单；不同内容使用相同键返回409。未付款不占用库存，钱包付款在事务中正式占用。
+  description: 会员归属由 Cookie 认证确定。匿名选配在登录后重新报价，提交订单重新校验销售版本、金额及库存。同一会员同一请求键只能创建一次订单；不同内容使用相同键返回409。未付款不占用库存，钱包付款在事务中正式占用。
 security:
   - memberSession: []
 paths:
@@ -88,8 +87,7 @@ paths:
         "401": *a2
     post:
       summary: 创建本人待付款订单
-      description: 要求同源 Origin；member_id、订单状态、提供者字段等不接受客户端设置。服务端计算金额并核对
-        expected_amount_minor。不自动付款或开通实例。
+      description: 要求同源 Origin；member_id、订单状态、提供者字段等不接受客户端设置。服务端计算金额并核对 expected_amount_minor。不自动付款或开通实例。
       requestBody:
         required: true
         content:
@@ -110,6 +108,13 @@ paths:
                 request_key:
                   type: string
                   pattern: ^[A-Za-z0-9_-]{16,64}$
+                login_password:
+                  type: string
+                  format: password
+                  writeOnly: true
+                  minLength: 8
+                  maxLength: 72
+                  description: 可选实例初始密码，仅独立加密保存，不进入配置或报价快照；留空由系统生成。
               required:
                 - offer_id
                 - version_id
@@ -223,6 +228,65 @@ components:
               - quantity
               - total_minor
             additionalProperties: false
+        units:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id: &a5
+                type: integer
+                minimum: 1
+              unit_index: *a5
+              service_id:
+                type: integer
+                nullable: true
+              instance_no:
+                type: string
+                nullable: true
+              status:
+                type: string
+                nullable: true
+              provisioning_status:
+                type: string
+                nullable: true
+            required:
+              - id
+              - unit_index
+              - service_id
+              - instance_no
+              - status
+              - provisioning_status
+        order_type:
+          type: string
+          enum:
+            - purchase
+            - renewal
+            - upgrade
+            - trial
+        renewal:
+          type:
+            - object
+            - "null"
+          additionalProperties: false
+          properties:
+            service_id:
+              type: integer
+              minimum: 1
+            months:
+              type: integer
+              minimum: 1
+              maximum: 120
+            expected_expires_at: &a6
+              type: string
+            target_expires_at: *a6
+            status: *a6
+          required:
+            - service_id
+            - months
+            - expected_expires_at
+            - target_expires_at
+            - status
       required:
         - id
         - order_no
@@ -255,7 +319,7 @@ components:
           type: string
           enum:
             - password
-        system_disk: &a5
+        system_disk: &a7
           type: object
           properties:
             type_id: *a4
@@ -266,7 +330,7 @@ components:
           additionalProperties: false
         data_disks:
           type: array
-          items: *a5
+          items: *a7
           maxItems: 32
         network:
           type: object

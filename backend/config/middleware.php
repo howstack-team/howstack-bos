@@ -22,5 +22,6 @@ return [
         InstallGuardMiddleware::class,
         \app\modules\software_maintenance\infrastructure\MaintenanceMiddleware::class,
         AdminOperationLogMiddleware::class,
+        \app\middleware\CommunityReleaseMiddleware::class,
     ],
 ];

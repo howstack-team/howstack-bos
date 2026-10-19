@@ -41,7 +41,7 @@ final class DatabaseFinanceRecordRepository implements FinanceRecordRepositoryIn
         ],
         'refunds' => [
             'table' => 'refund_requests', 'number' => 'refund_no',
-            'columns' => ['id', 'refund_no', 'member_id', 'source_type', 'source_id', 'payment_id', 'amount_minor', 'currency', 'destination', 'status', 'reason', 'reviewer_id', 'reviewed_at', 'completed_at', 'created_at', 'operator_id', 'remark', 'review_reason'],
+            'columns' => ['id', 'refund_no', 'member_id', 'source_type', 'source_id', 'payment_id', 'amount_minor', 'currency', 'destination', 'status', 'reason', 'reviewer_id', 'reviewed_at', 'completed_at', 'created_at', 'operator_id', 'remark', 'review_reason', 'delivery_task_id', 'delivery_evidence', 'executor_id'],
         ],
         'invoices' => [
             'table' => 'invoice_records', 'number' => 'invoice_no',
@@ -49,7 +49,7 @@ final class DatabaseFinanceRecordRepository implements FinanceRecordRepositoryIn
         ],
         'withdrawals' => [
             'table' => 'withdrawal_requests', 'number' => 'withdrawal_no',
-            'columns' => ['id', 'withdrawal_no', 'member_id', 'source_type', 'source_id', 'amount_minor', 'currency', 'status', 'reason', 'reviewer_id', 'reviewed_at', 'payout_reference', 'payout_at', 'created_at', 'operator_id', 'remark', 'review_reason'],
+            'columns' => ['id', 'withdrawal_no', 'member_id', 'source_type', 'source_id', 'amount_minor', 'currency', 'status', 'reason', 'reviewer_id', 'reviewed_at', 'payout_reference', 'payout_at', 'created_at', 'operator_id', 'remark', 'review_reason', 'executor_id', 'payout_note'],
         ],
     ];
 
@@ -118,7 +118,7 @@ final class DatabaseFinanceRecordRepository implements FinanceRecordRepositoryIn
     private static function normalize(Model $row): array
     {
         $data = $row->getAttributes();
-        foreach (['id', 'member_id', 'purpose_id', 'source_id', 'payment_id', 'order_id', 'red_of_id', 'reviewer_id', 'amount_minor', 'available_after_minor', 'operator_id'] as $field) {
+        foreach (['id', 'member_id', 'purpose_id', 'source_id', 'payment_id', 'order_id', 'red_of_id', 'reviewer_id', 'amount_minor', 'available_after_minor', 'operator_id', 'executor_id', 'delivery_task_id'] as $field) {
             if (array_key_exists($field, $data) && $data[$field] !== null) {
                 $data[$field] = (int) $data[$field];
             }

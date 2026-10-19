@@ -42,7 +42,7 @@ try {
       creates++; assert.ok(authenticated); const input = route.request().postDataJSON()
       assert.equal(input.offer_id, 3); assert.equal(input.version_id, 7); assert.equal(input.selection.quantity, 2)
       assert.equal(input.selection.system_disk.size_gib, 60); assert.equal(input.selection.network.egress_mbps, 8)
-      assert.equal(input.expected_amount_minor, 4000); assert.equal('member_id' in input, false); assert.match(input.request_key, /^[a-f0-9]{32}$/)
+      assert.equal(input.login_password, 'Instance@123456'); assert.equal(input.selection.login_password, undefined); assert.equal(input.expected_amount_minor, 4000); assert.equal('member_id' in input, false); assert.match(input.request_key, /^[a-f0-9]{32}$/)
       orders++; await new Promise(resolve => setTimeout(resolve, 300)); return route.fulfill(format({ id: 99 }))
     }
     if (path === '/orders/99') return route.fulfill(format({ id: 99, order_no: 'ORDER-99', status: 'pending_payment', payment_status: 'unpaid', currency: 'CNY', payable_minor: 4000, paid_minor: 0, created_at: '2026-10-12 12:00:00', items: [{ product_name: '云服务器', quantity: 2, total_minor: 4000 }] }))
@@ -82,6 +82,13 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `购买页 ${width}px 不溢出`)
     await page.screenshot({ path: `${output}/${mobile ? 'mobile' : 'pc'}-${width}.png`, fullPage: true })
   }
+  const initialPassword = page.locator('input[type=password]')
+  await initialPassword.fill('short')
+  await page.getByRole('button', { name: '提交订单', exact: true }).click()
+  await page.getByText('实例密码须为8至72位且不包含空白字符', { exact: true }).waitFor()
+  assert.equal(creates, 0, '实例密码前端校验失败不能请求创建订单')
+  assert.equal((await page.evaluate(() => JSON.stringify({ ...sessionStorage }))).includes('short'), false)
+  await initialPassword.fill('Instance@123456')
   await page.getByRole('button', { name: '提交订单', exact: true }).evaluate(button => { button.click(); button.click() })
   await page.waitForURL('**/finance/orders/99'); await page.getByText('ORDER-99', { exact: true }).waitFor()
   assert.equal(creates, 1); assert.equal(orders, 1)

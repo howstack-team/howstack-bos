@@ -16,6 +16,9 @@ export function useCloudPurchase() {
     const offer = Number.isSafeInteger(requested) && requested > 0 ? requested : stored?.offer_id
     return stored && stored.offer_id === offer ? stored : { offer_id: offer, selection: { quantity: 1, data_disks: [] }, request_key: purchaseRequestKey(), updated_at: Date.now() }
   })
+  const [loginPassword, setPassword] = useState('')
+  const passwordError = loginPassword && (loginPassword.length < 8 || loginPassword.length > 72 || Array.from(loginPassword).some(char => char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127)) ? '实例密码须为8至72位且不包含空白字符' : ''
+  const setLoginPassword = (value: string) => { setPassword(value); setDraft(current => ({ ...current, request_key: purchaseRequestKey() })) }
   const [products, setProducts] = useState<PurchaseProduct[]>([]), [catalogLoading, setCatalogLoading] = useState(true)
   const [options, setOptions] = useState<PurchaseOptions>(), [quoteValue, setQuote] = useState<PurchaseQuote>(), [quoteIdentity, setQuoteIdentity] = useState('')
   const [loading, setLoading] = useState(false), [pricing, setPricing] = useState(false), [submitting, setSubmitting] = useState(false)
@@ -99,6 +102,7 @@ export function useCloudPurchase() {
     update(next)
   }
   const submit = async () => {
+    if (passwordError) return
     if (!product || !quote || loading || pricing || submitLock.current) return
     if (!auth.member) {
       try { if (!savePurchaseDraft(sessionStorage, draft)) throw new Error('无法保留选配，请允许浏览器使用会话存储后再登录') }
@@ -107,7 +111,7 @@ export function useCloudPurchase() {
     }
     submitLock.current = true; setSubmitting(true); setError(''); setSubmitError('')
     try {
-      const id = await createPurchaseOrder(product, quote, draft.request_key)
+      const id = await createPurchaseOrder(product, quote, draft.request_key, loginPassword || undefined)
       try { if (readPurchaseDraft(sessionStorage)?.request_key === draft.request_key) sessionStorage.removeItem(purchaseDraftKey) } catch { /* 下单成功不受浏览器存储限制影响。 */ }
       if (mounted.current) history.push(`${paths.orders}/${id}`)
     } catch (failure) {
@@ -116,7 +120,8 @@ export function useCloudPurchase() {
       else { setSubmitError(message(failure)); if (failure instanceof ApiRequestError && failure.status === 409) { setQuote(undefined); setRevision(current => current + 1) } }
     } finally { submitLock.current = false; setSubmitting(false) }
   }
-  return { products, product, selection, options, quote, catalogLoading, loading, pricing, submitting, error: submitError || error, notice,
-    member: auth.member, choose, update, selectProduct: (id: number) => { setOptions(undefined); update({ quantity: 1, data_disks: [] }, id); history.replace(`${paths.purchase}?offer=${id}`) },
+  const pricingZone = options?.options.zones.find(zone => zone.id === selection.zone_id)?.name
+  return { products, product, selection, options, quote, pricingZone, catalogLoading, loading, pricing, submitting, error: submitError || error, notice,
+    loginPassword, setLoginPassword, passwordError, member: auth.member, choose, update, selectProduct: (id: number) => { setOptions(undefined); update({ quantity: 1, data_disks: [] }, id); history.replace(`${paths.purchase}?offer=${id}`) },
     submit, retry: () => setRevision(value => value + 1) }
 }

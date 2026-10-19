@@ -20,8 +20,7 @@ final readonly class ManageSupportService
     public function __construct(
         private SupportRepositoryInterface $repository,
         private AdminAccessControlService $access,
-        private \app\modules\message\contract\MessagePublisherInterface $messages,
-        private \app\shared\contract\TransactionManagerInterface $transactions,
+        private TicketConversationService $conversations,
     ) {
     }
 
@@ -97,28 +96,39 @@ final readonly class ManageSupportService
         return $this->repository->tickets($keyword, $status, $page, $pageSize, $filters);
     }
 
-    /** @return array{ticket: array<string, mixed>, messages: list<array<string, mixed>>} */
+    /** @param AdminAccount $actor 已认证后台主体 @param int $id 工单ID @return array{ticket:array<string,mixed>,messages:list<array<string,mixed>>,next_before_id:?int} 最近会话 */
     public function ticket(AdminAccount $actor, int $id): array
     {
         $this->access->requirePermission($actor, 'admin.tickets.list.view');
         $ticket = $this->repository->ticket($id) ?? throw $this->notFound();
-        return ['ticket' => $ticket, 'messages' => $this->repository->messages($id)];
+        $window = $this->conversations->adminMessages($id);
+        return ['ticket' => $ticket, 'messages' => $window['data'], 'next_before_id' => $window['next_before_id']];
     }
 
-    public function reply(AdminAccount $actor, int $id, string $content): void
+    /** @param AdminAccount $actor 需查看和回复权限 @param int $id 工单ID @param string $content 纯文本 @param string $requestKey 幂等键 @return array{ticket_id:int,message_id:?int} 受理结果 */
+    public function reply(AdminAccount $actor, int $id, string $content, string $requestKey): array
     {
+        $this->access->requirePermission($actor, 'admin.tickets.list.view');
         $this->access->requirePermission($actor, 'admin.tickets.list.reply');
         $content = trim($content);
         if ($content === '') throw new BusinessException('回复内容不能为空', ApiErrorCode::VALIDATION_FAILED, 422);
-        $this->transactions->run(function () use ($id, $actor, $content): void {
-            $replyId = $this->repository->reply($id, $actor->id, $content);
-            if ($replyId === null) {
-                throw new BusinessException('工单不存在或已关闭', ApiErrorCode::CONFLICT, 409);
-            }
-            $ticket = $this->repository->ticket($id) ?? throw $this->notFound();
-            $this->messages->publish('ticket.reply.' . $replyId, 'ticket_replied', 'ticket', $id, $ticket['member_id'],
-                ['site_name' => '云业务运营系统', 'ticket_no' => $ticket['ticket_no'], 'ticket_title' => $ticket['subject']], ['customer']);
-        });
+        return $this->conversations->execute('admin', $actor->id, 'reply', $id, ['content' => $content], $requestKey);
+    }
+
+    /** @param AdminAccount $actor 需查看和关闭权限 @param int $id 工单ID @param string $requestKey 幂等键 @return array{ticket_id:int,message_id:?int} 关闭结果 */
+    public function close(AdminAccount $actor, int $id, string $requestKey): array
+    {
+        $this->access->requirePermission($actor, 'admin.tickets.list.view');
+        $this->access->requirePermission($actor, 'admin.tickets.list.close');
+        return $this->conversations->execute('admin', $actor->id, 'close', $id, [], $requestKey);
+    }
+
+    /** @param AdminAccount $actor 需查看权限 @param int $id 工单ID @param int|null $before 排他游标 @return array{data:list<array<string,mixed>>,next_before_id:?int} 最多50条 */
+    public function messages(AdminAccount $actor, int $id, ?int $before): array
+    {
+        $this->access->requirePermission($actor, 'admin.tickets.list.view');
+        if ($this->repository->ticket($id) === null) throw $this->notFound();
+        return $this->conversations->adminMessages($id, $before);
     }
 
     /** @return array{string, string} */

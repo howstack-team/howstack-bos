@@ -106,7 +106,7 @@ final class LoginAdminServiceTest extends TestCase
         self::assertCount(1, $logs->records);
         self::assertSame(0, $logs->records[0]['status']);
 
-        $dummyHash = (new \ReflectionClass(LoginAdminService::class))->getConstant('DUMMY_PASSWORD_HASH');
+        $dummyHash = (new \ReflectionProperty(LoginAdminService::class, 'dummyPasswordHash'))->getValue($service);
         self::assertIsString($dummyHash);
         self::assertSame(password_get_info(password_hash('hash-settings-probe', PASSWORD_DEFAULT)), password_get_info($dummyHash));
     }

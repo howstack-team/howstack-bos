@@ -35,7 +35,7 @@ final readonly class AdminFinanceRecordController
     {
         $data = Validator::make([
             'resource' => $resource, 'page' => $request->get('page', 1),
-            'page_size' => $request->get('page_size', 10), 'status' => $request->get('status'),
+            'page_size' => $request->get('page_size', 20), 'status' => $request->get('status'),
         ], [
             'resource' => 'required|string|in:recharges,payments,transactions,refunds,invoices,withdrawals',
             'page' => 'required|integer|min:1|max:100000',

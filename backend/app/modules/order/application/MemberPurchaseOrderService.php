@@ -11,13 +11,11 @@ use app\shared\http\ApiErrorCode;
 /** 会员只使用本人身份下单；报价重新由后端校验，不信任浏览器金额。 */
 final readonly class MemberPurchaseOrderService
 {
-    public function __construct(private CreatePurchaseOrderService $creator, private MemberOrderRepositoryInterface $orders,
-        private \app\modules\product\contract\ProductPurchaseInputInterface $inputs) {}
+    public function __construct(private CreatePurchaseOrderService $creator, private MemberOrderRepositoryInterface $orders) {}
 
     /** @param int $memberId 认证会员 @param array<string,mixed> $input 验证请求 @return array{id:int} 待付款订单 */
     public function create(int $memberId, array $input): array
     {
-        $input['selection'] = $this->inputs->clean('cloud_server', $input['selection']);
         return $this->creator->create('member:' . $memberId, $memberId, $input, publicOnly: true);
     }
     /** @param int $memberId 认证会员 @param int $page 页码 @param int $size 每页条数 @return array<string,mixed> 本人列表 */

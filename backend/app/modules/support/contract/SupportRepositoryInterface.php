@@ -40,8 +40,4 @@ interface SupportRepositoryInterface
     ): array;
     /** @return array<string, mixed>|null */
     public function ticket(int $id): ?array;
-    /** @return list<array<string, mixed>> */
-    public function messages(int $ticketId): array;
-    /** 返回新回复主键；不存在或工单关闭时返回null。 */
-    public function reply(int $ticketId, int $adminId, string $content): ?int;
 }

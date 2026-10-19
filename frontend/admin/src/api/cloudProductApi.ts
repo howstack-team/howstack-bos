@@ -1,8 +1,7 @@
-import type { TableSortQuery } from './tableQuery'
 import { ApiRequestError, request } from './httpClient'
 
 /** 云服务器资源及价格的后台契约；所有金额单位为分。 */
-export const RESOURCE_LABELS = { regions: '地域', zones: '可用区', lines: '线路', flavor_groups: '规格组', flavors: '规格', image_types: '镜像分类', images: '镜像', disk_types: '存储类型', protections: '防护', network_policies: '网络策略' } as const
+export const RESOURCE_LABELS = { regions: '地域', zones: '可用区', lines: '线路', flavor_groups: '规格组', flavors: '规格', image_types: '镜像分类', images: '镜像', disk_types: '存储类型', protections: '防护' } as const
 export type ResourceKind = keyof typeof RESOURCE_LABELS
 export const CYCLE_LABELS = { hour: '小时', day: '天', month: '月', year: '年' } as const
 export type BillingCycle = keyof typeof CYCLE_LABELS
@@ -35,7 +34,7 @@ export interface ComputeResource {
   cpu?: number; memory_mib?: number; architecture?: string; min_disk_gib?: number; login_methods?: string[]
   min_cpu?: number; min_memory_mib?: number; cpu_model?: string; base_clock_mhz?: number | null; boost_clock_mhz?: number | null
   read_mbps?: number | null; write_mbps?: number | null; read_iops?: number | null; write_iops?: number | null
-  min_gib?: number; max_gib?: number; step_gib?: number; max_count?: number; prices?: Prices
+  min_gib?: number; max_gib?: number; step_gib?: number; max_count?: number; prices?: Prices; zone_prices?: Record<number, Prices>
   bandwidth_min?: number; bandwidth_max?: number; bandwidth_step?: number; ip_min?: number; ip_max?: number
 }
 export type ResourceData = Record<ResourceKind, ComputeResource[]>
@@ -56,6 +55,7 @@ export interface ConnectionInput { name: string; adapter_id: string; configurati
 export interface CatalogEntry { external_id: string; name: string; metadata: Record<string, string | number | boolean> }
 export interface ResourceMapping { id: number; resource_kind: ResourceKind; local_id: number; external_id: string; scope_zone_id: number }
 export interface BandwidthTier { up_to_mbps: number | null; prices: Prices }
+export type LegacyCloudNetwork = { bandwidth_min: number; bandwidth_max: number; bandwidth_step: number; ip_min: number; ip_max: number; bandwidth_prices: Prices; ip_prices: Prices; bandwidth_billing_mode?: 'flat' | 'graduated' | 'volume'; bandwidth_tiers?: BandwidthTier[] }
 export interface CloudDraft {
   /** 可用区独立供应配置；缺省时保留历史统一供应关系。 */
   zone_provider_bindings?: { zone_id: number; connection_id: number; parameter_mapping: ProviderParameterRule[] }[]
@@ -68,8 +68,9 @@ export interface CloudDraft {
   /** 每台系统盘赠送容量，历史草稿缺省为 0。 */
   system_disk_included_gib?: number
   provider_connection_id: number; price_overrides: Partial<Record<'flavors' | 'disk_types' | 'protections', Record<number, Prices>>>
-  delivery_rule_id: number; network_policy_id: number
-  network: { bandwidth_min: number; bandwidth_max: number; bandwidth_step: number; ip_min: number; ip_max: number; bandwidth_prices: Prices; ip_prices: Prices; bandwidth_billing_mode?: 'flat' | 'graduated' | 'volume'; bandwidth_tiers?: BandwidthTier[] }
+  delivery_rule_id: number; network_policy_id?: number
+  /** 仅历史配置读取；当前配置的网络规则归线路。 */
+  network?: LegacyCloudNetwork
   trial_policy: { enabled: boolean; hours: number; limit_per_member: number }
   refund_policy: { enabled: boolean; window_hours: number; prorated: boolean; keep_setup_fee: boolean }
   renewal_policy: { pricing: 'current'; auto_renew_enabled: boolean }
@@ -91,7 +92,6 @@ export interface ComputeInventoryPool { id: number; zone_id: number; flavor_id: 
 export interface CloudWorkspace {
   product: { id: number; name: string }
   resources: Partial<Record<ResourceKind, { total: number; enabled: number }>>
-  offers: { total: number; published: number; enabled: number } | null
   delivery_rules: number | null
 }
 export type CloudOfferSummary = Omit<CloudOffer, 'draft'>
@@ -104,7 +104,7 @@ export interface ComputeSelection {
   system_disk?: { type_id?: number; size_gib?: number }; data_disks?: { type_id?: number; size_gib?: number }[]
   network?: { bandwidth_mbps?: number; ipv4_count?: number; egress_mbps?: number; ingress_mbps?: number; billing_mode?: 'fixed' }
 }
-export interface PreviewOptions { schema_version?: '2.0.0'; line_network?: LineNetwork | null; durations?: DurationOption[]; storage_policy?: CloudDraft['storage_policy']; options: ResourceData; configuration: ComputeSelection; invalid_fields: Record<string, string>; cycles: BillingCycle[]; network: CloudDraft['network']; quantity_limit: number; system_disk_included_gib: number }
+export interface PreviewOptions { schema_version?: '2.0.0'; line_network?: LineNetwork | null; durations?: DurationOption[]; storage_policy?: CloudDraft['storage_policy']; options: ResourceData; configuration: ComputeSelection; invalid_fields: Record<string, string>; cycles: BillingCycle[]; network: LegacyCloudNetwork; quantity_limit: number; system_disk_included_gib: number }
 export interface PricePreview {
   configuration: ComputeSelection
   currency: string; quantity: number; unit_amount_minor: number; amount_minor: number; subtotal_minor?: number; discount_minor?: number
@@ -112,8 +112,7 @@ export interface PricePreview {
 }
 export function newCloudDraft(): CloudDraft {
   return { schema_version: '2.0.0', billing_mode: 'prepaid', zone_durations: [], storage_policy: { default_type_id: 0, default_size_gib: 40, max_data_disks: 8 }, trial_scope: { zone_ids: [], flavor_ids: [], line_ids: [], image_ids: [], disk_type_ids: [], protection_ids: [], max_data_disk_gib: 40, max_system_disk_gib: 40, max_data_disks: 0, max_egress_mbps: 5, max_ingress_mbps: 100, max_ip_count: 1, concurrent_limit: 1, cooldown_hours: 0 }, resource_ids: Object.fromEntries(Object.keys(RESOURCE_LABELS).map((kind) => [kind, []])) as Record<ResourceKind, number[]>,
-    cycles: ['month'], quantity_limit: 10, setup_minor: 0, system_disk_included_gib: 0, provider_connection_id: 0, delivery_rule_id: 0, network_policy_id: 0, price_overrides: {},
-    network: { bandwidth_min: 1, bandwidth_max: 100, bandwidth_step: 1, ip_min: 1, ip_max: 1, bandwidth_billing_mode: 'flat', bandwidth_tiers: [], bandwidth_prices: { hour: 0, day: 0, month: 0, year: 0 }, ip_prices: { hour: 0, day: 0, month: 0, year: 0 } },
+    cycles: ['month'], quantity_limit: 10, setup_minor: 0, system_disk_included_gib: 0, provider_connection_id: 0, delivery_rule_id: 0, price_overrides: {},
     trial_policy: { enabled: false, hours: 24, limit_per_member: 1 }, refund_policy: { enabled: false, window_hours: 168, prorated: true, keep_setup_fee: true }, renewal_policy: { pricing: 'current', auto_renew_enabled: false } }
 }
 /** 将服务端字段与组合错误转换为可读提示。 */
@@ -131,13 +130,8 @@ export const cloudProductApi = {
   section: (section: 'deployment' | 'specification' | 'network' | 'storage' | 'purchase') => request<{ configuration: CloudOffer | null; choices: CloudOfferSummary[]; default_configuration_id: number | null; references: { resources: ResourceData; connections: ProviderConnectionOption[]; delivery_rules: CloudDeliveryRule[] }; inventory: ComputeInventoryPool[] }>({ url: `/cloud-servers/sections/${section}` }),
   configuration: () => request<{ configuration: CloudOffer | null; choices: CloudOfferSummary[]; default_configuration_id: number | null }>({ url: '/cloud-servers/configuration' }),
   saveConfiguration: (id: number | null, expectedId: number | null, data: OfferInput) => request<CloudOffer>({ url: '/cloud-servers/configuration/live', method: 'PUT', data: { ...data, configuration_id: id, expected_configuration_id: expectedId } }),
-  publishConfiguration: (row: Pick<CloudOffer, 'id' | 'revision'>) => request<CloudOffer>({ url: `/cloud-products/${row.id}/publish`, method: 'POST', data: { revision: row.revision, enable: true } }),
   inventory: () => request<ComputeInventoryPool[]>({ url: '/cloud-servers/inventory' }),
   saveInventory: (data: { zone_id: number; flavor_id: number; capacity: number | null; revision: number }) => request<ComputeInventoryPool>({ url: '/cloud-servers/inventory', method: 'PUT', data }),
-  workspace: () => request<CloudWorkspace>({ url: '/cloud-servers/workspace' }),
-  deliveryRules: () => request<CloudDeliveryRule[]>({ url: '/cloud-servers/delivery-rules' }),
-  deliveryReferences: () => request<{ lines: ComputeResource[]; resources: ResourceData; connections: (MappingConnection & Pick<ProviderConnection, 'status'>)[] }>({ url: '/cloud-servers/delivery-rules/references' }),
-  saveDeliveryRule: (id: number | null, data: Record<string, unknown>) => request<CloudDeliveryRule>({ url: `/cloud-servers/delivery-rules${id ? `/${id}` : ''}`, method: id ? 'PUT' : 'POST', data }),
   resources: () => request<ResourceData>({ url: '/compute-resources' }),
   saveResource: (kind: ResourceKind, id: number | null, data: Record<string, unknown>) => request<ComputeResource>({ url: `/compute-resources/${kind}${id ? `/${id}` : ''}`, method: id ? 'PUT' : 'POST', data }),
   connections: () => request<ProviderConnection[]>({ url: '/provider-connections' }),
@@ -149,11 +143,7 @@ export const cloudProductApi = {
   mappings: (id: number) => request<ResourceMapping[]>({ url: `/provider-connections/${id}/mappings` }),
   mappingReferences: () => request<Partial<Record<ResourceKind, MappingResource[]>>>({ url: '/provider-connections/references' }),
   map: (id: number, kind: ResourceKind, localId: number, externalId: string, scopeZoneId = 0) => request({ url: `/provider-connections/${id}/mappings`, method: 'POST', data: { resource_kind: kind, local_id: localId, external_id: externalId, scope_zone_id: scopeZoneId } }),
-  offers: (fields: TableSortQuery & { name?: string; code?: string; status?: string | number; publication?: 'draft' | 'published' }, page: number, pageSize: number) => request<{ data: CloudOfferSummary[]; total: number }>({ url: '/cloud-products', params: { ...fields, page, page_size: pageSize } }),
   offer: (id: number) => request<CloudOffer>({ url: `/cloud-products/${id}` }),
-  references: () => request<{ resources: ResourceData; connections: ProviderConnectionOption[]; delivery_rules: CloudDeliveryRule[] }>({ url: '/cloud-products/references' }),
-  saveOffer: (id: number | null, data: OfferInput) => request<CloudOffer>({ url: `/cloud-products${id ? `/${id}` : ''}`, method: id ? 'PUT' : 'POST', data }),
-  publish: (row: Pick<CloudOffer, 'id' | 'revision'>) => request<CloudOffer>({ url: `/cloud-products/${row.id}/publish`, method: 'POST', data: { revision: row.revision } }),
   status: (row: Pick<CloudOffer, 'id' | 'revision'>, status: number) => request<CloudOffer>({ url: `/cloud-products/${row.id}/status`, method: 'PATCH', data: { revision: row.revision, status } }),
   versions: (id: number) => request<OfferVersion[]>({ url: `/cloud-products/${id}/versions` }),
   options: (id: number, selection: ComputeSelection, versionId?: number) => request<PreviewOptions>({ url: `/cloud-products/${id}/preview`, method: 'POST', data: { mode: 'options', selection, version_id: versionId } }),

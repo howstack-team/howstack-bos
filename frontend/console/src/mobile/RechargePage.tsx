@@ -44,7 +44,7 @@ export default function RechargePage() {
   </section>
     <Dialog title="充值付款" visible={state.activeId !== null} close={() => state.select(null)} maskClosable footer={row?.status === 'paid' ? [{ content: '返回继续', onClick: () => { history.push(returnPath); return true } }] : [{ content: '关闭', onClick: () => state.select(null) }]}>
       {!row ? state.detail.isError ? <Button onClick={() => { void state.detail.refetch() }}>重新加载付款信息</Button> : <Busy /> : <div style={{ textAlign: 'center' }}><h2>¥{minorToYuanText(row.amount_minor)}</h2><p>{rechargeLabels[row.status]}</p>
-        {qr && <><img src={qr} alt="支付二维码" width={220} height={220} style={{ maxWidth: '100%', height: 'auto' }} /><p>使用{row.plugin_id === 'wechat_native' ? '微信' : row.plugin_id === 'alipay_order_code' ? '支付宝' : '支付应用'}扫码支付</p><a href={qr} download="payment-qr.png">保存二维码</a></>}
+        {qr && <><img src={qr} alt="支付二维码" width={220} height={220} style={{ maxWidth: '100%', height: 'auto' }} /><p>使用{row.plugin_id === 'wechat_native' ? '微信' : row.plugin_id === 'alipay_order_code' ? '支付宝' : '支付应用'}扫码支付</p><a href={qr} download="payment-qr.png">保存二维码</a><p className="m-muted">请使用另一台设备扫码付款；本页不会直接唤起支付应用。</p></>}
         {row.message && <p className="m-muted">{row.message}</p>}<p className="m-muted" style={{ overflowWrap: 'anywhere' }}>{row.recharge_no}</p>
         {!terminalRecharge(row.status) && <div style={{ display: 'grid', gap: 8, marginTop: 16 }}><Button disabled={state.busy} loading={state.busy} onClick={() => { void check() }}>查询支付结果</Button><Button type="default" disabled={state.busy} onClick={() => { void check(true) }}>取消付款</Button></div>}
       </div>}

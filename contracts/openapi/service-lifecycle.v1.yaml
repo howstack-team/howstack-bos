@@ -1,0 +1,413 @@
+openapi: 3.1.0
+info:
+  title: 实例续费和到期处理
+  version: 1.0.0
+  description: 原实例续费，按当前销售版本可用区价格计算周期费用，排除一次性费。付款同事务记录任务，外部结果确认后延长；到期先暂停并保留数据，续费后恢复。未知只查单。
+paths:
+  /api/console/v1/services/{id}/renewal-quote:
+    post:
+      summary: 读取续费周期或实时费用
+      description: 仅认证本人实例。 同源写请求，前端字段校验不能代替服务端校验。
+      security: &a3
+        - memberSession: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: &a4
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                months:
+                  type: integer
+                  minimum: 0
+                  maximum: 120
+                  description: 0仅获取所在可用区周期，否则计算该期数费用
+              required:
+                - months
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: &a1
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/RenewalQuote"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": &a2
+          description: 认证、同源、归属、权限、状态或输入错误
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    minimum: 1
+                  message: *a1
+                  data:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: true
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/console/v1/services/{id}/renewals:
+    post:
+      summary: 创建实例续费订单
+      description: 仅认证本人实例。 同源写请求，前端字段校验不能代替服务端校验。
+      security: *a3
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                months:
+                  type: integer
+                  minimum: 1
+                  maximum: 120
+                expected_amount_minor:
+                  type: integer
+                  minimum: 1
+                  maximum: 100000000
+                request_key:
+                  type: string
+                  pattern: ^[a-zA-Z0-9_-]{16,64}$
+              required:
+                - months
+                - expected_amount_minor
+                - request_key
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      id: *a4
+                    required:
+                      - id
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/admin/v1/service-instances/{id}/renewal-quote:
+    post:
+      summary: 读取续费周期或实时费用
+      description: 后台须有云服务器查看及独立续费或生命周期处置权限。 同源写请求，前端字段校验不能代替服务端校验。
+      security: &a5
+        - adminSession: []
+        - adminBearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                months:
+                  type: integer
+                  minimum: 0
+                  maximum: 120
+                  description: 0仅获取所在可用区周期，否则计算该期数费用
+              required:
+                - months
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    $ref: "#/components/schemas/RenewalQuote"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/admin/v1/service-instances/{id}/renewals:
+    post:
+      summary: 创建实例续费订单
+      description: 后台须有云服务器查看及独立续费或生命周期处置权限。 同源写请求，前端字段校验不能代替服务端校验。
+      security: *a5
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                months:
+                  type: integer
+                  minimum: 1
+                  maximum: 120
+                expected_amount_minor:
+                  type: integer
+                  minimum: 1
+                  maximum: 100000000
+                request_key:
+                  type: string
+                  pattern: ^[a-zA-Z0-9_-]{16,64}$
+              required:
+                - months
+                - expected_amount_minor
+                - request_key
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      id: *a4
+                    required:
+                      - id
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/admin/v1/service-instances/{id}/retry-lifecycle:
+    post:
+      summary: 重试待核查生命周期任务
+      description: 后台须有云服务器查看及独立续费或生命周期处置权限。 同源写请求，前端字段校验不能代替服务端校验。
+      security: *a5
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a4
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: "null"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+        "422": *a2
+  /api/console/v1/orders/{id}/cancel:
+    post:
+      summary: 取消本人未付款订单
+      description: 只取消待付订单，不改服务及余额；重复取消幂等，已付款拒绝。
+      security:
+        - memberSession: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a4
+      responses:
+        "200":
+          description: 成功
+          headers:
+            X-Request-Id:
+              schema: *a1
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:
+                    type: integer
+                    const: 0
+                  message: *a1
+                  data:
+                    type: "null"
+                  request_id: *a1
+                required:
+                  - code
+                  - message
+                  - data
+                  - request_id
+        "400": *a2
+        "401": *a2
+        "403": *a2
+        "404": *a2
+        "409": *a2
+components:
+  securitySchemes:
+    memberSession:
+      type: apiKey
+      in: cookie
+      name: hlyq_member_token
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: hlyq_admin_token
+    adminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RenewalQuote:
+      type: object
+      additionalProperties: false
+      properties:
+        service_id: *a4
+        expires_at: *a1
+        durations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              months:
+                type: integer
+                minimum: 1
+                maximum: 120
+              label: *a1
+            required:
+              - months
+              - label
+        months:
+          type: integer
+          minimum: 1
+          maximum: 120
+        currency:
+          type: string
+          const: CNY
+        amount_minor:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+      required:
+        - service_id
+        - expires_at
+        - durations

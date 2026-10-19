@@ -1,0 +1,1 @@
+function e(e){if(!Number.isSafeInteger(e)||e<0)throw RangeError(`余额必须为非负安全整数分`);return`${Math.floor(e/100)}.${String(e%100).padStart(2,`0`)}`}export{e as t};

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import { defaultCloudDurations, type CloudDraft, type CloudOffer, type CloudDeliveryRule, type ComputeInventoryPool, type ComputeResource, type ProviderConnectionOption, type ResourceData, type ResourceKind } from '../../api/cloudProductApi'
+import { RESOURCE_LABELS, defaultCloudDurations, type CloudDraft, type CloudOffer, type CloudDeliveryRule, type ComputeInventoryPool, type ComputeResource, type ProviderConnectionOption, type ResourceData, type ResourceKind } from '../../api/cloudProductApi'
 
 /** 社区版云服务器五个配置页面。 */
 export const CLOUD_AREAS = [
@@ -20,6 +20,11 @@ export function resourceZones(row: ComputeResource): number[] {
 export function withZoneDurations(draft: CloudDraft): CloudDraft {
   if (draft.schema_version !== '2.0.0') return draft
   const { durations: legacy, ...rest } = draft
+  if (draft.schema_version === '2.0.0') {
+    delete rest.network
+    delete rest.network_policy_id
+    rest.resource_ids = Object.fromEntries(Object.keys(RESOURCE_LABELS).map(kind => [kind, draft.resource_ids[kind as ResourceKind] ?? []])) as CloudDraft['resource_ids']
+  }
   return { ...rest, zone_durations: draft.resource_ids.zones.map(zone_id => ({
     zone_id,
     durations: (draft.zone_durations?.find(row => row.zone_id === zone_id)?.durations

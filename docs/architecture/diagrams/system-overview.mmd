@@ -10,7 +10,7 @@ flowchart LR
     site["官网 · 当前占位首页"]
   end
   http["HTTP 入口 / 鉴权 / 同源检查"]
-  subgraph server["PHP 8.4 / Webman 模块化单体"]
+  subgraph server["PHP 8.3 / Webman 模块化单体"]
     core["23 个模块的应用用例：产品 / 订单 / 财务 / 会员 / 组织权限 / 服务 / 工单 / 内容 / 消息 / 维护"]
     host["宿主插件注册与执行门面"]
     messageWorker["消息补投 Worker / Redis 消费者"]

@@ -1,3 +1,7 @@
+import { parseVncTicket } from '../../../packages/vnc-runtime'
+import { parseInstanceOperations, type OperationInput } from '../../../packages/service-operations'
+import { parseRenewalQuote } from '../../../packages/service-renewal'
+export { lifecycleLabel } from '../../../packages/service-renewal'
 import type { TableSortQuery } from './tableQuery'
 import { ApiRequestError, request } from './httpClient.ts'
 
@@ -6,6 +10,12 @@ export type ServiceProductType = 'cloud_server' | 'physical_server' | 'server_co
 
 /** 已创建资源的公共实例字段；类型专属配置由对应业务域管理。 */
 export interface ServiceInstance {
+  initial_password_available?: boolean; power_status?: string | null; power_checked_at?: string | null
+  renewal_payment_pending?: boolean; can_renew?: boolean
+  lifecycle_action?: string | null
+  lifecycle_status?: string | null
+  lifecycle_error?: string | null
+  renewal_order_id?: number | null
   id: number
   instance_no: string
   product_type: ServiceProductType
@@ -17,6 +27,15 @@ export interface ServiceInstance {
   status: string
   activated_at: string | null
   expires_at: string | null
+  not_created_reference?: string | null
+  not_created_reason?: string | null
+  not_created_by?: number | null
+  not_created_at?: string | null
+  provisioning_status?: string | null
+  provisioning_attempts?: number | null
+  provisioning_error?: string | null
+  can_confirm_not_created?: boolean
+  addresses?: string[]
   created_at: string
 }
 
@@ -58,4 +77,37 @@ export async function getServiceInstance(id: number): Promise<ServiceInstance> {
   const result = await request<unknown>({ url: `/service-instances/${id}` })
   if (!isServiceInstance(result)) throw new ApiRequestError('服务实例响应格式无效', 500, 50000)
   return result
+}
+
+/** 未知结果只恢复查单；服务端独立校验生产操作权限及退款状态。 */
+export async function retryServiceProvisioning(id: number): Promise<void> { await request({ method: 'POST', url: `/service-instances/${id}/retry-provisioning` }) }
+
+export async function confirmServiceNotCreated(id: number, reason: string, evidenceReference: string): Promise<void> { await request({ method: 'POST', url: `/service-instances/${id}/confirm-not-created`, data: { acknowledged: true, reason, evidence_reference: evidenceReference } }) }
+
+export async function quoteServiceRenewal(id: number, months: number, signal?: AbortSignal) {
+  return parseRenewalQuote(await request<unknown>({ method: 'POST', url: `/service-instances/${id}/renewal-quote`, data: { months }, signal }))
+}
+export async function createServiceRenewal(id: number, months: number, amount: number, key: string): Promise<number> {
+  const value = await request<{ id: number }>({ method: 'POST', url: `/service-instances/${id}/renewals`, data: { months, expected_amount_minor: amount, request_key: key } })
+  if (!value || !Number.isSafeInteger(value.id) || value.id < 1) throw new Error('续费订单格式无效')
+  return value.id
+}
+export async function retryServiceLifecycle(id: number) {
+  await request({ method: 'POST', url: `/service-instances/${id}/retry-lifecycle` })
+}
+
+export async function getInstanceOperations(id: number, signal?: AbortSignal) {
+  return parseInstanceOperations(await request<unknown>({ url: `/service-instances/${id}/operations`, signal }))
+}
+export async function submitInstanceOperation(id: number, data: OperationInput) {
+  return request<{ id: number; status: string }>({ method: 'POST', url: `/service-instances/${id}/operations`, data })
+}
+
+/** 仅通过认证POST换取当前连接凭据，不放入查询缓存。 */
+export async function openServiceVnc(id: number, signal?: AbortSignal) {
+  return parseVncTicket(await request<unknown>({ method: 'POST', url: `/service-instances/${id}/vnc`, data: {}, signal }))
+}
+export async function checkServiceVnc(id: number, signal: AbortSignal): Promise<void> {
+  const value = await request<{ allowed: boolean }>({ url: `/service-instances/${id}/vnc`, signal })
+  if (value?.allowed !== true) throw new Error('当前不能访问VNC')
 }
