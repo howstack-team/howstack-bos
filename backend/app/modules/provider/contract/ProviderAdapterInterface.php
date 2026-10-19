@@ -14,6 +14,9 @@ interface ProviderAdapterInterface extends ProviderCatalogGatewayInterface
      */
     public function normalizeConfiguration(array $configuration): array;
 
+    /** @param array<string,string|int|bool> $config 原连接 @param \app\shared\plugin\dto\provider\ProvisionRequest $request 单台请求 @param bool $query 是否只查单 @return \app\shared\plugin\dto\provider\ProvisionResult 受检生产结果 */
+    public function provision(array $config, \app\shared\plugin\dto\provider\ProvisionRequest $request, bool $query): \app\shared\plugin\dto\provider\ProvisionResult;
+
     /**
      * 校验该供应商的部署位置、目录关系及当前适配能力。
      * @param array<string, list<array<string, mixed>>> $resources 已校验的内部产品资源

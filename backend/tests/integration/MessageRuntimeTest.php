@@ -267,15 +267,18 @@ final class MessageRuntimeTest extends TestCase
         $now = date('Y-m-d H:i:s');
         $ticket = $this->row('tickets', ['ticket_no' => 'TEST-TICKET', 'member_id' => $member, 'type_id' => $type,
             'subject' => '测试咨询', 'content' => '问题', 'created_at' => $now, 'updated_at' => $now]);
-        $service = new \app\modules\support\application\ManageSupportService($repository, $access,
-            MessageRuntimeFactory::publisher(), new DatabaseTransactionManager());
+        $conversations = new \app\modules\support\application\TicketConversationService(
+            new \app\modules\support\infrastructure\DatabaseTicketConversationRepository(),
+            $this->createStub(\app\modules\service_instance\contract\MemberServiceRepositoryInterface::class),
+            new DatabaseTransactionManager(), MessageRuntimeFactory::publisher());
+        $service = new \app\modules\support\application\ManageSupportService($repository, $access, $conversations);
         Db::beginTransaction();
-        $service->reply($actor, $ticket, '受控测试回复');
+        $service->reply($actor, $ticket, '受控测试回复', bin2hex(random_bytes(16)));
         self::assertSame(1, Db::table('messages')->count());
         Db::rollBack();
-        self::assertSame([], $repository->messages($ticket));
+        self::assertSame([], $conversations->adminMessages($ticket)['data']);
         self::assertSame(0, Db::table('messages')->count());
-        $service->reply($actor, $ticket, '已处理');
+        $service->reply($actor, $ticket, '已处理', bin2hex(random_bytes(16)));
         self::assertSame(1, Db::table('message_recipients')->where('audience', 'customer')->count());
         self::assertSame(0, Db::table('message_recipients')->where('audience', 'admin')->count());
         $records = new \app\modules\member\infrastructure\DatabaseRealNameAuthenticationRepository();

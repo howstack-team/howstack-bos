@@ -1,7 +1,7 @@
 {
-  "routes": 220,
-  "operations": 236,
-  "covered": 220,
+  "routes": 239,
+  "operations": 255,
+  "covered": 239,
   "missing": [],
   "stale": [],
   "responseGaps": [
@@ -14,36 +14,8 @@
     },
     {
       "group": "admin",
-      "method": "post",
-      "path": "/api/admin/v1/compute-resources/{kind}",
-      "status": "201",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "put",
-      "path": "/api/admin/v1/compute-resources/{kind}/{id}",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
       "method": "put",
       "path": "/api/admin/v1/cloud-servers/configuration/live",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "put",
-      "path": "/api/admin/v1/cloud-servers/configuration",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "post",
-      "path": "/api/admin/v1/cloud-products/{id}/publish",
       "status": "200",
       "reason": "成功响应尚无数据 Schema"
     },
@@ -120,35 +92,7 @@
     {
       "group": "admin",
       "method": "get",
-      "path": "/api/admin/v1/cloud-products",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "post",
-      "path": "/api/admin/v1/cloud-products",
-      "status": "201",
-      "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
-      "method": "get",
       "path": "/api/admin/v1/cloud-products/{id}",
-      "status": "200",
-      "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
-      "method": "put",
-      "path": "/api/admin/v1/cloud-products/{id}",
-      "status": "200",
-      "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
-      "method": "get",
-      "path": "/api/admin/v1/cloud-products/references",
       "status": "200",
       "reason": "业务数据字段尚未完整定义"
     },
@@ -168,80 +112,10 @@
     },
     {
       "group": "admin",
-      "method": "get",
-      "path": "/api/admin/v1/cloud-servers/delivery-rules",
-      "status": "200",
-      "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
-      "method": "post",
-      "path": "/api/admin/v1/cloud-servers/delivery-rules",
-      "status": "201",
-      "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
-      "method": "get",
-      "path": "/api/admin/v1/cloud-servers/delivery-rules/references",
-      "status": "200",
-      "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
       "method": "patch",
       "path": "/api/admin/v1/cloud-products/{id}/status",
       "status": "200",
       "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
-      "method": "put",
-      "path": "/api/admin/v1/cloud-servers/delivery-rules/{id}",
-      "status": "200",
-      "reason": "业务数据字段尚未完整定义"
-    },
-    {
-      "group": "admin",
-      "method": "get",
-      "path": "/api/admin/v1/finance/{resource}",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "post",
-      "path": "/api/admin/v1/finance/{resource}",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "get",
-      "path": "/api/admin/v1/finance/{resource}/{id}",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "get",
-      "path": "/api/admin/v1/finance/{resource}/members",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "get",
-      "path": "/api/admin/v1/finance/{resource}/options",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
-    },
-    {
-      "group": "admin",
-      "method": "post",
-      "path": "/api/admin/v1/finance/{resource}/{id}/{action}",
-      "status": "200",
-      "reason": "成功响应尚无数据 Schema"
     },
     {
       "group": "admin",

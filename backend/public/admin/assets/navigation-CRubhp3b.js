@@ -1,0 +1,1 @@
+var e=[`deployment`,`specification`,`network`,`storage`,`purchase`],t=e=>`/products/cloud-servers/${e}`,n=e=>`admin.cloud-configuration.${e}.view`;function r(n){return e.find(e=>t(e)===n)}export{t as n,n as r,r as t};

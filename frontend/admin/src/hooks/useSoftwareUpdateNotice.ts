@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { communityRelease } from '../../../packages/community-release'
 import { officialPlatformApi, type UpdateNotice } from '../api/officialPlatformApi'
 import { useAdminAuth } from '../auth/AuthContext'
 
@@ -7,7 +8,7 @@ const REMIND_LATER_MS = 24 * 60 * 60 * 1000
 /** 菜单和顶部提醒共用本机缓存查询；提醒偏好只影响顶部提示。 */
 export default function useSoftwareUpdateNotice() {
   const { user, permissions } = useAdminAuth()
-  const canView = permissions.includes('admin.updates.view')
+  const canView = communityRelease.commercialDelivery && permissions.includes('admin.updates.view')
   const userId = user?.id
   const [snapshot, setSnapshot] = useState<{ userId: number; notice: UpdateNotice; hidden: boolean }>()
 

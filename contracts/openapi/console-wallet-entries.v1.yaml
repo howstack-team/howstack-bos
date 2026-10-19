@@ -1,0 +1,331 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "会员本人只读资金明细",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "memberCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hlyq_member_token"
+      }
+    }
+  },
+  "paths": {
+    "/api/console/v1/wallet/entries": {
+      "get": {
+        "operationId": "memberWalletEntries",
+        "summary": "分页查询本人可用余额变动",
+        "description": "仅 GET，不创建账户或变更资金。会员和账户归属来自有效会员会话；只接受 page/page_size，member_id、account_id、任意筛选/排序等其他参数返回 422。仅展示本人 CNY/recharge_cash 账户账本，同时核验账本和账户归属。按 created_at DESC、id DESC 稳定分页，来源单号按会员限定联表，无 N+1。数据为不可变流水；不将未付款充值、审核中退款伪造为已发生流水，不重算冻结余额历史。响应 no-store, private；金额、分页和所有错误均采用统一响应。当前界面只有查询/分页/刷新，不开放详情 ID 或写接口。",
+        "security": [
+          {
+            "memberCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "本人安全流水投影，禁止缓存",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store, private"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "const": 0
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "data",
+                        "total",
+                        "page",
+                        "page_size"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "maxItems": 100,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "entry_no",
+                              "entry_type",
+                              "amount_minor",
+                              "available_after_minor",
+                              "currency",
+                              "business_type",
+                              "business_no",
+                              "created_at"
+                            ],
+                            "properties": {
+                              "entry_no": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 48,
+                                "description": "公开流水号，不返回全局自增主键"
+                              },
+                              "entry_type": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 32,
+                                "description": "credit/spend/refund_credit/withdrawal_freeze/withdrawal_unfreeze/withdrawal_payout；历史其他值按其他变动显示"
+                              },
+                              "amount_minor": {
+                                "type": "integer",
+                                "description": "人民币整数分，可用余额的有符号变动；冻结资金打款为 0，不是打款本金为 0"
+                              },
+                              "available_after_minor": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "该笔发生后的可用余额快照，单位分；不是当前余额或历史冻结余额"
+                              },
+                              "currency": {
+                                "type": "string",
+                                "enum": [
+                                  "CNY"
+                                ]
+                              },
+                              "business_type": {
+                                "type": "string",
+                                "enum": [
+                                  "recharge",
+                                  "order",
+                                  "refund",
+                                  "withdrawal",
+                                  "other"
+                                ]
+                              },
+                              "business_no": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "minLength": 1,
+                                "maxLength": 64,
+                                "description": "仅补充本人来源单号；来源缺失、归属不匹配或未知时为 null，不推断其他会员数据"
+                              },
+                              "created_at": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$",
+                                "description": "系统业务时区的本地发生时间，格式 YYYY-MM-DD HH:mm:ss"
+                              }
+                            }
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "page": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100000
+                        },
+                        "page_size": {
+                          "type": "integer",
+                          "enum": [
+                            10,
+                            20,
+                            50,
+                            100
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录、会话过期/撤销或会员停用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "errors": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "分页范围/类型或未知参数错误，data.errors 按字段返回",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "errors": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "未预期错误，只返回通用提示和请求标识",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "request_id"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "errors": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

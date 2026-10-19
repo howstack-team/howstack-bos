@@ -26,6 +26,7 @@ final readonly class ManageFinanceService
         private OrderFinanceRepositoryInterface $orders,
         private TransactionManagerInterface $transactions,
         private OutboxWriterInterface $outbox,
+        private \app\modules\service_instance\contract\UndeliveredRefundGuardInterface $delivery,
     ) {
     }
 
@@ -41,7 +42,7 @@ final readonly class ManageFinanceService
         return $this->records->options($resource, $memberId);
     }
 
-    public function create(AdminAccount $actor, string $resource, array $input): array
+    public function create(AdminAccount $actor, string $resource, array $input, array $audit = []): array
     {
         $this->authorize($actor, $resource, 'create');
         return $this->perform($actor, $resource, 'create', 0, $input, function () use ($actor, $resource, $input): int {
@@ -61,10 +62,10 @@ final readonly class ManageFinanceService
                 'invoices' => $this->invoice($values, $input),
                 'withdrawals' => $this->withdrawal($values, $input),
             };
-        });
+        }, $audit);
     }
 
-    public function act(AdminAccount $actor, string $resource, int $id, string $action, array $input): array
+    public function act(AdminAccount $actor, string $resource, int $id, string $action, array $input, array $audit = []): array
     {
         $permission = in_array($action, ['approve', 'reject'], true) ? 'review' : $action;
         $this->authorize($actor, $resource, $permission);
@@ -75,6 +76,26 @@ final readonly class ManageFinanceService
             }
             if (in_array($action, ['approve', 'reject'], true)) {
                 FinanceRules::state($record['status'], 'pending');
+                if (in_array($resource, ['refunds', 'withdrawals'], true)) {
+                    if ($actor->id === (int) $record['operator_id']) {
+                        FinanceRules::conflict('申请人与审核人不能为同一管理员，请由其他有权限的管理员审核');
+                    }
+                    if (trim($input['review_reason'] ?? '') === '') {
+                        FinanceRules::conflict('请填写审核意见');
+                    }
+                }
+                if ($resource === 'refunds' && $action === 'approve') {
+                    $order = $this->orders->lock($this->orders->orderId((int) $record['source_id']));
+                    $this->paidOrder($order, (int) $record['member_id']);
+                    $unit = $this->unit($order, (int) $record['source_id']);
+                    $this->delivery->lockEvidence($order['id'], $unit['id'], $unit['service_id']);
+                    if ((int) $record['amount_minor'] !== $unit['allocated_minor'] || $unit['refunded_minor'] !== 0) {
+                        FinanceRules::conflict('未交付实例仅支持单台全额退款');
+                    }
+                }
+                if ($resource === 'withdrawals' && $action === 'approve') {
+                    $this->withdrawalState($record);
+                }
                 if ($resource === 'refunds' && $action === 'reject') {
                     $orderId = $this->orders->orderId((int) $record['source_id']);
                     $this->orders->lock($orderId);
@@ -94,9 +115,18 @@ final readonly class ManageFinanceService
                 return $id;
             }
             if ($resource === 'refunds' && $action === 'execute') {
-                $this->executeRefund($record);
+                $this->executeRefund($record, $actor->id);
             } elseif ($resource === 'withdrawals' && $action === 'payout') {
                 FinanceRules::state($record['status'], 'approved');
+                if (trim($input['external_reference'] ?? '') === '' || trim($input['payout_note'] ?? '') === '') {
+                    FinanceRules::conflict('请登记真实打款凭证编号及打款核对说明');
+                }
+                // 先登记唯一凭证再结算；任一步失败整个事务回滚，不重扣余额。
+                $this->records->update($resource, $id, [
+                    'payout_reference' => trim($input['external_reference']),
+                    'receipt_key' => hash('sha256', mb_strtolower(trim($input['external_reference']))),
+                    'executor_id' => $actor->id, 'payout_note' => trim($input['payout_note']),
+                ]);
                 $this->settleWithdrawal($record, true);
                 $this->records->update($resource, $id, ['status' => 'paid',
                     'payout_reference' => $input['external_reference'], 'payout_at' => date('Y-m-d H:i:s')]);
@@ -117,7 +147,7 @@ final readonly class ManageFinanceService
                 FinanceRules::conflict('该单据不支持此操作');
             }
             return $id;
-        });
+        }, $audit);
     }
 
     private function recharge(array $values, array $input): int
@@ -148,14 +178,16 @@ final readonly class ManageFinanceService
             || (int) $payment['member_id'] !== $values['member_id'] || $payment['currency'] !== 'CNY') {
             FinanceRules::conflict('当前仅支持已核实的余额支付订单退款；原渠道退款需接入渠道能力');
         }
-        if (!$this->records->serviceReleased($unit['service_id'])) {
-            FinanceRules::conflict('实例尚未终止，请先在业务管理完成资源终止');
+        $evidence = $this->delivery->lockEvidence($order['id'], $unitId, $unit['service_id']);
+        if ($unit['refunded_minor'] !== 0 || $unit['reserved_refund_minor'] !== 0 || $values['amount_minor'] !== $unit['allocated_minor']) {
+            FinanceRules::conflict('未交付实例仅支持单台全额退款，不能拆分或重复申请');
         }
         $available = $unit['allocated_minor'] - $unit['refunded_minor'] - $unit['reserved_refund_minor']
             - $this->records->invoiceOccupied($unitId);
         FinanceRules::amount($values['amount_minor'], $available);
         $id = $this->records->create('refunds', $values + [
             'refund_no' => 'RF' . bin2hex(random_bytes(16)), 'source_type' => 'order_unit', 'source_id' => $unitId,
+            'delivery_task_id' => $evidence['task_id'], 'delivery_evidence' => $evidence['evidence'],
             'payment_id' => (int) $payment['id'], 'destination' => 'wallet', 'reason' => $input['reason'],
         ]);
         $this->orders->reserve($unitId, $values['amount_minor']);
@@ -221,19 +253,14 @@ final readonly class ManageFinanceService
         if ($record['source_type'] !== 'recharge') {
             FinanceRules::conflict('此历史提现来源暂不支持处置');
         }
-        $account = $this->ledger->lockAccount((int) $record['member_id'], $record['currency']);
+        [$account, $lot] = $this->withdrawalState($record);
         $amount = (int) $record['amount_minor'];
-        if ($amount < 1 || $account['frozen_minor'] < $amount
-            || !$this->records->withdrawalFrozen((int) $record['id'], $account['id'], $amount)) {
-            FinanceRules::conflict('冻结金额不足，需先核对历史提现记录');
-        }
         // 必须有创建时的冻结流水，不允许将无来源的历史申请视作已冻结。
         if (!$paid && $amount > PHP_INT_MAX - $account['available_minor']) {
             FinanceRules::conflict('余额超出范围');
         }
         $available = $account['available_minor'] + ($paid ? 0 : $amount);
         if (!$paid) {
-            $lot = $this->records->lockLot((int) $record['source_id'], $account['id']);
             if ($lot['remaining_minor'] + $amount > $lot['credited_minor']) {
                 FinanceRules::conflict('解除冻结金额超出来源');
             }
@@ -244,7 +271,25 @@ final readonly class ManageFinanceService
             (int) $record['id'], $paid ? 0 : $amount, $available);
     }
 
-    private function executeRefund(array $record): void
+    /** @return array{array<string,mixed>,array<string,mixed>} 核对原充值、本人账户及冻结流水 */
+    private function withdrawalState(array $record): array
+    {
+        $recharge = $this->ledger->lockRecharge((int) $record['source_id']);
+        if ($record['source_type'] !== 'recharge' || $recharge === null || $recharge['member_id'] !== (int) $record['member_id']
+            || $recharge['status'] !== 'credited' || $recharge['currency'] !== $record['currency']) {
+            FinanceRules::conflict('原充值来源尚未核对，不能办理资金退还');
+        }
+        $account = $this->ledger->lockAccount((int) $record['member_id'], $record['currency']);
+        $lot = $this->records->lockLot((int) $record['source_id'], $account['id']);
+        $amount = (int) $record['amount_minor'];
+        if ($amount < 1 || $account['frozen_minor'] < $amount || $lot['remaining_minor'] + $amount > $lot['credited_minor']
+            || !$this->records->withdrawalFrozen((int) $record['id'], $account['id'], $amount)) {
+            FinanceRules::conflict('冻结金额或资金来源不一致，请核对后再处理');
+        }
+        return [$account, $lot];
+    }
+
+    private function executeRefund(array $record, int $actorId): void
     {
         FinanceRules::state($record['status'], 'approved');
         if ($record['source_type'] !== 'order_unit' || $record['destination'] !== 'wallet') {
@@ -254,12 +299,16 @@ final readonly class ManageFinanceService
         $order = $this->orders->lock($this->orders->orderId($unitId));
         $this->paidOrder($order, (int) $record['member_id']);
         $unit = $this->unit($order, $unitId);
+        $this->delivery->lockEvidence($order['id'], $unitId, $unit['service_id']);
         $amount = (int) $record['amount_minor'];
+        if ($amount !== $unit['allocated_minor'] || $unit['refunded_minor'] !== 0) {
+            FinanceRules::conflict('未交付实例仅支持单台全额退款');
+        }
         FinanceRules::amount($amount, min($unit['reserved_refund_minor'], $unit['allocated_minor'] - $unit['refunded_minor']));
         $payment = $this->records->paymentForOrder($order['id']);
         if ($payment['channel'] !== 'wallet' || (int) $payment['id'] !== (int) $record['payment_id']
             || (int) $payment['member_id'] !== (int) $record['member_id'] || $payment['currency'] !== $order['currency']
-            || (int) $payment['amount_minor'] !== $order['paid_minor'] || !$this->records->serviceReleased($unit['service_id'])) {
+            || (int) $payment['amount_minor'] !== $order['paid_minor']) {
             FinanceRules::conflict('付款来源或实例状态已变化，不能执行退款');
         }
         if ($this->records->invoiceOccupied($unitId) > $unit['allocated_minor'] - $unit['refunded_minor'] - $amount) {
@@ -274,7 +323,7 @@ final readonly class ManageFinanceService
         $this->records->changeAccount($account, $balance, $account['frozen_minor']);
         $this->records->entry($account, 'refund_credit', 'refund', (int) $record['id'], $amount, $balance);
         $this->orders->complete($order['id'], $unitId, $amount);
-        $this->records->update('refunds', (int) $record['id'], ['status' => 'completed', 'completed_at' => date('Y-m-d H:i:s')]);
+        $this->records->update('refunds', (int) $record['id'], ['executor_id' => $actorId, 'status' => 'completed', 'completed_at' => date('Y-m-d H:i:s')]);
         $this->outbox->append('refund.completed.' . $record['id'], 'refund.completed', (int) $record['id'],
             ['order_id' => $order['id'], 'order_unit_id' => $unitId, 'member_id' => (int) $record['member_id'], 'amount_minor' => $amount]);
     }
@@ -315,15 +364,15 @@ final readonly class ManageFinanceService
         $this->access->requirePermission($actor, 'admin.finance.' . $resource . '.' . $action);
     }
 
-    private function perform(AdminAccount $actor, string $resource, string $action, int $id, array $input, callable $operation): array
+    private function perform(AdminAccount $actor, string $resource, string $action, int $id, array $input, callable $operation, array $audit): array
     {
         $key = $resource . '.' . $actor->id . '.' . $input['request_key'];
         $body = $input;
         unset($body['request_key']);
         ksort($body);
         $hash = hash('sha256', json_encode([$resource, $action, $id, $body], JSON_THROW_ON_ERROR));
-        return $this->transactions->run(function () use ($actor, $resource, $action, $key, $hash, $operation): array {
-            $previous = $this->records->begin($key, $hash, $actor->id, $resource, $action);
+        return $this->transactions->run(function () use ($actor, $resource, $action, $key, $hash, $operation, $audit): array {
+            $previous = $this->records->begin($key, $hash, $actor->id, $resource, $action, $audit);
             if ($previous !== null) {
                 return $previous;
             }

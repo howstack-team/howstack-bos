@@ -69,7 +69,7 @@ const routeLoaders = {
     'system/channels/storage': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="storage" /> })),
     'system/channels/oauth': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="oauth" /> })),
     'system/channels/captcha': () => import('./pages/channels/ChannelsPage').then(({ default: Page }) => ({ default: () => <Page category="captcha" /> })),
-    'system/maintenance': () => import('./pages/SystemMaintenancePage'),
+    'system/maintenance': () => import('./pages/SystemVersionPage'),
     'system/application-center': () => import('./pages/ApplicationCenterPage'),
     'audit/messages': () => import('./pages/MessageLogsPage'),
     'audit/operations': () => import('./pages/OperationLogsPage'),
@@ -264,8 +264,7 @@ function PageLayout() {
           />
         );
       })}
-      <Route exact path="/license"><Redirect to="/maintenance" /></Route>
-      <Route exact path="/updates"><Redirect to="/maintenance" /></Route>
+
       <Route exact path="/">
         {defaultRoute ? <Redirect to={defaultRoute} /> : <div>暂无访问权限</div>}
       </Route>

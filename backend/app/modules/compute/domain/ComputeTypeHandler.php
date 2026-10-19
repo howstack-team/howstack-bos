@@ -44,6 +44,9 @@ final class ComputeTypeHandler implements ProductTypeHandlerInterface
         foreach (['lines', 'flavors', 'images', 'disk_types'] as $kind) foreach ($selected[$kind] as &$row) {
             $row['zone_ids'] = array_values(array_intersect($row['zone_ids'] ?? [$row['zone_id']], array_column($selected['zones'], 'id')));
             $row['zone_id'] = $row['zone_ids'][0];
+            if (in_array($kind, ['flavors', 'disk_types'], true)) {
+                $row['zone_prices'] = (new ResourceZonePrices())->normalize(array_intersect_key($row['zone_prices'] ?? [], array_flip($row['zone_ids'])), $row['zone_ids']);
+            }
         }
         unset($row);
         foreach ($selected['protections'] as &$row) {
@@ -128,6 +131,16 @@ final class ComputeTypeHandler implements ProductTypeHandlerInterface
         }
         if (!empty($selection['protection_id']) && $this->find($filtered['protections'], $selection['protection_id']) === null) {
             $invalid['protection_id'] = '防护不适用于当前线路'; unset($selection['protection_id']);
+        }
+        // 只用销售快照解析当前可用区价，报价和后续下单不读取可变资源表。
+        if (isset($selection['zone_id'])) {
+            $pricing = new ResourceZonePrices();
+            foreach (['flavors', 'disk_types'] as $kind) {
+                foreach ($filtered[$kind] as &$row) {
+                    $row['prices'] = $pricing->resolve($row, $selection['zone_id']);
+                }
+                unset($row);
+            }
         }
         return ['options' => $filtered, 'configuration' => $selection, 'invalid_fields' => $invalid,
             'system_disk_included_gib' => $this->includedSystemDiskCapacity($snapshot),

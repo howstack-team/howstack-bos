@@ -8,6 +8,8 @@
 
 > 项目正在持续开发。当前已具备基础管理和部分业务记录能力，完整的云产品购买、渠道支付和资源生产链路仍在建设中。下文分别说明当前实现与建设方向。
 
+**社区版 1.0 已冻结新增功能，进入收尾验收。** 首发保留云服务器销售、支付交付、续费运维及工单；保留范围、暂时隐藏项、必须补齐的功能和发布门槛以[社区版 1.0 上线范围与验收清单](docs/releases/community-1.0-scope-and-acceptance.md)为准。该清单不表示当前版本已经完成生产验收。
+
 商业订阅购买后，在后台“授权与更新 → 授权码激活”填写官网“我的授权”中的授权码即可；续费沿用原码，后台自动同步。系统更新复用受控安装器，详细配置与部署边界见[官网接入要求](docs/development/official-platform-v1-requirements.md)。
 
 ## 适用对象
@@ -83,7 +85,7 @@
 
 ## 技术栈
 
-- 后端：PHP 8.4、Webman、MySQL 8.0、Redis
+- 后端：PHP 8.3、Webman、MySQL 8.0、Redis
 - 运营后台：React 18、Vite、Arco Design React / Arco Design Pro 主题
 - 会员控制台：React 19、Vite、Arco Design React
 - 在线安装器：React 19、Vite、Arco Design React
@@ -204,3 +206,5 @@ pnpm dev
 在线充值部署、PC/Mobile接入、回调验签、自动查单与人工核查说明见[在线充值与支付确认](docs/development/online-payments.md)。
 
 后台验证器绑定、恢复码、第二步登录与升级说明见[管理员两步验证](docs/development/admin-mfa.md)。
+
+PHP最低版本、依赖锁定及已有安装升级说明见[PHP运行基线](docs/development/php-compatibility.md)。

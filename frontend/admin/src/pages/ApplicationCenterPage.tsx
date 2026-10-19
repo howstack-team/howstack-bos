@@ -1,3 +1,4 @@
+import { communityRelease } from '../../../packages/community-release'
 import { applyClientTableQuery } from '../utils/clientTableQuery'
 import { StatusBadge } from '../components/TableEnum'
 import { APPLICATION_STATUSES, APPLICATION_TYPES } from '../utils/businessEnums'
@@ -41,6 +42,7 @@ export default function ApplicationCenterPage() {
   const changed = useCallback(() => setRefresh((value) => value + 1), [])
 
   useEffect(() => {
+    if (!communityRelease.commercialDelivery) return
     const controller = new AbortController()
     void api.storeLink(controller.signal).then((data) => {
       if (!controller.signal.aborted) setStoreUrl(data.store_url)
@@ -145,7 +147,7 @@ export default function ApplicationCenterPage() {
     { title: '操作', width: 220, fixed: 'right', render: (_, row) => {
       const missing = ['not_installed', 'uninstalled'].includes(row.local_state)
       const manageable = row.kind === 'plugin' && !missing
-      const canInstall = row.kind === 'plugin' && row.available_version_id && !row.unavailable_reason
+      const canInstall = communityRelease.commercialDelivery && row.kind === 'plugin' && row.available_version_id && !row.unavailable_reason
         && (missing || (['installed', 'disabled'].includes(row.local_state) && row.available_version !== row.local_version))
         && permissions.includes(`admin.app-center.${missing ? 'install' : 'update'}`)
       return <Space size="mini">
@@ -158,8 +160,8 @@ export default function ApplicationCenterPage() {
 
   return <section className="page-card system-maintenance-page">
     <div className="system-maintenance-heading system-maintenance-header">
-      <div><Typography.Title heading={5}>应用中心</Typography.Title><Typography.Text type="secondary">管理已获取应用的安装、更新与卸载。</Typography.Text></div>
-      {storeUrl && <Link className="system-maintenance-account-entry" href={storeUrl} target="_blank" rel="noopener noreferrer" icon={<IconLaunch />}>官方应用商店</Link>}
+      <div><Typography.Title heading={5}>应用中心</Typography.Title><Typography.Text type="secondary">查看已获取应用与安装记录，按权限处理既有应用。</Typography.Text></div>
+      {communityRelease.commercialDelivery && storeUrl && <Link className="system-maintenance-account-entry" href={storeUrl} target="_blank" rel="noopener noreferrer" icon={<IconLaunch />}>官方应用商店</Link>}
     </div>
     {storeError && <Alert type="warning" content={storeError} style={{ marginBottom: 16 }} />}
     <TableQueryForm fields={searchFields} values={draftFields} onFieldChange={setField}

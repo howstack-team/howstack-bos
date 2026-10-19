@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { communityRelease } from '../../../packages/community-release'
 import { useEffect, useState } from 'react'
 import { Alert, Button, DatePicker, Descriptions, Drawer, Form, Link, Select, Space, Table } from '@arco-design/web-react'
 import { IconPlus, IconRefresh } from '@arco-design/web-react/icon'
@@ -24,14 +25,14 @@ const definitions: Record<FinanceResource, { title: string; number: string; colu
   transactions: { title: '资金流水', number: 'entry_no', columns: [['发生时间', 'created_at'], ['会员 ID', 'member_id'], ['类型', 'entry_type'], ['来源类型', 'source_type'], ['来源 ID', 'source_id'], ['变动金额', 'amount_minor'], ['变动后余额', 'available_after_minor']] },
   refunds: { title: '退款记录', number: 'refund_no', columns: [['申请时间', 'created_at'], ['会员 ID', 'member_id'], ['来源类型', 'source_type'], ['来源 ID', 'source_id'], ['金额', 'amount_minor'], ['去向', 'destination'], ['状态', 'status']] },
   invoices: { title: '发票记录', number: 'invoice_no', columns: [['申请时间', 'created_at'], ['会员 ID', 'member_id'], ['订单 ID', 'order_id'], ['发票抬头', 'title'], ['金额', 'amount_minor'], ['类型', 'invoice_type'], ['状态', 'status']] },
-  withdrawals: { title: '提现记录', number: 'withdrawal_no', columns: [['申请时间', 'created_at'], ['会员 ID', 'member_id'], ['来源类型', 'source_type'], ['来源 ID', 'source_id'], ['金额', 'amount_minor'], ['状态', 'status'], ['打款时间', 'payout_at']] },
+  withdrawals: { title: '充值退还', number: 'withdrawal_no', columns: [['申请时间', 'created_at'], ['会员 ID', 'member_id'], ['来源类型', 'source_type'], ['来源 ID', 'source_id'], ['金额', 'amount_minor'], ['状态', 'status'], ['打款时间', 'payout_at']] },
 }
 
 const createLabels: Partial<Record<FinanceResource, string>> = {
-  recharges: '线下充值入账', refunds: '申请退款', invoices: '申请开票', withdrawals: '申请提现',
+  recharges: '线下充值入账', refunds: '申请退款', invoices: '申请开票', withdrawals: '申请充值退还',
 }
 const detailFields: Array<[string, string]> = [
-  ['申请原因', 'reason'], ['备注', 'remark'], ['创建人 ID', 'operator_id'],
+  ['未交付核查任务', 'delivery_task_id'], ['未交付证据', 'delivery_evidence'], ['执行人 ID', 'executor_id'], ['打款核对说明', 'payout_note'], ['申请原因', 'reason'], ['备注', 'remark'], ['创建人 ID', 'operator_id'],
   ['审核人 ID', 'reviewer_id'], ['审核意见', 'review_reason'], ['审核时间', 'reviewed_at'],
   ['收款凭证', 'external_reference'], ['渠道交易号', 'channel_trade_no'], ['关联支付 ID', 'payment_id'],
   ['退款完成时间', 'completed_at'], ['发票号码', 'external_number'], ['开票时间', 'issued_at'],
@@ -56,7 +57,7 @@ export default function FinanceRecordsPage({ resource }: { resource: FinanceReso
   const definition = definitions[resource]
   const statuses = FINANCE_STATUSES[resource] ?? {}
   const statusLabels = Object.fromEntries(Object.entries(statuses).map(([key, item]) => [key, item.text]))
-  const { permissions } = useAdminAuth()
+  const { permissions, user } = useAdminAuth()
   const can = (action: string) => permissions.includes(`admin.finance.${resource}.${action}`)
   const { queryParams, draftFields, setField, setFields, draftStatus, setDraftStatus, search, reset, discard,
     refreshKey, sortColumn, filterColumn, onTableChange, page, pageSize, setPage, setPageSize } = useTableQuery({
@@ -103,7 +104,7 @@ export default function FinanceRecordsPage({ resource }: { resource: FinanceReso
       actions.push({ key: action, label, danger, onClick: () => { setSelectedId(null); setOperation({ action, record: row }) } })
     }
     if (!row.operator_id) return actions
-    if (row.status === 'pending' && can('review')) { add('approve', '通过'); add('reject', '驳回', true) }
+    if (row.status === 'pending' && can('review') && (!['refunds', 'withdrawals'].includes(resource) || row.operator_id !== user?.id)) { add('approve', '通过'); add('reject', '驳回', true) }
     if (row.status === 'approved') {
       if (resource === 'refunds' && row.source_type === 'order_unit' && row.destination === 'wallet' && can('execute')) add('execute', '执行退款')
       if (resource === 'invoices' && can('issue')) add('issue', '登记开票')
@@ -142,7 +143,7 @@ export default function FinanceRecordsPage({ resource }: { resource: FinanceReso
     </TableQueryForm>
     <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}><Space>
       <Button icon={<IconRefresh />} loading={loading} onClick={() => setRevision(value => value + 1)}>刷新</Button>
-      {createLabels[resource] && can('create') && <Button type="primary" icon={<IconPlus />} onClick={() => setOperation({ action: 'create', record: null })}>{createLabels[resource]}</Button>}
+      {createLabels[resource] && (resource !== 'invoices' || communityRelease.newInvoices) && (resource !== 'withdrawals' || communityRelease.newWithdrawals) && can('create') && <Button type="primary" icon={<IconPlus />} onClick={() => setOperation({ action: 'create', record: null })}>{createLabels[resource]}</Button>}
     </Space></div>
     {error && <Alert type="error" content={error} style={{ marginBottom: 16 }} />}
     <div className="table-scroll"><Table<FinanceRecord> onChange={onTableChange} rowKey="id" columns={columns} data={rows} loading={loading}
@@ -151,7 +152,7 @@ export default function FinanceRecordsPage({ resource }: { resource: FinanceReso
         onChange: setPage, onPageSizeChange: setPageSize }} /></div>
     <Drawer maskClosable title={`${definition.title}详情`} visible={selectedId !== null} width="min(760px, calc(100vw - 24px))" footer={null} onCancel={() => setSelectedId(null)}>
       {detailError && <Alert type="error" content={detailError} />}
-      {detail && <Descriptions data={detailRows} column={descriptionsColumns} border />}
+      {detail && <Descriptions data={detailRows} column={descriptionsColumns} border tableLayout="fixed" labelStyle={{ width: 126 }} valueStyle={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }} />}
     </Drawer>
     {operation && <FinanceOperationDrawer resource={resource} action={operation.action} record={operation.record} visible
       onCancel={() => setOperation(null)} onSaved={() => { setOperation(null); setRevision(value => value + 1) }} />}

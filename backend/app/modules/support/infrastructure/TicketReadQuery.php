@@ -17,6 +17,7 @@ final class TicketReadQuery
         't.id', 't.ticket_no', 't.member_id', 't.type_id', 't.subject', 't.content',
         't.priority', 't.status', 't.created_at', 't.updated_at', 't.closed_at',
         'm.nickname as member_nickname', 'm.mobile as member_mobile', 'tt.name as type_name',
+        'service.instance_no as service_no', 'service.display_name as service_name',
     ];
     /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
     public function tickets(
@@ -67,13 +68,14 @@ final class TicketReadQuery
     private function ticketQuery(): Builder
     {
         return Db::table('tickets as t')->join('members as m', 'm.id', '=', 't.member_id')
-            ->join('ticket_types as tt', 'tt.id', '=', 't.type_id');
+            ->join('ticket_types as tt', 'tt.id', '=', 't.type_id')
+            ->leftJoin('service_instances as service', static fn ($join) => $join->on('service.id', '=', 't.service_id')->on('service.member_id', '=', 't.member_id'));
     }
 
     private static function normalize(stdClass $row): array
     {
         $data = array_intersect_key((array) $row, array_flip([
-            'id', 'name', 'code', 'sort_order', 'status', 'created_at', 'updated_at', 'title', 'content', 'ticket_no', 'member_id', 'type_id', 'subject', 'priority', 'closed_at', 'ticket_id', 'author_type', 'author_id', 'member_nickname', 'member_mobile', 'type_name',
+            'id', 'name', 'code', 'sort_order', 'status', 'created_at', 'updated_at', 'title', 'content', 'ticket_no', 'member_id', 'type_id', 'subject', 'priority', 'closed_at', 'ticket_id', 'author_type', 'author_id', 'member_nickname', 'member_mobile', 'type_name', 'service_no', 'service_name',
         ]));
         foreach (['id', 'member_id', 'type_id', 'sort_order', 'status'] as $field) {
             if (isset($data[$field]) && is_numeric($data[$field]) && $field !== 'status') $data[$field] = (int) $data[$field];

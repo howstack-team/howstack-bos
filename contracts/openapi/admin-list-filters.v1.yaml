@@ -2,7 +2,9 @@ openapi: 3.0.3
 info:
   title: 运营后台独立字段组合查询
   version: 1.0.0
-  description: 列表独立字段的补充查询契约。所有非空条件使用 AND 组合；文本为对应字段的包含匹配， % 和 _ 按普通字符处理。实名认证 subject 匹配姓名或企业名称，并与手机号、类型、状态等条件使用 AND 组合。 单选表头筛选与查询表单使用同一参数。sort_by 仅接受各列表声明的业务字段，sort_order 接受 asc/desc； 指定排序时空值始终最后，同值追加 id 降序；未指定排序时保持原有默认顺序。帮助分类维持父子结构，只对同级排序。 权限与脱敏响应继续由各业务模块执行；查询总数和数据使用相同条件，过滤先于分页。
+  description: 列表独立字段的补充查询契约。所有非空条件使用 AND 组合；文本为对应字段的包含匹配， % 和 _ 按普通字符处理。实名认证 subject 匹配姓名或企业名称，并与手机号、类型、状态等条件使用
+    AND 组合。 单选表头筛选与查询表单使用同一参数。sort_by 仅接受各列表声明的业务字段，sort_order 接受 asc/desc； 指定排序时空值始终最后，同值追加 id
+    降序；未指定排序时保持原有默认顺序。帮助分类维持父子结构，只对同级排序。 权限与脱敏响应继续由各业务模块执行；查询总数和数据使用相同条件，过滤先于分页。
 paths:
   /api/admin/v1/members:
     get:
@@ -664,7 +666,8 @@ paths:
                     type: integer
                     enum:
                       - 0
-                  message: *a1
+                  message:
+                    type: string
                   data:
                     type: object
                     required:
@@ -881,69 +884,6 @@ paths:
                   request_id:
                     type: string
                     minLength: 1
-        "403":
-          description: 无对应列表查看权限
-        "422":
-          description: 查询字段类型或长度不合法
-  /api/admin/v1/cloud-products:
-    get:
-      summary: 独立字段组合查询
-      parameters:
-        - name: sort_by
-          in: query
-          schema:
-            type: string
-            enum:
-              - created_at
-        - name: sort_order
-          in: query
-          schema:
-            type: string
-            enum:
-              - asc
-              - desc
-            default: asc
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum:
-              - "0"
-              - "1"
-        - name: publication
-          in: query
-          schema:
-            type: string
-            enum:
-              - draft
-              - published
-        - name: name
-          in: query
-          schema:
-            type: string
-            maxLength: 128
-        - name: code
-          in: query
-          schema:
-            type: string
-            maxLength: 128
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100000
-            default: 1
-        - name: page_size
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 10
-      responses:
-        "200":
-          description: 统一响应；data 包含 data 数组与 total 整数。沿用业务列表字段白名单。
         "403":
           description: 无对应列表查看权限
         "422":

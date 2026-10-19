@@ -15,6 +15,7 @@ final class OperationLogPayloadSanitizer
         'member-groups' => ['name', 'code', 'sort_order', 'description', 'status'],
         'member-levels' => ['name', 'code', 'level_order', 'growth_threshold', 'description', 'status'],
         'real-name-authentications' => ['decision', 'reason'],
+        'service-instances' => ['action', 'image_id', 'acknowledged', 'reason', 'evidence_reference', 'months', 'expected_amount_minor'],
         'cloud-products' => ['name', 'code', 'revision', 'status'],
         'business-plugins' => ['action', 'revision'],
         'official-platform' => ['mode'],

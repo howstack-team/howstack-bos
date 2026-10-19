@@ -68,6 +68,7 @@ final readonly class RecordAdminOperationService
         $module = match ($resource) {
             'finance' => '财务管理',
             'orders' => '订单管理',
+            'tickets' => '工单管理',
             'profile' => '个人设置',
             'administrators' => '系统用户',
             'roles' => '角色权限',
@@ -87,6 +88,7 @@ final readonly class RecordAdminOperationService
             'cloud-products' => '云服务器销售方案',
             'cloud-delivery-rules' => '云服务器交付规则',
             'cloud-servers' => '云服务器配置',
+            'service-instances' => '服务实例',
             'compute-resources' => '云服务器配置资源',
             'provider-connections' => '资源供应商',
             'business-plugins' => '插件管理',
@@ -108,6 +110,12 @@ final readonly class RecordAdminOperationService
         if (in_array($resource, ['message-configurations', 'message-scenes'], true) && $targetId === 'batch') {
             $verb = '批量编辑';
         }
+        if ($resource === 'service-instances' && ($segments[5] ?? '') === 'retry-provisioning') $verb = '重试开通：';
+        if ($resource === 'service-instances' && ($segments[5] ?? '') === 'confirm-not-created') $verb = '确认未开通：';
+        if ($resource === 'service-instances' && ($segments[5] ?? '') === 'renewals') $verb = '创建续费订单：';
+        if ($resource === 'service-instances' && ($segments[5] ?? '') === 'vnc') $verb = '连接VNC远程控制台：';
+        if ($resource === 'service-instances' && ($segments[5] ?? '') === 'operations') $verb = '提交实例运维操作：';
+        if ($resource === 'service-instances' && ($segments[5] ?? '') === 'retry-lifecycle') $verb = '重试实例生命周期与运维查单：';
         if ($resource === 'profile') {
             $verb = match ($targetId) { 'password' => '修改密码：', 'mfa' => '管理两步验证：', default => '修改资料：' };
         }
@@ -130,6 +138,7 @@ final readonly class RecordAdminOperationService
         if ($resource === 'orders') {
             $verb = match ($segments[5] ?? 'create') { 'pay' => '余额付款：', 'cancel' => '取消订单：', 'update' => '编辑备注：', 'preview' => '计算订单费用：', default => '创建订单：' };
         }
+        if ($resource === 'tickets') $verb = match ($segments[5] ?? '') { 'replies' => '回复工单：', 'close' => '关闭工单：', default => $verb };
         if ($resource === 'finance') {
             $verb = match ($segments[6] ?? 'create') {
                 'approve' => '审核通过：', 'reject' => '审核驳回：', 'execute' => '执行余额退款：',

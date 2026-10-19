@@ -8,17 +8,29 @@ use app\exception\BusinessException;
 use app\modules\admin\access\application\AdminAccessControlService;
 use app\modules\admin\access\infrastructure\DatabaseAdminAccessRepository;
 use app\modules\admin\auth\domain\AdminAccount;
-use app\modules\order\application\{ManageAdminOrdersService, PayOrderByWalletService};
-use app\modules\order\infrastructure\{DatabaseOrderManagementRepository, DatabaseOrderPaymentRepository, DatabaseOrderFinanceRepository, DatabaseOrderRepository};
-use app\modules\product\infrastructure\{DatabaseOrderSalesCatalog, ProductTypeRegistry, ProductOrderCapacityRegistry};
-use app\modules\product\infrastructure\model\{OfferModel, OfferVersionModel, ProductModel};
-use app\modules\compute\domain\{ComputeTypeHandler, ComputeResources};
-use app\modules\compute\infrastructure\{DatabaseComputeResourceRepository, DatabaseComputeInventoryRepository};
+use app\modules\order\application\ManageAdminOrdersService;
+use app\modules\order\application\PayOrderByWalletService;
+use app\modules\order\infrastructure\DatabaseOrderManagementRepository;
+use app\modules\order\infrastructure\DatabaseOrderPaymentRepository;
+use app\modules\order\infrastructure\DatabaseOrderFinanceRepository;
+use app\modules\order\infrastructure\DatabaseOrderRepository;
+use app\modules\product\infrastructure\DatabaseOrderSalesCatalog;
+use app\modules\product\infrastructure\ProductTypeRegistry;
+use app\modules\product\infrastructure\model\OfferModel;
+use app\modules\product\infrastructure\model\OfferVersionModel;
+use app\modules\product\infrastructure\model\ProductModel;
+use app\modules\compute\domain\ComputeTypeHandler;
+use app\modules\compute\domain\ComputeResources;
+use app\modules\compute\infrastructure\DatabaseComputeResourceRepository;
+use app\modules\compute\infrastructure\DatabaseComputeInventoryRepository;
 use app\modules\compute\validation\ComputeResourceValidator;
-use app\modules\product\validation\CloudOfferValidator;
+use app\modules\compute\validation\CloudOfferValidator;
 use app\modules\compute\application\OrderComputeCapacityService;
-use app\modules\finance\application\{WalletLedgerService, ManageFinanceService};
-use app\modules\finance\infrastructure\{DatabaseWalletLedgerRepository, DatabaseOutboxWriter, DatabaseFinanceWorkflowRepository};
+use app\modules\finance\application\WalletLedgerService;
+use app\modules\finance\application\ManageFinanceService;
+use app\modules\finance\infrastructure\DatabaseWalletLedgerRepository;
+use app\modules\finance\infrastructure\DatabaseOutboxWriter;
+use app\modules\finance\infrastructure\DatabaseFinanceWorkflowRepository;
 use app\shared\infrastructure\DatabaseTransactionManager;
 use PHPUnit\Framework\TestCase;
 use support\Db;
@@ -27,14 +39,15 @@ use tests\support\{IsolatedBusinessDatabase, MessageRuntimeFactory};
 final class AdminOrderWorkflowTest extends TestCase
 {
     use IsolatedBusinessDatabase;
+    use \tests\support\UndeliveredOrderFixture;
 
     private function actor(bool $founder = true): AdminAccount
     {
         return new AdminAccount(1, 'fixture-admin', '管理员', 'hash', 1, null, $founder);
     }
-    private function capacity(): ProductOrderCapacityRegistry
+    private function capacity(): \app\modules\product\infrastructure\ProductPurchaseRegistry
     {
-        return new ProductOrderCapacityRegistry(new OrderComputeCapacityService(new DatabaseComputeInventoryRepository()));
+        return \tests\support\ProductRuntimeFactory::purchases();
     }
     private function wallet(): WalletLedgerService
     {
@@ -44,12 +57,12 @@ final class AdminOrderWorkflowTest extends TestCase
     {
         $tx = new DatabaseTransactionManager(); $publisher = MessageRuntimeFactory::publisher();
         return new ManageAdminOrdersService(new AdminAccessControlService(new DatabaseAdminAccessRepository()), new DatabaseOrderManagementRepository(),
-            new DatabaseOrderSalesCatalog(), new ProductTypeRegistry(new ComputeTypeHandler()), $tx,
-            new PayOrderByWalletService(new DatabaseOrderPaymentRepository(), $this->wallet(), $tx, new DatabaseOutboxWriter(), $publisher, $this->capacity()),
+            new DatabaseOrderSalesCatalog(), new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]), $tx,
+            new PayOrderByWalletService(new DatabaseOrderPaymentRepository(), $this->wallet(), $tx, new DatabaseOutboxWriter(), $publisher, $this->capacity(), new \tests\support\RecordingOrderProvisioning()),
             new \app\modules\order\application\CreatePurchaseOrderService(new DatabaseOrderManagementRepository(), new DatabaseOrderSalesCatalog(),
-                new ProductTypeRegistry(new ComputeTypeHandler()), $tx, $outbox ?? new DatabaseOutboxWriter(), $publisher,
-                new \app\modules\product\infrastructure\ProductPurchaseInputRegistry(), new \app\modules\product\infrastructure\ProductPurchaseAvailabilityRegistry(new DatabaseComputeInventoryRepository())),
-            new \app\modules\product\infrastructure\ProductPurchaseInputRegistry());
+                new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]), $tx, $outbox ?? new DatabaseOutboxWriter(), $publisher,
+                \tests\support\ProductRuntimeFactory::purchases(), \tests\support\ProductRuntimeFactory::purchases(), new \tests\support\RecordingOrderProvisioning(), \tests\support\ProductRuntimeFactory::purchases()),
+            \tests\support\ProductRuntimeFactory::purchases());
     }
     private function fixture(): array
     {
@@ -113,19 +126,20 @@ final class AdminOrderWorkflowTest extends TestCase
     {
         $input = $this->fixture(); $id = $this->service()->create($this->actor(), $input)['id'];
         $tx = new DatabaseTransactionManager();
-        $finance = new ManageFinanceService(new AdminAccessControlService(new DatabaseAdminAccessRepository()), new DatabaseFinanceWorkflowRepository(), new DatabaseWalletLedgerRepository(), $this->wallet(), new DatabaseOrderFinanceRepository($this->capacity()), $tx, new DatabaseOutboxWriter());
+        $finance = new ManageFinanceService(new AdminAccessControlService(new DatabaseAdminAccessRepository()), new DatabaseFinanceWorkflowRepository(new \app\modules\service_instance\infrastructure\DatabaseUndeliveredRefundGuard()), new DatabaseWalletLedgerRepository(), $this->wallet(), new DatabaseOrderFinanceRepository($this->capacity()), $tx, new DatabaseOutboxWriter(), new \app\modules\service_instance\infrastructure\DatabaseUndeliveredRefundGuard());
         $finance->create($this->actor(), 'recharges', ['request_key' => bin2hex(random_bytes(16)), 'member_id' => $input['member_id'], 'amount_minor' => 10000, 'external_reference' => 'ORDER-DEPOSIT']);
         $this->service()->act($this->actor(), $id, 'pay', []); $this->service()->act($this->actor(), $id, 'pay', []);
         self::assertSame(2, (int) Db::table('compute_inventory_pools')->value('occupied'));
         self::assertSame(0, (int) Db::table('compute_inventory_pools')->value('reserved'));
         self::assertSame(10000 - $input['expected_amount_minor'], (int) Db::table('wallet_accounts')->value('available_minor'));
+        $this->confirmFixtureUndelivered($id);
         $unit = Db::table('order_item_units')->orderBy('id')->first();
         $refund = $finance->create($this->actor(), 'refunds', ['request_key' => bin2hex(random_bytes(16)), 'member_id' => $input['member_id'], 'source_id' => $unit->id, 'amount_minor' => (int) $unit->allocated_minor, 'reason' => '未开通实例退款']);
-        $finance->act($this->actor(), 'refunds', $refund['id'], 'approve', ['request_key' => bin2hex(random_bytes(16))]);
+        $finance->act($this->reviewer(), 'refunds', $refund['id'], 'approve', ['request_key' => bin2hex(random_bytes(16)), 'review_reason' => '已核实未交付']);
         $finance->act($this->actor(), 'refunds', $refund['id'], 'execute', ['request_key' => bin2hex(random_bytes(16))]);
         self::assertSame(1, (int) Db::table('compute_inventory_pools')->value('occupied'));
         self::assertSame('partial_refund', Db::table('orders')->value('payment_status'));
-        self::assertSame(0, Db::table('service_instances')->count());
+        self::assertSame(2, Db::table('service_instances')->count(), '失败交付及核查记录必须保留');
     }
     public function testStockFailureRollsBackPaymentAndLedger(): void
     {

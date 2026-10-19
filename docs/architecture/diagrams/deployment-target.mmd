@@ -13,7 +13,7 @@ flowchart LR
   redis[("Redis · 隔离实例前缀")]
   private["public 外私有数据与备份"]
   providers["外部通道 / 供应商 / 官方平台"]
-  build["建议发布流水线 · PHP 8.4 / Node 构建 / 插件依赖"]
+  build["建议发布流水线 · PHP 8.3 / Node 构建 / 插件依赖"]
   release["完整发行包 · 核心 vendor + 插件 vendor + 前端产物"]
   users -.-> proxy
   proxy -.-> static

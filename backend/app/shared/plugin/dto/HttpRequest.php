@@ -14,6 +14,7 @@ final readonly class HttpRequest
      * @param array<string, string> $headers 必要认证头，不记录原值
      * @param array<string, mixed> $query 查询字段
      * @param array<string, mixed>|null $json JSON 请求字段
+     * @param array<string, int> $pathParameters 已审核路径模板的正整数参数
      */
     public function __construct(
         public string $method,
@@ -21,5 +22,6 @@ final readonly class HttpRequest
         public array $headers = [],
         public array $query = [],
         public ?array $json = null,
+        public array $pathParameters = [],
     ) {}
 }

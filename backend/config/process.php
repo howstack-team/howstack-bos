@@ -21,6 +21,8 @@ use app\process\Http;
 global $argv;
 
 return [
+    'service-lifecycle' => ['handler' => \app\process\ServiceLifecycleWorker::class, 'count' => 1],
+    'service-provisioning' => ['handler' => \app\process\ServiceProvisioningWorker::class, 'count' => 1],
     'payment-reconciliation' => ['handler' => \app\process\PaymentReconciliationWorker::class, 'count' => 1],
     'message-delivery' => ['handler' => \app\process\MessageDeliveryWorker::class, 'count' => 1],
     'software-maintenance' => [

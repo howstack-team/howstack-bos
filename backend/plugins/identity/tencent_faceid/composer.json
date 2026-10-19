@@ -4,12 +4,15 @@
   "type": "project",
   "license": "AGPL-3.0-or-later",
   "require": {
-    "php": ">=8.4",
+    "php": ">=8.3",
     "tencentcloud/faceid": "^3.0"
   },
   "config": {
     "allow-plugins": false,
     "optimize-autoloader": true,
-    "sort-packages": true
+    "sort-packages": true,
+    "platform": {
+      "php": "8.3.0"
+    }
   }
 }

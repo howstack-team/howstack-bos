@@ -27,11 +27,14 @@ final readonly class PublishMessageService implements \app\modules\message\contr
     ) {
     }
 
-    /** @param array<string, int|string> $variables 来源于已校验的业务快照，不接受浏览器任意场景 */
-    public function publish(string $eventKey, string $scene, string $businessType, int $businessId, int $memberId, array $variables, array $audiences = ['customer', 'admin']): int
+    /** @inheritDoc */
+    public function publish(string $eventKey, string $scene, string $businessType, int $businessId, int $memberId, array $variables, array $audiences = ['customer', 'admin'], bool $ensureMemberInbox = false): int
     {
         if ($audiences === [] || array_diff($audiences, ['customer', 'admin']) !== []) {
             throw new InvalidArgumentException('消息接收组无效');
+        }
+        if ($ensureMemberInbox && ($scene !== 'ticket_replied' || !in_array('customer', $audiences, true) || $memberId < 1)) {
+            throw new InvalidArgumentException('必要站内通知用途无效');
         }
         if ($eventKey === '' || strlen($eventKey) > 256 || $businessId < 1 || !preg_match('/^[a-z][a-z0-9_]{0,63}$/D', $businessType)) {
             throw new InvalidArgumentException('消息业务事件标识无效');
@@ -39,7 +42,7 @@ final readonly class PublishMessageService implements \app\modules\message\contr
         if (MessageScene::metadata($scene)['purpose'] === 'verification') {
             throw new InvalidArgumentException('验证码必须经过独立验证服务，不允许进入普通通知队列和日志');
         }
-        return $this->transactions->run(function () use ($eventKey, $scene, $businessType, $businessId, $memberId, $variables, $audiences): int {
+        return $this->transactions->run(function () use ($eventKey, $scene, $businessType, $businessId, $memberId, $variables, $audiences, $ensureMemberInbox): int {
             $targets = [];
             $seen = [];
             $known = false;
@@ -101,6 +104,12 @@ final readonly class PublishMessageService implements \app\modules\message\contr
             }
             if (!$known) {
                 throw new InvalidArgumentException('消息场景不存在');
+            }
+            if ($ensureMemberInbox && !isset($seen['customer:' . $memberId . ':message'])) {
+                $targets[] = ['audience' => 'customer', 'account_id' => $memberId, 'group_key' => 'ticket_required', 'group_name' => '工单站内提醒',
+                    'target_key' => 'ticket_required:' . $memberId, 'channel' => 'message', 'payload' => ['title' => '工单有新回复',
+                        'body' => '工单 ' . ($variables['ticket_no'] ?? '') . '「' . ($variables['ticket_title'] ?? '') . '」已收到工作人员回复，请查看沟通记录。',
+                        'address' => '', 'template_id' => '', 'parameters' => [], 'channel_id' => 0, 'channel_revision' => 0, 'configuration_revision' => 0]];
             }
             return $this->messages->record(hash('sha256', $eventKey . ':' . $scene . ':' . $businessType . ':' . $businessId),
                 $scene, $businessType, $businessId, $targets);

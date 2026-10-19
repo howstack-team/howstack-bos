@@ -1,0 +1,1 @@
+import{a as e}from"./rolldown-runtime-B0Z9INg1.js";import{n as t,t as n}from"./jsx-runtime-CF4O39kz.js";import{t as r}from"./sanitizeContentHtml-BE2VU1t8.js";var i=e(t(),1),a=n();function o({value:e}){let t=(0,i.useMemo)(()=>r(e),[e]);return(0,a.jsx)(`div`,{className:`rich-text-body`,dangerouslySetInnerHTML:{__html:t}})}export{o as t};

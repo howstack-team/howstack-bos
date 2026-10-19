@@ -24,7 +24,7 @@ $capsule->bootEloquent();
 fwrite(STDOUT, "READY\n");
 $transactions = new DatabaseTransactionManager();
 $service = new PayOrderByWalletService(new DatabaseOrderPaymentRepository(),
-    new WalletLedgerService(new DatabaseWalletLedgerRepository(), $transactions, \tests\support\MessageRuntimeFactory::publisher()), $transactions, new DatabaseOutboxWriter(), \tests\support\MessageRuntimeFactory::publisher(), new \app\modules\product\infrastructure\ProductOrderCapacityRegistry(new \app\modules\compute\application\OrderComputeCapacityService(new \app\modules\compute\infrastructure\DatabaseComputeInventoryRepository())));
+    new WalletLedgerService(new DatabaseWalletLedgerRepository(), $transactions, \tests\support\MessageRuntimeFactory::publisher()), $transactions, new DatabaseOutboxWriter(), \tests\support\MessageRuntimeFactory::publisher(), \tests\support\ProductRuntimeFactory::purchases(), new \tests\support\RecordingOrderProvisioning());
 try {
     $balance = $service->pay($input['member_id'], $input['order_id']);
     fwrite(STDOUT, json_encode(['balance' => $balance], JSON_THROW_ON_ERROR) . "\n");

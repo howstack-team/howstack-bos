@@ -75,8 +75,8 @@ final readonly class RenderWebsiteService
         $selectedPath = $normalized;
         $context = [
             'site' => $site, 'seo' => $seo + ['canonical' => $canonical],
-            'navigation' => $this->links($website['settings']['navigation'], $manifest, $routes, $selectedPath),
-            'footer_links' => $this->links($website['settings']['footer_links'], $manifest, $routes, $selectedPath),
+            'navigation' => $this->links($website['settings']['navigation'], $manifest, $routes, $selectedPath, $base['site_url']),
+            'footer_links' => $this->links($website['settings']['footer_links'], $manifest, $routes, $selectedPath, $base['site_url']),
             'theme' => ['id' => $manifest['id'], 'version' => $manifest['version'], 'settings' => $theme['settings']['global']],
             'page' => ['id' => $id ?? 'not_found', 'kind' => in_array($id, ['home', 'products'], true) ? 'core' : 'custom', 'title' => $declaration['title'], 'path' => $normalized,
                 'settings' => $id === null || in_array($id, ['home', 'products'], true) ? [] : $theme['settings']['pages'][$id],
@@ -106,9 +106,10 @@ final readonly class RenderWebsiteService
     /** 失效导航不展示；链接由宿主解析，模板无需了解内部配置结构。
      * @return list<array{label: string, url: string, external: bool, active: bool}> 链接资料
      */
-    private function links(array $links, array $manifest, array $routes, string $path): array
+    private function links(array $links, array $manifest, array $routes, string $path, string $siteUrl): array
     {
         $result = [];
+        $navigation = new \app\modules\website\domain\WebsiteNavigationPolicy();
         foreach ($links as $link) {
             $url = match ($link['target']) {
                 'core' => $routes[$link['core_page'] ?? ''] ?? '',
@@ -116,7 +117,7 @@ final readonly class RenderWebsiteService
                 'external' => ManageWebsiteService::safeExternalUrl($link['url'] ?? '') ? $link['url'] : '',
                 default => '',
             };
-            if ($url !== '') $result[] = ['label' => $link['label'], 'url' => $url, 'external' => $link['target'] === 'external', 'active' => $url === $path];
+            if ($url !== '' && $navigation->allows($url, $siteUrl)) $result[] = ['label' => $link['label'], 'url' => $url, 'external' => $link['target'] === 'external', 'active' => $url === $path];
         }
         return $result;
     }

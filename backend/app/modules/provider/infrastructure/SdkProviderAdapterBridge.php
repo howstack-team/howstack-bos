@@ -13,7 +13,7 @@ use app\shared\plugin\exception\PluginException;
 use Throwable;
 
 /** 将宿主内部供应端口映射到统一的插件 SDK v1，转换 DTO 和业务异常。 */
-final readonly class SdkProviderAdapterBridge implements ProviderAdapterInterface
+final readonly class SdkProviderAdapterBridge implements \app\modules\provider\contract\ProviderVncAdapterInterface, \app\modules\provider\contract\ProviderInstanceOperationsAdapterInterface, ProviderAdapterInterface, \app\modules\provider\contract\ProviderLifecycleAdapterInterface
 {
     /**
      * 接收固定 SDK 实例，不接受动态方法名。
@@ -22,6 +22,63 @@ final readonly class SdkProviderAdapterBridge implements ProviderAdapterInterfac
      * @param list<string> $catalogs 允许查询的目录
      */
     public function __construct(private string $pluginId, private SdkAdapter $adapter, private array $catalogs) {}
+
+    /** @inheritDoc */
+    public function supportsVnc(): bool
+    {
+        return $this->adapter instanceof \app\shared\plugin\contract\ProviderVncInterface;
+    }
+
+    /** @inheritDoc */
+    public function openVnc(array $config, \app\shared\plugin\dto\provider\InstanceIdentity $instance): \app\shared\plugin\dto\provider\VncConnection
+    {
+        if (!$this->supportsVnc()) {
+            throw new PluginException('原供应插件不支持VNC', 'vnc_unsupported');
+        }
+        return $this->adapter->openVnc(new ConnectionContext($this->pluginId, new Configuration($config)), $instance);
+    }
+
+    /** @inheritDoc */
+    public function instanceOperationActions(): array
+    {
+        return $this->adapter instanceof \app\shared\plugin\contract\ProviderInstanceOperationsInterface
+            ? array_values(array_intersect(['power_on', 'power_off', 'reboot', 'reinstall', 'reset_password'], $this->adapter->instanceOperationActions())) : [];
+    }
+
+    /** @inheritDoc */
+    public function instanceOperation(array $config, \app\shared\plugin\dto\provider\InstanceOperationRequest $request, bool $query): \app\shared\plugin\dto\provider\LifecycleResult
+    {
+        if (!in_array($request->action, $this->instanceOperationActions(), true)) {
+            throw new PluginException('供应插件不支持此运维操作', 'operation_unsupported');
+        }
+        $context = new ConnectionContext($this->pluginId, new Configuration($config));
+        return $query ? $this->adapter->queryInstanceOperation($context, $request) : $this->adapter->operateInstance($context, $request);
+    }
+
+    /** @inheritDoc */
+    public function supportsLifecycle(): bool
+    {
+        return $this->adapter instanceof \app\shared\plugin\contract\ProviderLifecycleInterface;
+    }
+
+    /** @inheritDoc */
+    public function lifecycle(array $config, \app\shared\plugin\dto\provider\LifecycleRequest $request, bool $query): \app\shared\plugin\dto\provider\LifecycleResult
+    {
+        if (!$this->supportsLifecycle()) {
+            throw new PluginException('原供应插件不支持生命周期操作', 'lifecycle_unsupported');
+        }
+        $context = new ConnectionContext($this->pluginId, new Configuration($config));
+        return $query ? $this->adapter->queryLifecycle($context, $request) : $this->adapter->lifecycle($context, $request);
+    }
+
+    /** @inheritDoc */
+    public function provision(array $config, \app\shared\plugin\dto\provider\ProvisionRequest $request, bool $query): \app\shared\plugin\dto\provider\ProvisionResult
+    {
+        if (!$this->adapter instanceof \app\shared\plugin\contract\ProviderProvisioningInterface) throw new PluginException('供应插件未实现生产契约', 'provider_unavailable');
+        $context = new ConnectionContext($this->pluginId, new Configuration($config));
+        // 保留稳定错误分类；应用层只记录分类，不记录外部异常原文。
+        return $query ? $this->adapter->queryProvision($context, $request) : $this->adapter->provision($context, $request);
+    }
 
     /** @inheritDoc */
     public function normalizeConfiguration(array $configuration): array

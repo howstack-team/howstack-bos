@@ -41,6 +41,11 @@ final class DatabaseComputeResourceRepository implements ComputeResourceReposito
             return Db::transaction(function () use ($class, $kind, $id, $data): array {
                 $row = $id === null ? new $class() : ($class::query()->lockForUpdate()->find($id) ?? throw new BusinessException('配置资源不存在', ApiErrorCode::NOT_FOUND, 404));
                 if ($relation = $this->relation($kind)) if (isset($data[$relation[1]])) $data[$relation[2]] = $data[$relation[1]][0];
+                if (in_array($kind, ['flavors', 'disk_types'], true)) {
+                    // 移除关联即清理该区价格；以后重新关联时恢复继承，不复活旧覆盖。
+                    $zoneIds = $data['zone_ids'] ?? ($id === null ? [] : $row->zones()->pluck('compute_zones.id')->map(static fn ($id): int => (int) $id)->all());
+                    $data['zone_prices'] = array_intersect_key($data['zone_prices'] ?? $row->zone_prices ?? [], array_flip($zoneIds));
+                }
                 $row->fill(array_intersect_key($data, array_flip($row->getFillable())))->save();
                 if ($relation = $this->relation($kind)) {
                     [$method, $field, $scalar] = $relation;
@@ -69,6 +74,9 @@ final class DatabaseComputeResourceRepository implements ComputeResourceReposito
         $data = ['id' => (int) $row->id];
         foreach ($row->getFillable() as $key) $data[$key] = str_ends_with($key, '_at') ? $row->{$key}?->format('Y-m-d H:i:s') : $row->{$key};
         if ($relation = $this->relation($kind)) $data[$relation[1]] = $row->getRelation($relation[0])->pluck('id')->map(static fn ($id): int => (int) $id)->sort()->values()->all();
+        if (in_array($kind, ['flavors', 'disk_types'], true)) {
+            $data['zone_prices'] = $data['zone_prices'] ?? [];
+        }
         return $data;
     }
 

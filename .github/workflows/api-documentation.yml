@@ -14,11 +14,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.3'
           extensions: mbstring, dom, xml, redis, pdo_mysql
           tools: composer:v2
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-scripts
+        working-directory: backend
+      - run: composer check-platform-reqs
+        working-directory: backend
+      - run: find app config support database plugins -type f -name '*.php' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l
         working-directory: backend
       - uses: pnpm/action-setup@v4
         with:

@@ -8,7 +8,9 @@ use app\shared\infrastructure\TableQueryOrder;
 
 use app\exception\BusinessException;
 use app\modules\product\contract\ProductRepositoryInterface;
-use app\modules\product\infrastructure\model\{ProductModel, OfferModel, OfferVersionModel};
+use app\modules\product\infrastructure\model\ProductModel;
+use app\modules\product\infrastructure\model\OfferModel;
+use app\modules\product\infrastructure\model\OfferVersionModel;
 use app\shared\contract\TransactionManagerInterface;
 use app\shared\http\ApiErrorCode;
 use Illuminate\Database\QueryException;
@@ -16,7 +18,7 @@ use Illuminate\Database\QueryException;
 /** 单模块写仓储；供应绑定写入通过独立 Contract 完成。 */
 final readonly class DatabaseProductRepository implements ProductRepositoryInterface
 {
-    public function __construct(private TransactionManagerInterface $transactions, private \app\modules\provider\contract\ProviderBindingWriterInterface $bindings) {}
+    public function __construct(private TransactionManagerInterface $transactions, private \app\modules\provider\contract\ProviderBindingWriterInterface $bindings, private string $definitionKey) {}
 
     /** @param array<string, string> $filters 独立查询条件及白名单排序参数，条件使用 AND 组合 */
     public function paginate(
@@ -61,7 +63,7 @@ final readonly class DatabaseProductRepository implements ProductRepositoryInter
 
     public function workspaceConfiguration(): array
     {
-        $product = ProductModel::query()->where('definition_key', 'cloud_server')->firstOrFail();
+        $product = ProductModel::query()->where('definition_key', $this->definitionKey)->firstOrFail();
         $rows = OfferModel::query()->where('product_id', $product->id)->orderBy('id')->get();
         $id = $product->workspace_configuration_id;
         if ($id === null && $rows->count() === 1) {
@@ -77,7 +79,7 @@ final readonly class DatabaseProductRepository implements ProductRepositoryInter
     public function saveWorkspaceConfiguration(?int $id, array $data, ?int $expectedId): array
     {
         return $this->transactions->run(function () use ($id, $data, $expectedId): array {
-            $product = ProductModel::query()->where('definition_key', 'cloud_server')->lockForUpdate()->firstOrFail();
+            $product = ProductModel::query()->where('definition_key', $this->definitionKey)->lockForUpdate()->firstOrFail();
             if ($product->workspace_configuration_id !== $expectedId) {
                 throw new BusinessException('当前配置已被切换，请刷新后重试', ApiErrorCode::CONFLICT, 409);
             }
@@ -85,7 +87,7 @@ final readonly class DatabaseProductRepository implements ProductRepositoryInter
                 throw new BusinessException('已有配置，请先明确选择需要使用的配置', ApiErrorCode::CONFLICT, 409);
             }
             if ($id !== null && $this->find($id) === null) {
-                throw new BusinessException('配置不存在或不属于云服务器', ApiErrorCode::NOT_FOUND, 404);
+                throw new BusinessException('配置不存在或不属于当前产品', ApiErrorCode::NOT_FOUND, 404);
             }
             $saved = $this->save($id, $data);
             $product->workspace_configuration_id = $saved['id'];
@@ -141,6 +143,9 @@ final readonly class DatabaseProductRepository implements ProductRepositoryInter
 
     public function versions(int $id): array
     {
+        if ($this->find($id) === null) {
+            throw new BusinessException('销售配置不存在或不属于当前产品', ApiErrorCode::NOT_FOUND, 404);
+        }
         return OfferVersionModel::query()->where('offer_id', $id)->orderByDesc('version')->get()
             ->map(static fn (OfferVersionModel $r): array => ['id' => $r->id, 'version' => $r->version, 'type_version' => $r->type_version,
                 'snapshot' => $r->snapshot, 'snapshot_hash' => $r->snapshot_hash, 'published_by' => $r->published_by,
@@ -164,7 +169,7 @@ final readonly class DatabaseProductRepository implements ProductRepositoryInter
             $pending = isset($snapshot['source_draft_hash'])
                 && $snapshot['source_draft_hash'] !== hash('sha256', json_encode($row->draft, JSON_THROW_ON_ERROR));
         }
-        return ['id' => $row->id, 'product_id' => $row->product_id, 'product_type' => 'cloud_server',
+        return ['id' => $row->id, 'product_id' => $row->product_id, 'product_type' => $this->definitionKey,
             'name' => $row->name, 'code' => $row->code, 'description' => $row->description, 'status' => $row->status,
             'revision' => $row->revision, 'published_version_id' => $row->published_version_id,
             'created_at' => $row->created_at->format('Y-m-d H:i:s'), 'updated_at' => $row->updated_at->format('Y-m-d H:i:s')]
@@ -173,8 +178,8 @@ final readonly class DatabaseProductRepository implements ProductRepositoryInter
 
     public function fixedProduct(): array
     {
-        $row = ProductModel::query()->where('definition_key', 'cloud_server')->first()
-            ?? throw new BusinessException('云服务器配置尚未完成数据库升级', ApiErrorCode::SERVICE_UNAVAILABLE, 503);
+        $row = ProductModel::query()->where('definition_key', $this->definitionKey)->first()
+            ?? throw new BusinessException('产品身份尚未完成数据库升级', ApiErrorCode::SERVICE_UNAVAILABLE, 503);
         return ['id' => $row->id, 'name' => $row->name];
     }
 

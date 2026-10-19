@@ -14,7 +14,7 @@ interface ProductRepositoryInterface
     public function saveWorkspaceConfiguration(?int $id, array $data, ?int $expectedId): array;
 
     /**
-     * @return array{id: int, name: string} 已注册的固定云服务器身份；查询不写库。
+     * @return array{id: int, name: string} 构造时明确限定的产品身份；查询不写库。
      */
     public function fixedProduct(): array;
     /** @return array{total: int, published: int, enabled: int} 当前产品销售配置统计。 */

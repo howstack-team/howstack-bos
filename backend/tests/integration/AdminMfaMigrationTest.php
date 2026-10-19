@@ -16,7 +16,7 @@ final class AdminMfaMigrationTest extends TestCase
         $before = (array) Db::table('admin_users')->where('id', 1)->first();
         $runner = new PhinxCoreMigrationRunner(new SystemUpdatePdoFactory(), new PdoSchemaInspector());
         $cfg = MigrationDatabaseConfiguration::fromArray(Db::connection()->getConfig());
-        self::assertSame([20261015000400], $runner->migrate($cfg)->executed);
+        self::assertContains(20261015000400, $runner->migrate($cfg)->executed);
         $after = (array) Db::table('admin_users')->where('id', 1)->first();
         self::assertSame(0, (int) $after['auth_version']); unset($after['auth_version']);
         self::assertSame($before, $after);

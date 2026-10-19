@@ -149,7 +149,7 @@ PHP);
     {
         $files['config/version.php'] = "<?php return ['current' => '0.2.0'];";
         $release = ['schema_version' => 1, 'software_code' => 'howstack-bos', 'from_version' => '0.1.0', 'version' => '0.2.0',
-            'minimum_php' => '8.4.0', 'files' => array_map(static fn (string $text): string => hash('sha256', $text), $files), 'remove' => []];
+            'minimum_php' => '8.3.0', 'files' => array_map(static fn (string $text): string => hash('sha256', $text), $files), 'remove' => []];
         $path = $directory . '/package.zip'; $zip = new ZipArchive(); $zip->open($path, ZipArchive::CREATE);
         $zip->addFromString('howstack-release.json', json_encode($release));
         foreach ($files as $name => $text) $zip->addFromString('files/' . $name, $text);

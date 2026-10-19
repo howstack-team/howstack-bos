@@ -2938,6 +2938,151 @@
           },
           "created_at": {
             "type": "string"
+          },
+          "provisioning_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "queued",
+              "processing",
+              "waiting",
+              "succeeded",
+              "failed",
+              "attention",
+              null
+            ]
+          },
+          "provisioning_attempts": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "provisioning_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "addresses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "not_created_reference": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "人工核查凭证编号"
+          },
+          "not_created_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "人工核查说明"
+          },
+          "not_created_by": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "核查管理员内部ID"
+          },
+          "not_created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "核查时间"
+          },
+          "can_confirm_not_created": {
+            "type": "boolean",
+            "description": "结果不明且未关联供应实例时为true；执行仍需独立resolve权限"
+          },
+          "can_renew": {
+            "type": "boolean"
+          },
+          "lifecycle_action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lifecycle_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lifecycle_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "renewal_order_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "renewal_payment_pending": {
+            "type": "boolean"
+          },
+          "power_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "power_checked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installed_image": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "default_username": {
+                    "type": "string"
+                  },
+                  "default_port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "default_username",
+                  "default_port"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "initial_password_available": {
+            "type": "boolean"
           }
         }
       },
@@ -3777,15 +3922,6 @@
                   "minimum": 1,
                   "maximum": 4294967295
                 }
-              },
-              "network_policies": {
-                "type": "array",
-                "maxItems": 500,
-                "uniqueItems": true,
-                "items": {
-                  "type": "integer",
-                  "minimum": 1
-                }
               }
             },
             "required": [
@@ -3857,86 +3993,6 @@
             },
             "required": []
           },
-          "network": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "bandwidth_min": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 1000000
-              },
-              "bandwidth_max": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 1000000
-              },
-              "bandwidth_step": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 1000000
-              },
-              "ip_min": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 64
-              },
-              "ip_max": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 64
-              },
-              "bandwidth_prices": {
-                "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
-              },
-              "ip_prices": {
-                "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
-              },
-              "bandwidth_billing_mode": {
-                "enum": [
-                  "flat",
-                  "graduated",
-                  "volume"
-                ],
-                "default": "flat"
-              },
-              "bandwidth_tiers": {
-                "type": "array",
-                "maxItems": 40,
-                "items": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "up_to_mbps",
-                    "prices"
-                  ],
-                  "properties": {
-                    "up_to_mbps": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ],
-                      "minimum": 1,
-                      "maximum": 1000000
-                    },
-                    "prices": {
-                      "$ref": "#/components/schemas/admin_core_v1_yaml_prices"
-                    }
-                  }
-                }
-              }
-            },
-            "required": [
-              "bandwidth_min",
-              "bandwidth_max",
-              "bandwidth_step",
-              "ip_min",
-              "ip_max",
-              "bandwidth_prices",
-              "ip_prices"
-            ],
-            "deprecated": true
-          },
           "trial_policy": {
             "type": "object",
             "additionalProperties": false,
@@ -4002,12 +4058,6 @@
               "pricing",
               "auto_renew_enabled"
             ]
-          },
-          "network_policy_id": {
-            "type": "integer",
-            "minimum": 0,
-            "default": 0,
-            "deprecated": true
           },
           "delivery_rule_id": {
             "type": "integer",
@@ -4234,7 +4284,6 @@
           "setup_minor",
           "provider_connection_id",
           "price_overrides",
-          "network",
           "trial_policy",
           "refund_policy",
           "renewal_policy",

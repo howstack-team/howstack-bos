@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace plugins\provider\magic_cloud;
 
-use app\shared\plugin\contract\{ProviderAdapterInterface, ScopedHttpClientInterface};
+use app\shared\plugin\contract\{ProviderAdapterInterface, ProviderProvisioningInterface, ScopedHttpClientInterface};
 use app\shared\plugin\dto\{CatalogPage, CatalogQuery, Configuration, ConnectionContext, ConnectionTestResult, ProviderBinding};
 use app\shared\plugin\exception\PluginException;
 use plugins\provider\magic_cloud\app\infrastructure\MagicCloudCatalogGateway;
 
-/** 魔方云供应 SDK v1；只读目录，未开放资源生产能力。 */
-final readonly class ProviderAdapter implements ProviderAdapterInterface
+/** 魔方云供应 SDK v1；目录及逐实例创建、结果查询。 */
+final readonly class ProviderAdapter implements \app\shared\plugin\contract\ProviderVncInterface, \app\shared\plugin\contract\ProviderInstanceOperationsInterface, ProviderAdapterInterface, ProviderProvisioningInterface, \app\shared\plugin\contract\ProviderLifecycleInterface
 {
     private MagicCloudCatalogGateway $gateway;
+    private \plugins\provider\magic_cloud\app\infrastructure\MagicCloudVncGateway $vncGateway;
+    private \plugins\provider\magic_cloud\app\infrastructure\MagicCloudInstanceOperationsGateway $operationsGateway;
+    private \plugins\provider\magic_cloud\app\infrastructure\MagicCloudLifecycleGateway $lifecycleGateway;
+    private \plugins\provider\magic_cloud\app\infrastructure\MagicCloudProvisioningGateway $production;
 
     /**
      * 只注入受限网络门面，构造阶段没有外部副作用。
@@ -20,9 +24,59 @@ final readonly class ProviderAdapter implements ProviderAdapterInterface
      */
     public function __construct(ScopedHttpClientInterface $http)
     {
+        $this->vncGateway = new \plugins\provider\magic_cloud\app\infrastructure\MagicCloudVncGateway($http);
+        $this->operationsGateway = new \plugins\provider\magic_cloud\app\infrastructure\MagicCloudInstanceOperationsGateway($http);
+        $this->lifecycleGateway = new \plugins\provider\magic_cloud\app\infrastructure\MagicCloudLifecycleGateway($http);
         $this->gateway = new MagicCloudCatalogGateway($http);
+        $this->production = new \plugins\provider\magic_cloud\app\infrastructure\MagicCloudProvisioningGateway($http);
     }
 
+    /** @inheritDoc */
+    public function openVnc(ConnectionContext $context, \app\shared\plugin\dto\provider\InstanceIdentity $instance): \app\shared\plugin\dto\provider\VncConnection
+    {
+        return $this->vncGateway->open($context, $instance);
+    }
+
+    /** @inheritDoc */
+    public function instanceOperationActions(): array
+    {
+        return ['power_on', 'power_off', 'reboot', 'reinstall', 'reset_password'];
+    }
+
+    /** @inheritDoc */
+    public function operateInstance(ConnectionContext $context, \app\shared\plugin\dto\provider\InstanceOperationRequest $request): \app\shared\plugin\dto\provider\LifecycleResult
+    {
+        return $this->operationsGateway->execute($context, $request, false);
+    }
+
+    /** @inheritDoc */
+    public function queryInstanceOperation(ConnectionContext $context, \app\shared\plugin\dto\provider\InstanceOperationRequest $request): \app\shared\plugin\dto\provider\LifecycleResult
+    {
+        return $this->operationsGateway->execute($context, $request, true);
+    }
+
+    /** @inheritDoc */
+    public function lifecycle(ConnectionContext $context, \app\shared\plugin\dto\provider\LifecycleRequest $request): \app\shared\plugin\dto\provider\LifecycleResult
+    {
+        return $this->lifecycleGateway->execute($context, $request, false);
+    }
+
+    /** @inheritDoc */
+    public function queryLifecycle(ConnectionContext $context, \app\shared\plugin\dto\provider\LifecycleRequest $request): \app\shared\plugin\dto\provider\LifecycleResult
+    {
+        return $this->lifecycleGateway->execute($context, $request, true);
+    }
+
+    /** @inheritDoc */
+    public function provision(ConnectionContext $context, \app\shared\plugin\dto\provider\ProvisionRequest $request): \app\shared\plugin\dto\provider\ProvisionResult
+    {
+        return $this->production->create($context, $request);
+    }
+    /** @inheritDoc */
+    public function queryProvision(ConnectionContext $context, \app\shared\plugin\dto\provider\ProvisionRequest $request): \app\shared\plugin\dto\provider\ProvisionResult
+    {
+        return $this->production->query($context, $request);
+    }
     /** @inheritDoc */
     public function validateConfiguration(Configuration $configuration): Configuration
     {

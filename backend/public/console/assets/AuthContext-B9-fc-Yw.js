@@ -1,0 +1,1 @@
+import{r as e}from"./rolldown-runtime-hePW80VL.js";import{Jt as t}from"./jsx-runtime-D4_rqgGs.js";var n=e(t(),1),r=(0,n.createContext)(null);function i(){let e=(0,n.useContext)(r);if(!e)throw Error(`会员会话组件缺少 AuthProvider`);return e}export{i as n,r as t};

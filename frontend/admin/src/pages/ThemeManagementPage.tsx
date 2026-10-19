@@ -1,3 +1,4 @@
+import { communityRelease } from '../../../packages/community-release'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Drawer, Empty, Form, Link, Message, Modal, Space, Spin, Switch, Tag, Tooltip, Typography } from '@arco-design/web-react'
 import { IconCheckCircle, IconUpload } from '@arco-design/web-react/icon'
@@ -67,9 +68,9 @@ export default function ThemeManagementPage() {
     {error && <Alert type="error" content={error} action={!busy && <Button onClick={() => void load()}>重新加载</Button>} />}
     <Spin loading={loading} style={{ display: 'block' }}>
       <Card className="website-card">
-        <div className="theme-catalog-heading"><SectionTitle>已安装主题</SectionTitle>{can('install') && <Button icon={<IconUpload />} disabled={busy} onClick={() => input.current?.click()}>上传主题</Button>}</div>
+        <div className="theme-catalog-heading"><SectionTitle>已安装主题</SectionTitle>{communityRelease.themePackages && can('install') && <Button icon={<IconUpload />} disabled={busy} onClick={() => input.current?.click()}>上传主题</Button>}</div>
         <input ref={input} type="file" accept=".zip" hidden aria-label="上传主题安装包" onChange={event => { void install(event.target.files?.[0]); event.target.value = '' }} />
-        <div className="theme-catalog">{themes.map(theme => <div key={theme.id} className="theme-package">
+        <div className="theme-catalog">{themes.filter(theme => theme.builtin || bindings?.release_id === theme.id).map(theme => <div key={theme.id} className="theme-package">
           <div className="theme-package-cover"><WebsiteThemeImage name={theme.name} src={theme.cover} /></div>
           <div className="theme-package-content">
             <div className="theme-package-heading">
@@ -86,9 +87,9 @@ export default function ThemeManagementPage() {
               <Tooltip content={bindings.console.mobile_available ? '开启后手机访问使用独立移动端模板；关闭后使用 PC 模板。' : '当前会员中心主题未提供移动端模板，不能开启。'}><span>移动端模板</span></Tooltip>
               <Switch type="round" aria-label="启用独立移动端模板" checked={bindings.mobile_enabled} loading={busy} disabled={!can('activate') || busy || !bindings.console.mobile_available} checkedText="开启" uncheckedText="关闭" onChange={value => void bindTheme(theme.id, value)} />
             </div>}
-            <Space>{can('activate') && bindings && bindings.release_id !== theme.id && <Link disabled={busy} onClick={() => void bindTheme(theme.id, false)}>启用</Link>}
+            <Space>{communityRelease.themePackages && can('activate') && bindings && bindings.release_id !== theme.id && <Link disabled={busy} onClick={() => void bindTheme(theme.id, false)}>启用</Link>}
               {theme.components.includes('website') && <Link disabled={busy} onClick={() => setEditing(theme)}>配置</Link>}
-              {can('uninstall') && !theme.builtin && theme.active.length === 0 && bindings?.release_id !== theme.id && <Link status="error" disabled={busy} onClick={() => uninstall(theme)}>卸载</Link>}
+              {communityRelease.themePackages && can('uninstall') && !theme.builtin && theme.active.length === 0 && bindings?.release_id !== theme.id && <Link status="error" disabled={busy} onClick={() => uninstall(theme)}>卸载</Link>}
             </Space>
           </div>
         </div>)}</div>{!loading && !themes.length && <Empty description="暂无主题" />}

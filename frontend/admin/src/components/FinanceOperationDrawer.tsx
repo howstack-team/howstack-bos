@@ -3,10 +3,11 @@ import { Alert, Button, Descriptions, Drawer, Form, Input, Message, Select, Spac
 import type { FinanceAction, FinanceInput, FinanceOption, FinanceRecord, FinanceResource } from '../api/financeApi'
 import { financeMembers, financeOptions, writeFinanceRecord } from '../api/financeApi'
 import PriceInput from './PriceInput'
+import { ApiRequestError } from '../api/httpClient'
 import { formatMoneyMinor } from '../utils/money'
 
 const createLabels: Partial<Record<FinanceResource, string>> = {
-  recharges: '线下充值入账', refunds: '申请退款', invoices: '申请开票', withdrawals: '申请提现',
+  recharges: '线下充值入账', refunds: '申请退款', invoices: '申请开票', withdrawals: '申请充值退还',
 }
 const actionLabels: Record<FinanceAction, string> = {
   create: '新建', approve: '审核通过', reject: '审核驳回', execute: '执行余额退款',
@@ -14,9 +15,9 @@ const actionLabels: Record<FinanceAction, string> = {
 }
 const hints: Partial<Record<FinanceResource, string>> = {
   recharges: '请核实线下款项已到账，并填写唯一收款凭证编号。保存后计入会员余额。',
-  refunds: '按单个实例的净实付金额退款，退回原余额资金来源。已交付实例须先终止；已开票部分须先红冲。',
+  refunds: '仅受理已确认未创建资源的未交付实例，按单台全额退回原余额资金来源。结果未知或曾交付的实例不能退款；已开票部分须先红冲。',
   invoices: '仅对已支付订单尚未开票的净实付金额申请开票。退款预留金额不能开票。',
-  withdrawals: '仅退还指定充值来源中未消费的资金。申请后冻结额度，驳回后自动解冻。',
+  withdrawals: '仅人工退还指定充值来源中未消费的资金。申请后冻结额度，由其他管理员审核后线下打款并登记真实凭证。驳回自动解冻，不支持会员自助提现。',
 }
 type Fields = Omit<FinanceInput, 'request_key'>
 interface Props {
@@ -77,12 +78,12 @@ export default function FinanceOperationDrawer({ resource, action, record, visib
     let active = true
     const timer = window.setTimeout(() => {
       setOptionsLoading(true); setError('')
-      void financeOptions(resource, memberId).then(data => { if (active) setOptions(data) })
+      void financeOptions(resource, memberId).then(data => { if (active) { setOptions(data); if (resource === 'refunds' && initial?.source_id) form.setFieldValue('amount_minor', data.find(item => item.id === initial.source_id)?.available_minor) } })
         .catch(reason => { if (active) { setOptions([]); setError(reason instanceof Error ? reason.message : '业务来源加载失败') } })
         .finally(() => { if (active) setOptionsLoading(false) })
     }, 0)
     return () => { active = false; window.clearTimeout(timer) }
-  }, [visible, create, resource, memberId])
+  }, [visible, create, resource, memberId, form, initial])
 
   const save = async () => {
     if (saving) return
@@ -96,7 +97,13 @@ export default function FinanceOperationDrawer({ resource, action, record, visib
       Message.success('操作已保存')
       onSaved()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '操作失败，请稍后重试')
+      const data = reason instanceof ApiRequestError && reason.status === 422 ? reason.data : null
+      const fields = data && typeof data === 'object' && 'errors' in data ? data.errors : null
+      if (fields && typeof fields === 'object') {
+        for (const [field, messages] of Object.entries(fields)) {
+          if (Array.isArray(messages) && typeof messages[0] === 'string') form.setFields({ [field]: { error: { message: messages[0] } } })
+        }
+      } else Message.error(reason instanceof Error ? reason.message : '操作失败，请稍后重试')
     } finally { setSaving(false) }
   }
 
@@ -124,12 +131,12 @@ export default function FinanceOperationDrawer({ resource, action, record, visib
           extra={memberId && !optionsLoading && options.length === 0 ? '暂无符合条件的业务来源，请检查付款、开票及处理状态。' : undefined}>
           <Select placeholder={memberId ? '请选择业务来源' : '请先选择会员'} disabled={!memberId} loading={optionsLoading}
             showSearch options={options.map(option => ({ value: option.id, label: `${option.label} · 可用 ${formatMoneyMinor(option.available_minor ?? 0)}` }))}
-            onChange={(value: number) => { setSourceId(value); form.setFieldValue('amount_minor', undefined) }} />
+            onChange={(value: number) => { setSourceId(value); form.setFieldValue('amount_minor', resource === 'refunds' ? options.find(item => item.id === value)?.available_minor : undefined) }} />
         </Form.Item>}
         <Form.Item field="amount_minor" label="金额" rules={[{ required: true, message: '请输入金额' },
           { validator: (value: number, callback) => { if (value !== undefined && (value < 1 || maximum !== undefined && value > maximum)) callback('金额须大于零且不超过可用额度'); else callback() } }]}
           extra={maximum === undefined ? undefined : `当前可处理金额：${formatMoneyMinor(maximum)}`}>
-          <PriceInput placeholder="请输入金额" maxMinor={maximum ?? 100000000} />
+          <PriceInput disabled={resource === 'refunds'} placeholder="请输入金额" maxMinor={maximum ?? 100000000} />
         </Form.Item>
         {resource === 'invoices' && <>
           <Form.Item field="title" label="发票抬头" rules={[{ required: true, message: '请输入发票抬头' }]}><Input placeholder="请输入发票抬头" maxLength={160} /></Form.Item>
@@ -139,7 +146,8 @@ export default function FinanceOperationDrawer({ resource, action, record, visib
       </>}
       {needsReference && <Form.Item field="external_reference" label={referenceLabel} rules={[{ required: true, message: `请输入${referenceLabel}` }]}><Input placeholder={`请输入真实${referenceLabel}`} maxLength={80} /></Form.Item>}
       {create && <Form.Item field="remark" label="备注"><Input.TextArea placeholder="请输入备注（选填）" maxLength={255} autoSize={{ minRows: 2, maxRows: 4 }} /></Form.Item>}
-      {['approve', 'reject'].includes(action) && <Form.Item field="review_reason" label="审核意见" rules={action === 'reject' ? [{ required: true, message: '请输入驳回原因' }] : []}><Input.TextArea placeholder={action === 'reject' ? '请输入驳回原因' : '请输入审核意见（选填）'} maxLength={255} autoSize={{ minRows: 2, maxRows: 4 }} /></Form.Item>}
+      {action === 'payout' && <Form.Item field="payout_note" label="打款核对说明" rules={[{ required: true, message: '请填写实际渠道、时间及核对说明' }]}><Input.TextArea placeholder="填写实际打款渠道、时间及核对依据，不要填写收款账号" maxLength={500} autoSize={{ minRows: 2, maxRows: 4 }} /></Form.Item>}
+      {['approve', 'reject'].includes(action) && <Form.Item field="review_reason" label="审核意见" rules={action === 'reject' || ['refunds', 'withdrawals'].includes(resource) ? [{ required: true, message: '请输入驳回原因' }] : []}><Input.TextArea placeholder={action === 'reject' ? '请输入驳回原因' : '请输入审核意见'} maxLength={255} autoSize={{ minRows: 2, maxRows: 4 }} /></Form.Item>}
     </Form>
   </Drawer>
 }

@@ -21,7 +21,7 @@ final readonly class ManageComputeResourcesService
     {
         $this->access->requirePermission($actor, 'admin.compute-resources.view');
         $result = [];
-        foreach (ComputeResources::KINDS as $kind) $result[$kind] = $this->resources->list($kind);
+        foreach (ComputeResources::EDITABLE_KINDS as $kind) $result[$kind] = $this->resources->list($kind);
         return $result;
     }
 
@@ -29,6 +29,9 @@ final readonly class ManageComputeResourcesService
     public function save(AdminAccount $actor, string $kind, ?int $id, array $data): array
     {
         $this->access->requirePermission($actor, 'admin.compute-resources.' . ($id === null ? 'create' : 'update'));
+        if (!in_array($kind, ComputeResources::EDITABLE_KINDS, true)) {
+            throw new BusinessException('资源类型已停止维护，请在线路中设置网络规则', ApiErrorCode::NOT_FOUND, 404);
+        }
         foreach (['region_id' => 'regions', 'zone_id' => 'zones', 'line_id' => 'lines', 'group_id' => 'flavor_groups', 'type_id' => 'image_types'] as $field => $parent) {
             if (isset($data[$field]) && $this->resources->find($parent, (int) $data[$field]) === null) {
                 throw new BusinessException('关联配置资源不存在', ApiErrorCode::VALIDATION_FAILED, 422, ['errors' => [$field => ['请选择有效的关联资源']]]);

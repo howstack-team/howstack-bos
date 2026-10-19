@@ -118,8 +118,9 @@ final class AdminListFieldFiltersTest extends TestCase
         $repository = new \app\modules\product\infrastructure\DatabaseProductRepository(
             new \app\shared\infrastructure\DatabaseTransactionManager(),
             new \app\modules\provider\infrastructure\DatabaseProviderBindingWriter(),
+            'cloud_server',
         );
-        $validator = new \app\modules\product\validation\CloudOfferValidator();
+        $validator = new \app\modules\compute\validation\CloudOfferValidator();
         $repository->save(null, $validator->validate(['name' => '香港标准', 'code' => 'hk-basic', 'draft' => ['cycles' => ['month']]]));
         $repository->save(null, $validator->validate(['name' => '美国标准', 'code' => 'us-basic', 'draft' => ['cycles' => ['month']]]));
 

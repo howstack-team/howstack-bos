@@ -1,5 +1,7 @@
 import type { TableSortQuery } from './tableQuery'
 import { request } from './httpClient.ts'
+import type { TicketCommandResult, TicketMessageWindow } from '../../../packages/support-tickets'
+export type { TicketMessage } from '../../../packages/support-tickets'
 
 export type CatalogStatus = 0 | 1
 export type TicketCatalogKind = 'types' | 'quick-replies'
@@ -11,8 +13,8 @@ export interface Ticket {
   id: number; ticket_no: string; member_id: number; member_nickname: string; member_mobile: string
   type_id: number; type_name: string; subject: string; content: string; priority: string; status: string
   created_at: string; updated_at: string; closed_at: string | null
+  service_no: string | null; service_name: string | null
 }
-export interface TicketMessage { id: number; ticket_id: number; author_type: string; author_id: number; content: string; created_at: string }
 export interface ContentCategory {
   id: number; kind: ContentKind; name: string; parent_id: number | null; sort_order: number
   status: CatalogStatus; created_at: string; children?: ContentCategory[]
@@ -35,8 +37,10 @@ export const supportApi = {
     return request<null>({ method: 'DELETE', url: `/ticket-catalog/${kind}/${id}` })
   },
   tickets(params: ListParams) { return request<PageResult<Ticket>>({ url: '/tickets', params }) },
-  ticket(id: number) { return request<{ ticket: Ticket; messages: TicketMessage[] }>({ url: `/tickets/${id}` }) },
-  reply(id: number, content: string) { return request<null>({ method: 'POST', url: `/tickets/${id}/replies`, data: { content } }) },
+  ticket(id: number, signal?: AbortSignal) { return request<{ ticket: Ticket; messages: import('../../../packages/support-tickets').TicketMessage[]; next_before_id: number | null }>({ url: `/tickets/${id}`, signal }) },
+  messages(id: number, beforeId: number) { return request<TicketMessageWindow>({ url: `/tickets/${id}/messages`, params: { before_id: beforeId } }) },
+  reply(id: number, content: string, requestKey: string) { return request<TicketCommandResult>({ method: 'POST', url: `/tickets/${id}/replies`, data: { content, request_key: requestKey } }) },
+  close(id: number, requestKey: string) { return request<TicketCommandResult>({ method: 'POST', url: `/tickets/${id}/close`, data: { request_key: requestKey } }) },
 }
 
 export const contentApi = {

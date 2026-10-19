@@ -399,6 +399,7 @@ paths:
                   request_id:
                     type: string
     put:
+      x-community-release: limited
       operationId: siteThemesUpdate
       summary: 保存整套主题选择和独立移动端开关
       requestBody:
@@ -614,11 +615,12 @@ paths:
                     additionalProperties: true
                   request_id:
                     type: string
-      description: 需主题切换权限；开关与主题选择按revision在同一事务保存。无移动端模板时开启返回422，旧修订返回409。缺少整个console时以default会员模板的能力为准。
+      description: 需主题切换权限；开关与主题选择按revision在同一事务保存。无移动端模板时开启返回422，旧修订返回409。缺少整个console时以default会员模板的能力为准。 社区版 1.0 仅允许保持当前 release_id 调整移动端开关；切换主题返回 409，不改写已有主题及配置。
   /api/admin/v1/themes/install:
     post:
+      x-community-release: deferred
       operationId: siteThemesInstall
-      description: 每个主题ID仅保留一个已安装记录。同ID包更新原记录并保留兼容配置，新增字段使用默认值；配置不兼容返回422，当前主题不变。更新已启用主题同时要求配置修改及主题切换权限。版本号仅作包资料，相同内容重复上传无变化。
+      description: 每个主题ID仅保留一个已安装记录。同ID包更新原记录并保留兼容配置，新增字段使用默认值；配置不兼容返回422，当前主题不变。更新已启用主题同时要求配置修改及主题切换权限。版本号仅作包资料，相同内容重复上传无变化。 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
       summary: 安装或更新主题，新主题不自动启用
       responses:
         "201":
@@ -1186,6 +1188,8 @@ paths:
                     type: string
   /api/admin/v1/themes/{id}:
     delete:
+      description: 社区版 1.0 暂停此项新受理，返回 404；历史读取和既有任务收尾保留。
+      x-community-release: deferred
       operationId: siteThemesUninstall
       summary: 卸载未使用的非内置主题
       parameters:

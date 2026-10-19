@@ -23,6 +23,14 @@
       "type": "password",
       "required": true,
       "max_length": 2048
+    },
+    {
+      "key": "client_id",
+      "label": "资源归属客户 ID",
+      "type": "integer",
+      "required": true,
+      "minimum": 1,
+      "maximum": 2147483647
     }
   ]
 }

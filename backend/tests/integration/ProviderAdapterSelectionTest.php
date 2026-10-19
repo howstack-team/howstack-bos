@@ -34,7 +34,8 @@ final class ProviderAdapterSelectionTest extends TestCase
         mkdir($this->pluginsPath . '/provider/sample_provider', 0700, true);
         copy(dirname(__DIR__) . '/fixtures/sample_provider/ProviderAdapter.php', $this->pluginsPath . '/provider/sample_provider/ProviderAdapter.php');
         $this->manifest = json_decode(file_get_contents(dirname(__DIR__, 2) . '/plugins/provider/magic_cloud/plugin.json'), true, flags: JSON_THROW_ON_ERROR);
-        $this->manifest = array_replace($this->manifest, ['id' => 'sample_provider', 'name' => '测试供应插件']);
+        $this->manifest['capabilities']['cloud_server.provision'] = false; // 此测试替身仅声明只读目录。
+        $this->manifest = array_replace($this->manifest, ['id' => 'sample_provider', 'name' => '测试供应插件', 'version' => '1.1.0']);
         $this->manifest['provider']['catalogs'] = [['resource_kind' => 'zones', 'kind' => 'locations', 'label' => '部署位置']];
         $this->manifest['configuration_fields'] = [
             ['key' => 'endpoint', 'label' => '服务地址', 'type' => 'url', 'required' => true, 'max_length' => 512],

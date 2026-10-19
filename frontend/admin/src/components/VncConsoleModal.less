@@ -1,0 +1,6 @@
+.vnc-console { display: flex; flex-direction: column; gap: 12px; background: var(--color-bg-2); }
+.vnc-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.vnc-display { height: min(62vh, 720px); min-height: 220px; overflow: hidden; background: #15171c; }
+.vnc-note { margin: 0; color: var(--color-text-3); font-size: 12px; line-height: 1.6; }
+.vnc-console:fullscreen { padding: 12px; height: 100%; box-sizing: border-box; }
+.vnc-console:fullscreen .vnc-display { height: auto; min-height: 0; flex: 1; }

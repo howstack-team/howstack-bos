@@ -9,15 +9,20 @@ use app\modules\admin\access\application\AdminAccessControlService;
 use app\modules\admin\access\contract\AdminAccessRepositoryInterface;
 use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\compute\application\ManageComputeResourcesService;
-use app\modules\compute\domain\{ComputeResources, ComputeTypeHandler};
+use app\modules\compute\domain\ComputeResources;
+use app\modules\compute\domain\ComputeTypeHandler;
 use app\modules\compute\infrastructure\DatabaseComputeResourceRepository;
 use app\modules\compute\validation\ComputeResourceValidator;
-use app\modules\product\application\ManageCloudProductsService;
-use app\modules\product\infrastructure\{DatabaseProductRepository, ProductTypeRegistry, DatabaseCloudDeliveryRuleRepository};
-use app\modules\product\validation\CloudOfferValidator;
+use app\modules\compute\application\ManageCloudProductsService;
+use app\modules\product\infrastructure\DatabaseProductRepository;
+use app\modules\product\infrastructure\ProductTypeRegistry;
+use app\modules\compute\infrastructure\DatabaseCloudDeliveryRuleRepository;
+use app\modules\compute\validation\CloudOfferValidator;
 use app\modules\provider\application\ResolveProviderBindingService;
 use app\modules\provider\contract\ProviderBindingWriterInterface;
-use app\modules\provider\infrastructure\{DatabaseProviderRepository, DatabaseProviderBindingWriter, LocalProviderAdapterRegistry};
+use app\modules\provider\infrastructure\DatabaseProviderRepository;
+use app\modules\provider\infrastructure\DatabaseProviderBindingWriter;
+use app\modules\provider\infrastructure\LocalProviderAdapterRegistry;
 use app\shared\infrastructure\{DatabaseTransactionManager, SodiumSensitiveDataCipher};
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -39,7 +44,7 @@ final class CloudProductAdministrationTest extends TestCase
         self::assertSame(0, $v['draft']['system_disk_included_gib']);
         self::assertArrayNotHasKey('unknown', $v['draft']);
         self::assertArrayNotHasKey('password', $v);
-        $repo = new DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter());
+        $repo = new \app\modules\product\infrastructure\DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter(), 'cloud_server');
         $row = $repo->save(null, $v);
         self::assertSame(1, $row['revision']);
         self::assertSame(0, $row['status']);
@@ -115,7 +120,7 @@ final class CloudProductAdministrationTest extends TestCase
         foreach (ComputeResources::KINDS as $kind) $all[$kind] = $resources->list($kind);
         $snapshot = (new ComputeTypeHandler())->snapshot($offer['draft'], $all);
         unset($snapshot['system_disk_included_gib']);
-        $repo = new DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter());
+        $repo = new \app\modules\product\infrastructure\DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter(), 'cloud_server');
         $published = $repo->publish($offer['id'], $offer['revision'], '1.2.0', $snapshot, [], $actor->id);
         $input = (new CloudOfferValidator())->validate($published);
         $input['draft']['system_disk_included_gib'] = 40;
@@ -190,10 +195,10 @@ final class CloudProductAdministrationTest extends TestCase
     public function testNetworkPolicyLimitsPublicationAndHistoryRemainsStable(): void
     {
         [$service, $actor, $offer, $selection, $resources] = $this->fixture();
-        $policy = $resources->save('network_policies', null, (new ComputeResourceValidator())->validate('network_policies', [
+        $policy = $resources->save('network_policies', null, [
             'code' => 'standard-network', 'name' => '标准网络', 'status' => 1, 'bandwidth_min' => 1, 'bandwidth_max' => 100,
             'bandwidth_step' => 1, 'ip_min' => 1, 'ip_max' => 1,
-        ]));
+        ]);
         $input = (new CloudOfferValidator())->validate($offer);
         $input['draft']['network_policy_id'] = $policy['id'];
         $saved = $service->save($actor, $offer['id'], $input);
@@ -208,7 +213,7 @@ final class CloudProductAdministrationTest extends TestCase
     {
         [$service, $actor, $offer, $selection, , $connections] = $this->fixture();
         $transactions = new DatabaseTransactionManager();
-        $rules = new DatabaseCloudDeliveryRuleRepository(new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter()), $transactions);
+        $rules = new DatabaseCloudDeliveryRuleRepository(new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server'), $transactions);
         $rule = $rules->save(null, ['name' => '标准交付', 'description' => '', 'connection_id' => $connections->list()[0]['id'], 'line_ids' => [1], 'priority' => 0, 'status' => 1, 'revision' => 0]);
         $input = (new CloudOfferValidator())->validate($offer);
         $input['draft']['delivery_rule_id'] = $rule['id'];
@@ -226,7 +231,7 @@ final class CloudProductAdministrationTest extends TestCase
     {
         [$service, $actor, $offer, , , $connections] = $this->fixture();
         $transactions = new DatabaseTransactionManager();
-        $rules = new DatabaseCloudDeliveryRuleRepository(new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter()), $transactions);
+        $rules = new DatabaseCloudDeliveryRuleRepository(new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server'), $transactions);
         $rule = $rules->save(null, ['name' => '其他线路', 'description' => '', 'connection_id' => $connections->list()[0]['id'], 'line_ids' => [999], 'priority' => 0, 'status' => 1, 'revision' => 0]);
         $rules->save($rule['id'], $rule);
         try { $rules->save($rule['id'], $rule); self::fail('过期规则不应写入'); }
@@ -242,18 +247,18 @@ final class CloudProductAdministrationTest extends TestCase
     public function testOverviewAndRulePermissionsDoNotExposeUnrelatedConfiguration(): void
     {
         $transactions = new DatabaseTransactionManager();
-        $products = new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter());
+        $products = new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server');
         $rules = new DatabaseCloudDeliveryRuleRepository($products, $transactions);
         $accessRepo = $this->createStub(AdminAccessRepositoryInterface::class);
         $accessRepo->method('grantsForAdmin')->willReturn([['permissions' => ['admin.cloud-servers.view']]]);
         $access = new AdminAccessControlService($accessRepo);
         $actor = new AdminAccount(1, 'viewer', '查看用户', 'hidden', 1, null);
-        $overview = new \app\modules\product\application\GetCloudServerWorkspaceService($access, $products, new DatabaseComputeResourceRepository(), $rules);
+        $overview = new \app\modules\compute\application\GetCloudServerWorkspaceService($access, $products, new DatabaseComputeResourceRepository(), $rules);
         self::assertSame([], $overview->get($actor)['resources']);
         self::assertNull($overview->get($actor)['offers']);
         self::assertNull($overview->get($actor)['delivery_rules']);
         $connections = $this->createStub(\app\modules\provider\contract\ProviderRepositoryInterface::class);
-        $service = new \app\modules\product\application\ManageCloudDeliveryRulesService($access, $rules, new DatabaseComputeResourceRepository(), $connections);
+        $service = new \app\modules\compute\application\ManageCloudDeliveryRulesService($access, $rules, new DatabaseComputeResourceRepository(), $connections);
         $this->expectException(BusinessException::class);
         $service->save($actor, null, ['name' => '越权']);
     }
@@ -336,7 +341,7 @@ final class CloudProductAdministrationTest extends TestCase
         [, , $offer] = $this->fixture();
         $writer = $this->createMock(ProviderBindingWriterInterface::class);
         $writer->expects(self::once())->method('write')->willThrowException(new \RuntimeException('测试绑定写入失败'));
-        $products = new DatabaseProductRepository(new DatabaseTransactionManager(), $writer);
+        $products = new \app\modules\product\infrastructure\DatabaseProductRepository(new DatabaseTransactionManager(), $writer, 'cloud_server');
         try {
             $products->publish($offer['id'], $offer['revision'], '1.0.0', ['resources' => []], [], 1);
             self::fail('绑定失败必须回滚');
@@ -395,7 +400,7 @@ final class CloudProductAdministrationTest extends TestCase
         $repo->method('grantsForAdmin')->willReturn([['permissions' => ['admin.compute-resources.view']]]);
         $service = new ManageComputeResourcesService(new AdminAccessControlService($repo), new DatabaseComputeResourceRepository());
         $actor = new AdminAccount(1, 'viewer', '查看用户', 'hidden', 1, null);
-        self::assertCount(10, $service->all($actor));
+        self::assertCount(9, $service->all($actor));
         try { $service->save($actor, 'regions', null, ['code' => 'deny', 'name' => '禁止', 'status' => 1]); self::fail('应拒绝写入'); }
         catch (BusinessException $e) { self::assertSame(403, $e->httpStatus()); }
         self::assertSame(0, Db::table('compute_regions')->count());
@@ -571,7 +576,7 @@ final class CloudProductAdministrationTest extends TestCase
         }
         $adapters = new LocalProviderAdapterRegistry(dirname(__DIR__, 2) . '/plugins', '0.1.0', new \GuzzleHttp\Client(), $installations, $packages);
         $connections = new DatabaseProviderRepository(new SodiumSensitiveDataCipher(str_repeat('f', 64)), $transactions, $adapters, $installations);
-        $conn = $connections->save(null, ['name' => '测试连接', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://provider.example.test', 'username' => 'fixture', 'password' => 'fixture-secret'], 'status' => 0, 'revision' => 0]);
+        $conn = $connections->save(null, ['name' => '测试连接', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://provider.example.test', 'username' => 'fixture', 'password' => 'fixture-secret', 'client_id' => 98], 'status' => 0, 'revision' => 0]);
         $connections->markTested($conn['id'], $conn['revision']);
         $conn = $connections->find($conn['id']);
         $conn = $connections->setStatus($conn['id'], $conn['revision'], 1);
@@ -580,8 +585,8 @@ final class CloudProductAdministrationTest extends TestCase
             $connections->map($conn['id'], $kind, $ids[$kind][0], '1', $remote);
         }
         $adminRepo = $this->createStub(AdminAccessRepositoryInterface::class);
-        $service = new ManageCloudProductsService(new AdminAccessControlService($adminRepo), new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter()),
-            new ProductTypeRegistry(new ComputeTypeHandler()), $resources, new ResolveProviderBindingService($connections, $adapters), $connections, $transactions, new DatabaseCloudDeliveryRuleRepository(new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter()), $transactions), new \app\modules\provider\domain\ProviderProvisioningPreview());
+        $service = new ManageCloudProductsService(new AdminAccessControlService($adminRepo), new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server'),
+            new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]), $resources, new ResolveProviderBindingService($connections, $adapters), $connections, $transactions, new DatabaseCloudDeliveryRuleRepository(new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server'), $transactions), new \app\modules\provider\domain\ProviderProvisioningPreview());
         $actor = new AdminAccount(1, 'fixture-admin', '测试管理员', 'hidden', 1, null, true);
         $input = (new CloudOfferValidator())->validate(['name' => '测试云服务器', 'code' => 'fixture-cloud', 'draft' => ['resource_ids' => $ids, 'provider_connection_id' => $conn['id'],
             'setup_minor' => 300, 'network' => ['bandwidth_prices' => ['month' => 100], 'ip_prices' => ['month' => 200]]]]);

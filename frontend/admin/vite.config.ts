@@ -15,6 +15,10 @@ export default defineConfig({
   plugins: [react(), {
     name: 'admin-mfa-licenses',
     generateBundle() {
+      const novnc = dirname(dirname(require.resolve('@novnc/novnc')))
+      const novncNotices = ['LICENSE.txt', 'AUTHORS', 'docs/LICENSE.MPL-2.0', 'docs/LICENSE.BSD-2-Clause', 'docs/LICENSE.BSD-3-Clause', 'vendor/pako/LICENSE'].map(file => ({ file, text: readFileSync(`${novnc}/${file}`, 'utf8') }))
+      this.emitFile({ type: 'asset', fileName: 'licenses-novnc.json', source: JSON.stringify({ name: '@novnc/novnc', version: '1.7.0', source: 'https://github.com/novnc/noVNC/tree/v1.7.0', unmodified: true, notices: novncNotices }, null, 2) })
+
       const dependencies = ['qrcode', 'dijkstrajs'].map(name => {
         const directory = dirname(require.resolve(`${name}/package.json`, name === 'dijkstrajs' ? { paths: [dirname(require.resolve('qrcode/package.json'))] } : undefined));
         const manifest = JSON.parse(readFileSync(`${directory}/package.json`, 'utf8'));

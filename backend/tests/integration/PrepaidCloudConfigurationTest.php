@@ -9,15 +9,20 @@ use app\modules\admin\access\application\AdminAccessControlService;
 use app\modules\admin\access\contract\AdminAccessRepositoryInterface;
 use app\modules\admin\auth\domain\AdminAccount;
 use app\modules\compute\application\ManageComputeResourcesService;
-use app\modules\compute\domain\{ComputeResources, ComputeTypeHandler};
+use app\modules\compute\domain\ComputeResources;
+use app\modules\compute\domain\ComputeTypeHandler;
 use app\modules\compute\infrastructure\DatabaseComputeResourceRepository;
 use app\modules\compute\validation\ComputeResourceValidator;
-use app\modules\product\application\ManageCloudProductsService;
-use app\modules\product\infrastructure\{DatabaseProductRepository, ProductTypeRegistry, DatabaseCloudDeliveryRuleRepository};
-use app\modules\product\validation\CloudOfferValidator;
+use app\modules\compute\application\ManageCloudProductsService;
+use app\modules\product\infrastructure\DatabaseProductRepository;
+use app\modules\product\infrastructure\ProductTypeRegistry;
+use app\modules\compute\infrastructure\DatabaseCloudDeliveryRuleRepository;
+use app\modules\compute\validation\CloudOfferValidator;
 use app\modules\provider\application\ResolveProviderBindingService;
 use app\modules\provider\contract\ProviderBindingWriterInterface;
-use app\modules\provider\infrastructure\{DatabaseProviderRepository, DatabaseProviderBindingWriter, LocalProviderAdapterRegistry};
+use app\modules\provider\infrastructure\DatabaseProviderRepository;
+use app\modules\provider\infrastructure\DatabaseProviderBindingWriter;
+use app\modules\provider\infrastructure\LocalProviderAdapterRegistry;
 use app\shared\infrastructure\{DatabaseTransactionManager, SodiumSensitiveDataCipher};
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -191,8 +196,8 @@ final class PrepaidCloudConfigurationTest extends TestCase
     {
         [$service, $actor, $offer, $selection] = $this->fixture();
         $transactions = new DatabaseTransactionManager();
-        $rules = new DatabaseCloudDeliveryRuleRepository(new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter()), $transactions);
-        $validator = new \app\modules\product\validation\CloudDeliveryRuleValidator();
+        $rules = new DatabaseCloudDeliveryRuleRepository(new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server'), $transactions);
+        $validator = new \app\modules\compute\validation\CloudDeliveryRuleValidator();
         $rule = $rules->save(null, $validator->validate(['name' => '标准参数', 'connection_id' => $offer['draft']['provider_connection_id'], 'status' => 1,
             'parameter_mapping' => [['source' => 'flavor.memory_mib', 'target' => 'instance.memory_gib', 'transform' => 'divide', 'factor' => 1024], ['source' => 'network.egress_mbps', 'target' => 'network.upload']]]));
         $input = (new CloudOfferValidator())->validate($offer);
@@ -214,7 +219,7 @@ final class PrepaidCloudConfigurationTest extends TestCase
     {
         [$service, $actor, $offer, $selection] = $this->fixture();
         $context = new \app\modules\admin\auth\application\AdminAuthenticationContext();
-        $controller = new \app\modules\product\controller\AdminCloudProductController($service, new CloudOfferValidator(), $context, new \app\shared\http\ApiResponse());
+        $controller = new \app\modules\compute\controller\AdminCloudProductController($service, $context, new \app\shared\http\ApiResponse());
         $selection['duration_months'] = '12';
         $selection['network']['billing_mode'] = 'fixed';
         $selection['network']['egress_mbps'] = '10';
@@ -302,7 +307,7 @@ final class PrepaidCloudConfigurationTest extends TestCase
             $row['zone_ids'] = [1, $zone['id']];
             $resources->save($kind, 1, $row);
         }
-        $second = $connections->save(null, ['name' => '第二提供者', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://second.example.test', 'username' => 'fixture', 'password' => 'fixture-secret'], 'status' => 0, 'revision' => 0]);
+        $second = $connections->save(null, ['name' => '第二提供者', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://second.example.test', 'username' => 'fixture', 'password' => 'fixture-secret', 'client_id' => 98], 'status' => 0, 'revision' => 0]);
         $connections->markTested($second['id'], $second['revision']);
         $second = $connections->find($second['id']);
         $second = $connections->setStatus($second['id'], $second['revision'], 1);
@@ -373,11 +378,11 @@ final class PrepaidCloudConfigurationTest extends TestCase
         $access = $this->createStub(AdminAccessRepositoryInterface::class);
         $access->method('grantsForAdmin')->willReturn([['permissions' => ['admin.cloud-products.publish']]]);
         $transactions = new DatabaseTransactionManager();
-        $products = new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter());
+        $products = new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server');
         $service = new ManageCloudProductsService(
             new AdminAccessControlService($access),
             $products,
-            new ProductTypeRegistry(new ComputeTypeHandler()),
+            new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]),
             $resources,
             new ResolveProviderBindingService($connections, $adapters),
             $connections,
@@ -494,12 +499,12 @@ final class PrepaidCloudConfigurationTest extends TestCase
         ]);
         $access = new AdminAccessControlService($repo);
         $transactions = new DatabaseTransactionManager();
-        $products = new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter());
-        $configuration = new \app\modules\product\application\ManageCloudWorkspaceConfigurationService($access, $products);
-        $catalog = new ManageCloudProductsService($access, $products, new ProductTypeRegistry(new ComputeTypeHandler()), $resources,
+        $products = new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server');
+        $configuration = new \app\modules\compute\application\ManageCloudWorkspaceConfigurationService($access, $products);
+        $catalog = new ManageCloudProductsService($access, $products, new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]), $resources,
             new ResolveProviderBindingService($connections, $adapters), $connections, $transactions,
             new DatabaseCloudDeliveryRuleRepository($products, $transactions), new \app\modules\provider\domain\ProviderProvisioningPreview());
-        $sections = new \app\modules\product\application\GetCloudConfigurationSectionService($access, $configuration, $catalog,
+        $sections = new \app\modules\compute\application\GetCloudConfigurationSectionService($access, $configuration, $catalog,
             new ManageComputeResourcesService($access, $resources),
             new \app\modules\compute\application\ManageComputeInventoryService($access, new \app\modules\compute\infrastructure\DatabaseComputeInventoryRepository(), $resources));
         foreach (['deployment', 'specification', 'network', 'storage', 'purchase'] as $section) {
@@ -531,12 +536,12 @@ final class PrepaidCloudConfigurationTest extends TestCase
         ]);
         $access = new AdminAccessControlService($repository);
         $transactions = new DatabaseTransactionManager();
-        $products = new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter());
-        $configuration = new \app\modules\product\application\ManageCloudWorkspaceConfigurationService($access, $products);
-        $catalog = new ManageCloudProductsService($access, $products, new ProductTypeRegistry(new ComputeTypeHandler()), $resources,
+        $products = new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server');
+        $configuration = new \app\modules\compute\application\ManageCloudWorkspaceConfigurationService($access, $products);
+        $catalog = new ManageCloudProductsService($access, $products, new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]), $resources,
             new ResolveProviderBindingService($connections, $adapters), $connections, $transactions,
             new DatabaseCloudDeliveryRuleRepository($products, $transactions), new \app\modules\provider\domain\ProviderProvisioningPreview());
-        $service = new \app\modules\product\application\SaveCloudWorkspaceConfigurationService($configuration, $catalog, $transactions);
+        $service = new \app\modules\compute\application\SaveCloudWorkspaceConfigurationService($configuration, $catalog, $transactions);
         $actor = new AdminAccount(2, 'editor', '配置编辑', 'hidden', 1, null);
         $first = $service->save($actor, $offer['id'], (new CloudOfferValidator())->validate($offer), null);
         self::assertTrue($first['configuration_ready']);
@@ -565,6 +570,163 @@ final class PrepaidCloudConfigurationTest extends TestCase
         self::assertSame($partial['revision'], $products->find($offer['id'])['revision']);
     }
 
+    public function testZonePricesDriveComputeSystemAndDataDiskAndRemainSealed(): void
+    {
+        [$service, $actor, $offer, $selection, $resources, $connections] = $this->fixture();
+        $old = $service->publish($actor, $offer['id'], $offer['revision']);
+        $oldVersion = $old['published_version_id'];
+        $zone = $resources->save('zones', null, (new ComputeResourceValidator())->validate('zones', [
+            'code' => 'price-zone-two', 'name' => '第二定价区', 'status' => 1, 'region_id' => 1,
+        ]));
+        foreach (['lines', 'flavors', 'images', 'disk_types'] as $kind) {
+            $row = $resources->find($kind, 1);
+            $row['zone_ids'] = [1, $zone['id']];
+            if (in_array($kind, ['flavors', 'disk_types'], true)) {
+                $row['zone_prices'] = [$zone['id'] => ['month' => $kind === 'flavors' ? 8000 : 200]];
+            }
+            $resources->save($kind, 1, (new ComputeResourceValidator())->validate($kind, $row));
+        }
+        $connections->map($offer['draft']['provider_connection_id'], 'zones', $zone['id'], '1', 'areas');
+        $input = $old;
+        $input['draft']['resource_ids']['zones'][] = $zone['id'];
+        $saved = $service->save($actor, $offer['id'], (new CloudOfferValidator())->validate($input));
+        self::assertSame(318900, $service->preview($actor, $offer['id'], $selection, true)['amount_minor']);
+        $selection['zone_id'] = $zone['id'];
+        $price = $service->preview($actor, $offer['id'], $selection, true);
+        self::assertSame(558900, $price['amount_minor']);
+        $parts = array_column($price['unit_breakdown'], null, 'key');
+        self::assertSame(8000, $parts['compute']['unit_price_minor']);
+        self::assertSame(200, $parts['system_disk']['unit_price_minor']);
+        self::assertSame(200, $parts['data_disks.0']['unit_price_minor']);
+        self::assertSame(40000, $parts['system_disk']['amount_minor'], '只对扣除40GiB赠送后的20GiB按区价计费，再按10个月收费');
+        $published = $service->publish($actor, $offer['id'], $saved['revision']);
+        $version = $published['published_version_id'];
+        foreach (['flavors', 'disk_types'] as $kind) {
+            $row = $resources->find($kind, 1);
+            $row['zone_prices'] = [$zone['id'] => ['month' => 0]];
+            $resources->save($kind, 1, (new ComputeResourceValidator())->validate($kind, $row));
+        }
+        self::assertSame(18900, $service->preview($actor, $offer['id'], $selection, true)['amount_minor']);
+        self::assertSame(558900, $service->preview($actor, $offer['id'], $selection, true, $version)['amount_minor']);
+        $selection['zone_id'] = 1;
+        self::assertSame(318900, $service->preview($actor, $offer['id'], $selection, true, $oldVersion)['amount_minor']);
+    }
+
+    public function testZonePricePersistenceInheritanceClearingAndRemovedRelations(): void
+    {
+        [, , , , $resources] = $this->fixture();
+        $zone = $resources->save('zones', null, (new ComputeResourceValidator())->validate('zones', [
+            'code' => 'zone-price-persistence', 'name' => '独立价格区', 'status' => 1, 'region_id' => 1,
+        ]));
+        foreach (['flavors', 'disk_types'] as $kind) {
+            $row = $resources->find($kind, 1);
+            $row['zone_ids'] = [1, $zone['id']];
+            $row['zone_prices'] = [$zone['id'] => ['month' => 0]];
+            $saved = $resources->save($kind, 1, (new ComputeResourceValidator())->validate($kind, $row));
+            self::assertSame([$zone['id'] => ['month' => 0]], $saved['zone_prices']);
+            self::assertSame($saved['zone_prices'], $resources->find($kind, 1)['zone_prices']);
+            $pricing = new \app\modules\compute\domain\ResourceZonePrices();
+            self::assertSame(0, $pricing->resolve($saved, $zone['id'])['month']);
+            self::assertSame($row['prices']['month'], $pricing->resolve($saved, 1)['month']);
+            $saved = $resources->save($kind, 1, ['zone_prices' => []]);
+            self::assertSame($row['prices']['month'], $pricing->resolve($saved, $zone['id'])['month']);
+            $resources->save($kind, 1, ['zone_prices' => [$zone['id'] => ['month' => 900]]]);
+            $resources->save($kind, 1, ['zone_ids' => [1]]);
+            self::assertSame([], $resources->find($kind, 1)['zone_prices']);
+            $restored = $resources->save($kind, 1, ['zone_ids' => [1, $zone['id']]]);
+            self::assertSame([], $restored['zone_prices']);
+        }
+    }
+
+    public function testZonePriceValidationRejectsInvalidScopeAndMoney(): void
+    {
+        $input = ['code' => 'zone-price-validation', 'name' => '定价校验', 'status' => 1, 'zone_ids' => [1],
+            'group_id' => 1, 'cpu' => 2, 'memory_mib' => 2048, 'architecture' => 'x86_64', 'prices' => ['month' => 1000]];
+        foreach ([[2 => ['month' => 1]], [1 => ['month' => -1]], [1 => ['month' => 1.1]],
+            [1 => ['month' => '100']], [1 => ['month' => 100000001]], [1 => ['month' => null]],
+            [1 => ['unexpected' => 100]], [1 => 5], null, ['01' => ['month' => 100]]] as $invalid) {
+            try {
+                (new ComputeResourceValidator())->validate('flavors', $input + ['zone_prices' => $invalid]);
+                self::fail('越界或非法单价不能写入');
+            } catch (BusinessException $error) {
+                self::assertSame(422, $error->httpStatus());
+                self::assertStringStartsWith('zone_prices', array_key_first($error->data()['errors']));
+            } catch (ValidationException $error) {
+                self::assertNotEmpty($error->getMessage());
+            }
+        }
+    }
+
+    public function testZonePricesOverrideOnlyTheirScopeAndCycle(): void
+    {
+        [$service, $actor, $offer, $selection, $resources] = $this->fixture();
+        $row = $resources->find('flavors', 1);
+        $row['zone_prices'] = [1 => ['month' => 7000]];
+        $resources->save('flavors', 1, (new ComputeResourceValidator())->validate('flavors', $row));
+        $offer['draft']['price_overrides'] = ['flavors' => [1 => ['month' => 6000]]];
+        $service->save($actor, $offer['id'], (new CloudOfferValidator())->validate($offer));
+        $parts = array_column($service->preview($actor, $offer['id'], $selection, true)['unit_breakdown'], null, 'key');
+        self::assertSame(7000, $parts['compute']['unit_price_minor']);
+        $resources->save('flavors', 1, ['zone_prices' => []]);
+        $parts = array_column($service->preview($actor, $offer['id'], $selection, true)['unit_breakdown'], null, 'key');
+        self::assertSame(6000, $parts['compute']['unit_price_minor']);
+        $prices = new \app\modules\compute\domain\ResourceZonePrices();
+        self::assertSame(['month' => 0, 'year' => 10000], $prices->resolve([
+            'prices' => ['month' => 1000, 'year' => 10000], 'zone_prices' => [1 => ['month' => 0]],
+        ], 1));
+    }
+
+    public function testCurrentConfigurationDropsUnusedLegacyNetworkButKeepsHistoricalSnapshotReadable(): void
+    {
+        [$service, $actor, $offer, $selection] = $this->fixture();
+        self::assertArrayNotHasKey('network', $offer['draft']);
+        self::assertArrayNotHasKey('network_policy_id', $offer['draft']);
+        $oldPrice = $service->preview($actor, $offer['id'], $selection, true);
+        $offer['draft']['network'] = ['bandwidth_prices' => ['month' => 999999]];
+        $offer['draft']['network_policy_id'] = 999;
+        $input = (new CloudOfferValidator())->validate($offer);
+        self::assertArrayNotHasKey('network', $input['draft']);
+        self::assertArrayNotHasKey('network_policy_id', $input['draft']);
+        self::assertArrayNotHasKey('network_policies', $input['draft']['resource_ids']);
+        self::assertSame($input, (new CloudOfferValidator())->validateCurrent($offer));
+        $legacy = $offer;
+        $legacy['draft']['schema_version'] = '1.3.0';
+        try {
+            (new CloudOfferValidator())->validateCurrent($legacy);
+            self::fail('当前HTTP入口不能提交旧配置');
+        } catch (BusinessException $error) {
+            self::assertSame(422, $error->httpStatus());
+        }
+        $saved = $service->save($actor, $offer['id'], $input);
+        self::assertSame($oldPrice, $service->preview($actor, $offer['id'], $selection, true));
+        $service->publish($actor, $offer['id'], $saved['revision']);
+        $snapshot = $service->versions($actor, $offer['id'])[0]['snapshot'];
+        self::assertArrayNotHasKey('network', $snapshot);
+        self::assertArrayNotHasKey('network_policies', $snapshot['resources']);
+        $snapshot['network'] = ['bandwidth_prices' => ['month' => 999999]];
+        self::assertSame($oldPrice, (new ComputeTypeHandler())->price($snapshot, $selection));
+    }
+
+    public function testRenewalUsesCurrentZonePriceAndExcludesSetupWithoutMultiplyingOriginalQuantity(): void
+    {
+        [$service, $actor, $offer, $selection, $resources] = $this->fixture();
+        $published = $service->publish($actor, $offer['id'], $offer['revision']);
+        $pricing = new \app\modules\compute\application\QuoteComputeRenewalService(new \app\modules\product\infrastructure\DatabaseRenewalSalesCatalog());
+        $origin = ['offer_id' => $offer['id'], 'configuration' => $selection];
+        $quote = $pricing->quote('cloud_server', $origin, 12);
+        self::assertSame(1, $quote['price']['quantity']);
+        self::assertSame(106000, $quote['price']['amount_minor']);
+        self::assertNotContains('setup', array_column($quote['price']['unit_breakdown'], 'key'));
+        self::assertSame([12], array_column($pricing->quote('cloud_server', $origin, 0)['durations'], 'months'));
+        $flavor = $resources->find('flavors', 1);
+        $flavor['zone_prices'] = [1 => ['month' => 6000]];
+        $resources->save('flavors', 1, (new ComputeResourceValidator())->validate('flavors', $flavor));
+        $saved = $service->save($actor, $offer['id'], (new CloudOfferValidator())->validate($published));
+        $service->publish($actor, $offer['id'], $saved['revision']);
+        self::assertSame(116000, $pricing->quote('cloud_server', $origin, 12)['price']['amount_minor']);
+        self::assertSame(106000, $quote['price']['amount_minor'], '已核定报价及交易快照不能被后续价格改写');
+    }
+
     private function fixture(): array
     {
         $resources = new DatabaseComputeResourceRepository();
@@ -587,7 +749,7 @@ final class PrepaidCloudConfigurationTest extends TestCase
         }
         $adapters = new LocalProviderAdapterRegistry(dirname(__DIR__, 2) . '/plugins', '0.1.0', new \GuzzleHttp\Client(), $installations, $packages);
         $connections = new DatabaseProviderRepository(new SodiumSensitiveDataCipher(str_repeat('f', 64)), $transactions, $adapters, $installations);
-        $conn = $connections->save(null, ['name' => '测试连接', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://provider.example.test', 'username' => 'fixture', 'password' => 'fixture-secret'], 'status' => 0, 'revision' => 0]);
+        $conn = $connections->save(null, ['name' => '测试连接', 'adapter_id' => 'magic_cloud', 'configuration' => ['api_url' => 'https://provider.example.test', 'username' => 'fixture', 'password' => 'fixture-secret', 'client_id' => 98], 'status' => 0, 'revision' => 0]);
         $connections->markTested($conn['id'], $conn['revision']);
         $conn = $connections->find($conn['id']);
         $conn = $connections->setStatus($conn['id'], $conn['revision'], 1);
@@ -596,8 +758,8 @@ final class PrepaidCloudConfigurationTest extends TestCase
             $connections->map($conn['id'], $kind, $ids[$kind][0], '1', $remote);
         }
         $adminRepo = $this->createStub(AdminAccessRepositoryInterface::class);
-        $service = new ManageCloudProductsService(new AdminAccessControlService($adminRepo), new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter()),
-            new ProductTypeRegistry(new ComputeTypeHandler()), $resources, new ResolveProviderBindingService($connections, $adapters), $connections, $transactions, new DatabaseCloudDeliveryRuleRepository(new DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter()), $transactions), new \app\modules\provider\domain\ProviderProvisioningPreview());
+        $service = new ManageCloudProductsService(new AdminAccessControlService($adminRepo), new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server'),
+            new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]), $resources, new ResolveProviderBindingService($connections, $adapters), $connections, $transactions, new DatabaseCloudDeliveryRuleRepository(new \app\modules\product\infrastructure\DatabaseProductRepository($transactions, new DatabaseProviderBindingWriter(), 'cloud_server'), $transactions), new \app\modules\provider\domain\ProviderProvisioningPreview());
         $actor = new AdminAccount(1, 'fixture-admin', '测试管理员', 'hidden', 1, null, true);
         $input = (new CloudOfferValidator())->validate(['name' => '测试云服务器', 'code' => 'fixture-cloud', 'draft' => ['schema_version' => '2.0.0', 'storage_policy' => ['default_type_id' => 1, 'default_size_gib' => 20, 'max_data_disks' => 1], 'system_disk_included_gib' => 40, 'durations' => [['months' => 12, 'label' => '年付', 'discount_kind' => 'billed_months', 'billed_months' => 10]], 'resource_ids' => $ids, 'provider_connection_id' => $conn['id'],
             'setup_minor' => 300, 'network' => ['bandwidth_prices' => ['month' => 100], 'ip_prices' => ['month' => 200]]]]);

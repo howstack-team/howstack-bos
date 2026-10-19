@@ -5,19 +5,26 @@ declare(strict_types=1);
 namespace tests\integration;
 
 use app\exception\BusinessException;
-use app\modules\compute\domain\{ComputeResources, ComputeTypeHandler};
-use app\modules\compute\infrastructure\{DatabaseComputeInventoryRepository, DatabaseComputeResourceRepository};
+use app\modules\compute\domain\ComputeResources;
+use app\modules\compute\domain\ComputeTypeHandler;
+use app\modules\compute\infrastructure\DatabaseComputeInventoryRepository;
+use app\modules\compute\infrastructure\DatabaseComputeResourceRepository;
 use app\modules\compute\validation\ComputeResourceValidator;
 use app\modules\member\application\MemberAuthenticationContext;
 use app\modules\member\domain\MemberAccount;
 use app\modules\member\middleware\MemberWriteOriginMiddleware;
-use app\modules\order\application\{CreatePurchaseOrderService, MemberPurchaseOrderService};
+use app\modules\order\application\CreatePurchaseOrderService;
+use app\modules\order\application\MemberPurchaseOrderService;
 use app\modules\order\controller\MemberPurchaseOrderController;
-use app\modules\order\infrastructure\{DatabaseMemberOrderRepository, DatabaseOrderManagementRepository};
+use app\modules\order\infrastructure\DatabaseMemberOrderRepository;
+use app\modules\order\infrastructure\DatabaseOrderManagementRepository;
 use app\modules\product\application\PublicProductPurchaseService;
-use app\modules\product\infrastructure\{DatabaseOrderSalesCatalog, ProductTypeRegistry, ProductPurchaseInputRegistry, ProductPurchaseAvailabilityRegistry};
-use app\modules\product\infrastructure\model\{OfferModel, OfferVersionModel, ProductModel};
-use app\modules\product\validation\CloudOfferValidator;
+use app\modules\product\infrastructure\DatabaseOrderSalesCatalog;
+use app\modules\product\infrastructure\ProductTypeRegistry;
+use app\modules\product\infrastructure\model\OfferModel;
+use app\modules\product\infrastructure\model\OfferVersionModel;
+use app\modules\product\infrastructure\model\ProductModel;
+use app\modules\compute\validation\CloudOfferValidator;
 use app\shared\http\ApiResponse;
 use app\shared\infrastructure\DatabaseTransactionManager;
 use app\modules\finance\infrastructure\DatabaseOutboxWriter;
@@ -32,14 +39,14 @@ final class MemberPurchaseWorkflowTest extends TestCase
 
     private function publicService(): PublicProductPurchaseService
     {
-        return new PublicProductPurchaseService(new DatabaseOrderSalesCatalog(), new ProductTypeRegistry(new ComputeTypeHandler()),
-            new ProductPurchaseInputRegistry(), new ProductPurchaseAvailabilityRegistry(new DatabaseComputeInventoryRepository()));
+        return new \app\modules\product\application\PublicProductPurchaseService(new DatabaseOrderSalesCatalog(), new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]),
+            \tests\support\ProductRuntimeFactory::purchases(), \tests\support\ProductRuntimeFactory::purchases(), \tests\support\ProductRuntimeFactory::purchases());
     }
     private function service(): MemberPurchaseOrderService
     {
-        return new MemberPurchaseOrderService(new CreatePurchaseOrderService(new DatabaseOrderManagementRepository(), new DatabaseOrderSalesCatalog(),
-            new ProductTypeRegistry(new ComputeTypeHandler()), new DatabaseTransactionManager(), new DatabaseOutboxWriter(), MessageRuntimeFactory::publisher(),
-            new ProductPurchaseInputRegistry(), new ProductPurchaseAvailabilityRegistry(new DatabaseComputeInventoryRepository())), new DatabaseMemberOrderRepository(), new ProductPurchaseInputRegistry());
+        return new \app\modules\order\application\MemberPurchaseOrderService(new \app\modules\order\application\CreatePurchaseOrderService(new DatabaseOrderManagementRepository(), new DatabaseOrderSalesCatalog(),
+            new \app\modules\product\infrastructure\ProductTypeRegistry([new ComputeTypeHandler()]), new DatabaseTransactionManager(), new DatabaseOutboxWriter(), MessageRuntimeFactory::publisher(),
+            \tests\support\ProductRuntimeFactory::purchases(), \tests\support\ProductRuntimeFactory::purchases(), new \tests\support\RecordingOrderProvisioning(), \tests\support\ProductRuntimeFactory::purchases()), new DatabaseMemberOrderRepository());
     }
     private function fixture(): array
     {
@@ -64,6 +71,82 @@ final class MemberPurchaseWorkflowTest extends TestCase
             'system_disk' => ['type_id' => 1, 'size_gib' => 20], 'data_disks' => [], 'network' => ['egress_mbps' => 5, 'ingress_mbps' => 0, 'ipv4_count' => 1]];
         $price = $this->publicService()->quote($offer->id, $version->id, $selection);
         return ['offer_id' => $offer->id, 'version_id' => $version->id, 'selection' => $selection, 'expected_amount_minor' => $price['amount_minor'], 'request_key' => bin2hex(random_bytes(16))];
+    }
+
+    public function testZoneSpecificPublicQuoteAndOrderSnapshotsStayConsistentAfterRepricing(): void
+    {
+        $input = $this->fixture();
+        $repo = new DatabaseComputeResourceRepository();
+        $validator = new ComputeResourceValidator();
+        $zone = $repo->save('zones', null, $validator->validate('zones', [
+            'code' => 'second-price-zone', 'name' => '第二定价区', 'status' => 1, 'region_id' => 1,
+        ]));
+        foreach (['lines', 'flavors', 'images', 'disk_types'] as $kind) {
+            $row = $repo->find($kind, 1);
+            $row['zone_ids'] = [1, $zone['id']];
+            if (in_array($kind, ['flavors', 'disk_types'], true)) {
+                $row['zone_prices'] = [$zone['id'] => ['month' => $kind === 'flavors' ? 300 : 3]];
+            }
+            $repo->save($kind, 1, $validator->validate($kind, $row));
+        }
+        (new DatabaseComputeInventoryRepository())->configure($zone['id'], 1, 2, 0);
+        $offer = OfferModel::query()->findOrFail($input['offer_id']);
+        $draft = $offer->draft;
+        $draft['resource_ids']['zones'][] = $zone['id'];
+        $resources = [];
+        foreach (ComputeResources::KINDS as $kind) {
+            $resources[$kind] = $repo->list($kind);
+        }
+        $snapshot = (new ComputeTypeHandler())->snapshot($draft, $resources);
+        $version = OfferVersionModel::query()->create([
+            'offer_id' => $offer->id, 'version' => 2, 'type_version' => '2.0.0', 'snapshot' => $snapshot,
+            'snapshot_hash' => hash('sha256', json_encode($snapshot)), 'published_by' => 1,
+        ]);
+        $offer->published_version_id = $version->id;
+        $offer->save();
+        $input['version_id'] = $version->id;
+        $public = $this->publicService();
+        $first = $public->quote($offer->id, $version->id, $input['selection']);
+        $input['selection']['zone_id'] = $zone['id'];
+        $second = $public->quote($offer->id, $version->id, $input['selection']);
+        self::assertSame(2304, $first['amount_minor']);
+        self::assertSame(6912, $second['amount_minor']);
+        $options = $public->options($offer->id, $version->id, $input['selection']);
+        self::assertArrayNotHasKey('zone_prices', $options['options']['flavors'][0]);
+        self::assertArrayNotHasKey('prices', $options['options']['disk_types'][0]);
+        $member = $this->member();
+        $service = $this->service();
+        $input['expected_amount_minor'] = $first['amount_minor'];
+        try {
+            $service->create($member, $input);
+            self::fail('不能用第一区价格购买第二区实例');
+        } catch (BusinessException $error) {
+            self::assertSame(409, $error->httpStatus());
+        }
+        self::assertSame(0, Db::table('orders')->count());
+        $input['expected_amount_minor'] = $second['amount_minor'];
+        $id = $service->create($member, $input)['id'];
+        $stored = Db::table('order_items')->where('order_id', $id)->value('configuration_snapshot');
+        $checkout = json_decode($stored, true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame($zone['id'], $checkout['configuration']['zone_id']);
+        self::assertSame(6912, $checkout['price']['amount_minor']);
+        $parts = array_column($checkout['price']['unit_breakdown'], null, 'key');
+        self::assertSame(300, $parts['compute']['unit_price_minor']);
+        self::assertSame(3, $parts['system_disk']['unit_price_minor']);
+        $repo->save('flavors', 1, ['zone_prices' => [$zone['id'] => ['month' => 900]]]);
+        self::assertSame(6912, $public->quote($offer->id, $version->id, $input['selection'])['amount_minor']);
+        $resources['flavors'] = $repo->list('flavors');
+        $nextSnapshot = (new ComputeTypeHandler())->snapshot($draft, $resources);
+        $next = OfferVersionModel::query()->create([
+            'offer_id' => $offer->id, 'version' => 3, 'type_version' => '2.0.0', 'snapshot' => $nextSnapshot,
+            'snapshot_hash' => hash('sha256', json_encode($nextSnapshot)), 'published_by' => 1,
+        ]);
+        $offer->published_version_id = $next->id;
+        $offer->save();
+        self::assertSame(18432, $public->quote($offer->id, $next->id, $input['selection'])['amount_minor']);
+        self::assertSame(6912, $service->detail($member, $id)['payable_minor']);
+        self::assertSame($stored, Db::table('order_items')->where('order_id', $id)->value('configuration_snapshot'));
+        self::assertSame($id, $service->create($member, $input)['id'], '重试返回原订单，不按新价重建');
     }
 
     public function testAnonymousCatalogOptionsAndQuoteNeverExposeInternalSnapshots(): void

@@ -36,7 +36,7 @@ export default function MemberCatalogPage({ kind }: Props) {
   const [editing, setEditing] = useState<CatalogRecord | null>(null)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const can = (action: string) => permissions.includes(`admin.${resource}.${action}`)
+  const can = (action: string) => (isGroup || action === 'view') && permissions.includes(`admin.${resource}.${action}`)
 
   const listRequest = useRef(0)
   const invalidateList = useCallback(() => { listRequest.current++ }, [])

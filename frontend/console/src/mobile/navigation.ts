@@ -1,6 +1,7 @@
+import { isDeferredMemberPath } from '../../../packages/community-release'
 import { paths } from '../routePaths'
 
-export const memberLinks = [
+const registeredLinks = [
   { path: paths.cloudServers, name: '云服务器', group: '产品与服务' },
   { path: paths.physicalServers, name: '物理服务器', group: '产品与服务' },
   { path: paths.colocation, name: '服务器托管', group: '产品与服务' },
@@ -16,3 +17,6 @@ export const memberLinks = [
   { path: paths.loginHistory, name: '登录记录', group: '账户管理' },
   { path: paths.tickets, name: '工单管理', group: '服务与帮助' },
 ]
+
+/** 与 PC 共用首发范围，工单入口保留。 */
+export const memberLinks = registeredLinks.filter(item => !isDeferredMemberPath(item.path))

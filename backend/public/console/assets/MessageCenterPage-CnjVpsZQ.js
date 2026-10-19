@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-D4_rqgGs.js";import{t}from"./MessageInbox-BwhV3h3z.js";var n=e();function r(){return(0,n.jsx)(t,{narrow:!1,presentation:`page`})}export{r as default};

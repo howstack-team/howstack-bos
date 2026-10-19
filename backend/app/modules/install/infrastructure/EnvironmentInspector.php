@@ -23,9 +23,9 @@ final class EnvironmentInspector implements EnvironmentInspectorInterface
             'php_version',
             'PHP 版本',
             PHP_VERSION,
-            version_compare(PHP_VERSION, '8.4.0', '>='),
+            version_compare(PHP_VERSION, '8.3.0', '>='),
             true,
-            '要求 PHP 8.4 或更高版本',
+            '要求 PHP 8.3 或更高版本',
         );
 
         foreach ([

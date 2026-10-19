@@ -51,6 +51,7 @@ final readonly class AdminOrderManagementController
         foreach (['member_id','offer_id','version_id','expected_amount_minor'] as $field) $input[$field] = (int) $input[$field];
         $input['remark'] = trim($input['remark']);
         $input['selection'] = OrderSelectionValidator::clean($request->post('selection', []));
+        $input['login_password'] = Validator::make($request->post(), ['login_password' => 'sometimes|string|min:8|max:72'])->validate()['login_password'] ?? null;
         return $this->responses->success($request, $this->orders->create($this->context->account($request), $input));
     }
     #[Post(path: '/{id:\d+}/{action}', name: 'admin.orders.action')]

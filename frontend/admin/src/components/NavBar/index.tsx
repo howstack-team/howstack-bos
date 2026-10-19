@@ -31,7 +31,7 @@ function Navbar({ show, showMenu, mobileMenuOpen, onMobileMenuToggle, notice }: 
   const { theme, setTheme } = useContext(GlobalContext);
   const userPermission = useMemo(() => toUserPermission(permissions), [permissions]);
   const [allowedRoutes] = useRoute(userPermission);
-  const availablePages = useMemo(() => leaves(allowedRoutes), [allowedRoutes]);
+  const availablePages = useMemo(() => leaves(allowedRoutes).filter(route => !route.ignore), [allowedRoutes]);
 
   async function signOut() {
     try {

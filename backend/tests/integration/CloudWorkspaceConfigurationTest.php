@@ -8,9 +8,9 @@ use app\exception\BusinessException;
 use app\modules\admin\access\application\AdminAccessControlService;
 use app\modules\admin\access\contract\AdminAccessRepositoryInterface;
 use app\modules\admin\auth\domain\AdminAccount;
-use app\modules\product\application\ManageCloudWorkspaceConfigurationService;
+use app\modules\compute\application\ManageCloudWorkspaceConfigurationService;
 use app\modules\product\infrastructure\DatabaseProductRepository;
-use app\modules\product\validation\CloudOfferValidator;
+use app\modules\compute\validation\CloudOfferValidator;
 use app\modules\provider\infrastructure\DatabaseProviderBindingWriter;
 use app\shared\infrastructure\DatabaseTransactionManager;
 use PHPUnit\Framework\TestCase;
@@ -94,7 +94,7 @@ final class CloudWorkspaceConfigurationTest extends TestCase
 
     private function repository(): DatabaseProductRepository
     {
-        return new DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter());
+        return new \app\modules\product\infrastructure\DatabaseProductRepository(new DatabaseTransactionManager(), new DatabaseProviderBindingWriter(), 'cloud_server');
     }
 
     private function input(string $code): array

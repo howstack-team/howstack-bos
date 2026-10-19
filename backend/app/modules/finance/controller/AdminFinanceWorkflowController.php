@@ -27,6 +27,8 @@ final readonly class AdminFinanceWorkflowController
         private ManageFinanceService $finance,
         private AdminAuthenticationContext $context,
         private ApiResponse $responses,
+        private \app\shared\contract\ClientIpResolverInterface $ips,
+        private \app\shared\contract\IpLocationResolverInterface $locations,
     ) {
     }
 
@@ -53,21 +55,29 @@ final readonly class AdminFinanceWorkflowController
     }
 
     #[Post(path: '/{resource}', name: 'admin.finance.create')]
+    #[Middleware(\app\shared\http\middleware\SameOriginWriteMiddleware::class)]
     public function create(Request $request, mixed $resource): Response
     {
         $resource = FinanceInputValidator::resource($resource);
         return $this->responses->success($request, $this->finance->create(
-            $this->context->account($request), $resource, FinanceInputValidator::create($resource, $request->post()),
+            $this->context->account($request), $resource, FinanceInputValidator::create($resource, $request->post()), $this->audit($request),
         ));
     }
 
     #[Post(path: '/{resource}/{id:\d+}/{action}', name: 'admin.finance.action')]
+    #[Middleware(\app\shared\http\middleware\SameOriginWriteMiddleware::class)]
     public function act(Request $request, mixed $resource, mixed $id, mixed $action): Response
     {
         $resource = FinanceInputValidator::resource($resource);
         $data = FinanceInputValidator::action($resource, $id, $action, $request->post());
         return $this->responses->success($request, $this->finance->act(
-            $this->context->account($request), $resource, $data['id'], $data['action'], $data['input'],
+            $this->context->account($request), $resource, $data['id'], $data['action'], $data['input'], $this->audit($request),
         ));
+    }
+    /** @return array{client_ip:string,client_ip_location:string} 记录实际操作时的统一解析结果 */
+    private function audit(Request $request): array
+    {
+        $ip = $this->ips->resolve($request);
+        return ['client_ip' => $ip, 'client_ip_location' => $this->locations->resolve($ip)];
     }
 }

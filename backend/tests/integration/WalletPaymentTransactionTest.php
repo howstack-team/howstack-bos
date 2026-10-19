@@ -30,7 +30,7 @@ final class WalletPaymentTransactionTest extends TestCase
     private function payments(?OutboxWriterInterface $outbox = null): PayOrderByWalletService
     {
         return new PayOrderByWalletService(new DatabaseOrderPaymentRepository(), $this->wallet(),
-            new DatabaseTransactionManager(), $outbox ?? new DatabaseOutboxWriter(), \tests\support\MessageRuntimeFactory::publisher(), new \app\modules\product\infrastructure\ProductOrderCapacityRegistry(new \app\modules\compute\application\OrderComputeCapacityService(new \app\modules\compute\infrastructure\DatabaseComputeInventoryRepository())));
+            new DatabaseTransactionManager(), $outbox ?? new DatabaseOutboxWriter(), \tests\support\MessageRuntimeFactory::publisher(), \tests\support\ProductRuntimeFactory::purchases(), new \tests\support\RecordingOrderProvisioning());
     }
 
     public function testRechargeAndOrderAreIdempotentWithSeparatePaymentSources(): void

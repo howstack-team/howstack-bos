@@ -12,7 +12,7 @@
 
 准备一套已安装的本系统开发环境，以及邮件平台的接口文档和测试账号。
 
-- PHP 8.4 或更高版本，系统版本须符合插件声明的兼容范围。
+- PHP 8.3 或更高版本，系统版本须符合插件声明的兼容范围。
 - 在独立测试实例开发，使用邮件通道配置及测试发送权限。
 - 系统提供公共插件接口和封装好的 HTTP 快捷客户端；常规 HTTP 调用无需再声明 Guzzle 依赖。PHPMailer 或邮件平台 SDK 可由插件按需独立声明，宿主自动加载已审核的本地依赖，插件不手工 `require`。
 - 第三方 SDK 在插件目录独立声明、锁定和构建，不修改系统主 Composer 配置；交付预构建依赖，客户安装时不运行 Composer。
@@ -45,7 +45,7 @@ plugins/mail/example_mail/
   "type": "project",
   "license": "AGPL-3.0-or-later",
   "require": {
-    "php": ">=8.4",
+    "php": ">=8.3",
     "guzzlehttp/guzzle": "^8.2"
   },
   "config": {
@@ -110,7 +110,7 @@ composer validate --strict
   "requires": {
     "core_min": "0.1.0",
     "core_max_exclusive": "1.0.0",
-    "php_min": "8.4",
+    "php_min": "8.3",
     "plugin_sdk": "1.0",
     "mail_sdk": "1.0"
   },

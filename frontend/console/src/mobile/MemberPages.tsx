@@ -12,7 +12,7 @@ import { maskEmail, maskMobile } from '../utils/memberDisplay'
 import { useConsoleTheme } from '../ConsoleThemeContext'
 import { setPresentation } from '../../../packages/console-theme-runtime'
 import { paths } from '../routePaths'
-import { messageApi, type InboxMessage } from '../api/messageApi'
+import { messageApi, messageTicketPath, type InboxMessage } from '../api/messageApi'
 import { Busy, EmptyState, Glyph, Status } from './ui'
 
 import { memberLinks } from './navigation'
@@ -36,7 +36,7 @@ export function OverviewPage() {
       {[{ to: paths.cloudServers, label: '我的服务', icon: 'services' }, { to: paths.orders, label: '我的订单', icon: 'wallet' },
         { to: paths.messages, label: '消息中心', icon: 'messages' }, { to: paths.tickets, label: '工单支持', icon: 'user' }].map(item =>
         <button key={item.to} onClick={() => history.push(item.to)}><span className="m-shortcut-icon"><Glyph name={item.icon as 'services' | 'wallet' | 'messages' | 'user'} /></span><span>{item.label}</span></button>)}
-    </div></section><section className="m-panel m-cell-panel m-overview-account"><h2>账户管理</h2><LinkCell label="账户资料" to={paths.profile} icon={<Glyph name="user" />} /><LinkCell label="安全设置" to={paths.security} icon={<Glyph name="shield" />} /></section>
+    </div></section><section className="m-panel m-cell-panel m-overview-account"><h2>账户管理</h2><LinkCell label="账户资料" to={paths.profile} icon={<Glyph name="user" />} /></section>
   </div>
 }
 export function WalletPage() {
@@ -78,7 +78,8 @@ export function PendingPage({ path }: { path: string }) {
 export function MessagesPage() {
   const [page, setPage] = useState(1), [selected, setSelected] = useState<InboxMessage | null>(null), [busy, setBusy] = useState(false)
   const feedback = useFeedback(), client = useQueryClient()
-  const messages = useQuery({ queryKey: ['console', 'messages', page], queryFn: ({ signal }) => messageApi.list(page, signal) })
+  const history = useHistory(), { member } = useMemberAuth()
+  const messages = useQuery({ queryKey: ['console', 'messages', member?.id, page], queryFn: ({ signal }) => messageApi.list(page, signal) })
   async function mark(message?: InboxMessage) {
     if (busy) return
     if (message) setSelected(message)
@@ -98,7 +99,7 @@ export function MessagesPage() {
       </button>)}</div>}
     {Boolean(messages.data?.total) && <div className="m-pagination"><Button type="default" inline size="small" disabled={page === 1 || messages.isFetching} onClick={() => setPage(page - 1)}>上一页</Button>
       <span>第 {page} 页</span><Button type="default" inline size="small" disabled={page * 10 >= (messages.data?.total ?? 0) || messages.isFetching} onClick={() => setPage(page + 1)}>下一页</Button></div>}
-    <Dialog title={selected?.title} visible={Boolean(selected)} close={() => setSelected(null)} getScrollContainer={() => document.getElementById('mobile-message-body')} footer={[{ content: '关闭', onClick: () => setSelected(null) }]}>
+    <Dialog title={selected?.title} visible={Boolean(selected)} close={() => setSelected(null)} getScrollContainer={() => document.getElementById('mobile-message-body')} footer={[{ content: '关闭', onClick: () => setSelected(null) }, ...(selected && messageTicketPath(selected) ? [{ content: '查看工单', onClick: () => { history.push(messageTicketPath(selected)!); setSelected(null) } }] : [])]}>
       <div id="mobile-message-body" className="m-message-body">{selected?.body}</div>
     </Dialog>
   </>

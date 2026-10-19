@@ -33,8 +33,6 @@ final class ComputeResourceValidator
                 'read_mbps' => 'nullable|integer|min:1|max:1000000', 'write_mbps' => 'nullable|integer|min:1|max:1000000',
                 'read_iops' => 'nullable|integer|min:1|max:100000000', 'write_iops' => 'nullable|integer|min:1|max:100000000'],
             'protections' => ['capacity_gbps' => 'integer|min:0|max:1000000', 'line_id' => 'required|integer|min:1', 'prices' => 'required|array'],
-            'network_policies' => ['bandwidth_min' => 'required|integer|min:0|max:1000000', 'bandwidth_max' => 'required|integer|gte:bandwidth_min|max:1000000',
-                'bandwidth_step' => 'required|integer|min:1|max:1000000', 'ip_min' => 'required|integer|min:0|max:64', 'ip_max' => 'required|integer|gte:ip_min|max:64'],
             default => throw new BusinessException('配置资源类型不存在', ApiErrorCode::NOT_FOUND, 404),
         };
         // 缺省字段不写入，兼容旧客户端；显式空值用于清除展示信息。
@@ -57,6 +55,9 @@ final class ComputeResourceValidator
             unset($specific[$scalar]);
             $specific[$plural] = 'required|array|min:1|max:500';
             $specific[$plural . '.*'] = 'required|integer|min:1|distinct';
+        }
+        if (in_array($kind, ['flavors', 'disk_types'], true)) {
+            $specific['zone_prices'] = 'sometimes|array|max:500';
         }
         if (isset($specific['prices'])) foreach (ComputeResources::CYCLES as $cycle) $specific['prices.' . $cycle] = 'sometimes|integer|min:0|max:100000000';
         $data = Validator::make($input + ['description' => '', 'sort' => 0], $rules + $specific, [
@@ -82,6 +83,9 @@ final class ComputeResourceValidator
             $data['icon_url'] = $icon;
         }
         if ($kind === 'lines' && isset($data['network_configuration'])) $data['network_configuration'] = (new \app\modules\compute\domain\LineNetworkConfiguration())->normalize($data['network_configuration']);
+        if (in_array($kind, ['flavors', 'disk_types'], true) && array_key_exists('zone_prices', $input)) {
+            $data['zone_prices'] = (new \app\modules\compute\domain\ResourceZonePrices())->normalize($input['zone_prices'], $data['zone_ids']);
+        }
         return $data;
     }
 }

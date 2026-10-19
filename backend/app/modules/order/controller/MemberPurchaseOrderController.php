@@ -45,6 +45,7 @@ final readonly class MemberPurchaseOrderController
         $input = array_intersect_key($v, array_flip(['offer_id', 'version_id', 'expected_amount_minor', 'request_key']));
         foreach (['offer_id', 'version_id', 'expected_amount_minor'] as $key) $input[$key] = (int) $input[$key];
         $input['selection'] = OrderSelectionValidator::clean($request->post('selection', []));
+        $input['login_password'] = Validator::make($request->post(), ['login_password' => 'sometimes|string|min:8|max:72'])->validate()['login_password'] ?? null;
         return $this->responses->success($request, $this->orders->create($this->context->account($request)->id, $input))->withHeader('Cache-Control', 'no-store');
     }
 }

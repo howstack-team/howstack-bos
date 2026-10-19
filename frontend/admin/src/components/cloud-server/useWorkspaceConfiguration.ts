@@ -6,7 +6,7 @@ import { cloudSectionPath, cloudSectionPermission } from './navigation'
 import { resourceZones, selectResource, withZoneDurations, type CloudArea, type CloudWorkspaceState } from './workspace'
 
 const emptyResources = (): ResourceData => Object.fromEntries(Object.keys(RESOURCE_LABELS).map(key => [key, []])) as ResourceData
-type References = Awaited<ReturnType<typeof cloudProductApi.references>>
+type References = Awaited<ReturnType<typeof cloudProductApi.section>>['references']
 
 /** 一份草稿跨分区保存，切换页面校验访问权限并保留输入；默认配置以服务端指针为准。 */
 export default function useWorkspaceConfiguration(area?: CloudArea) {
@@ -49,7 +49,6 @@ export default function useWorkspaceConfiguration(area?: CloudArea) {
       const initial = selected?.draft ?? newCloudDraft()
       if (!selected && config.choices.length === 0) {
         for (const kind of Object.keys(RESOURCE_LABELS) as ResourceKind[]) initial.resource_ids[kind] = refs.resources[kind].filter(row => row.status === 1).map(row => row.id)
-        initial.resource_ids.network_policies = []
       }
       setDraft(withZoneDurations(initial)); setDirty(false); setResourceChanged(false); loadedContext.current = contextKey; ready.current = true
     } catch (e) { if (sequence === request.current) setError(cloudError(e)) }
@@ -88,7 +87,7 @@ export default function useWorkspaceConfiguration(area?: CloudArea) {
     if (!editable) return
     setDraft(current => {
       let next = current
-      if (created && row.status === 1 && !['flavor_groups', 'image_types', 'network_policies'].includes(kind)) {
+      if (created && row.status === 1 && !['flavor_groups', 'image_types'].includes(kind)) {
         const applicable = ['regions', 'zones'].includes(kind) || resourceZones(row).some(zone => current.resource_ids.zones.includes(zone)) || kind === 'protections' && (row.line_ids ?? []).some(line => current.resource_ids.lines.includes(line))
         if (applicable) next = selectResource(current, resources, kind, row.id, true)
       } else if (row.status !== 1) next = selectResource(current, resources, kind, row.id, false)
@@ -126,6 +125,6 @@ export default function useWorkspaceConfiguration(area?: CloudArea) {
     editable, zoneId, setZone, changeDraft, select: (kind, id, included) => changeDraft(selectResource(draft, references.resources, kind, id, included)), resourceSaved, canNavigate, navigate }
   return { state, choices, loading, error, dirty, saving, resourceChanged, canView, canResources, save, reload,
     accept: (saved: CloudOffer, preserveDraft = false) => { setOffer(saved); if (!preserveDraft) { setDraft(withZoneDurations(saved.draft)); setResourceChanged(false) } },
-    convertLegacy: () => { setDraft(withZoneDurations({ ...newCloudDraft(), ...draft, schema_version: '2.0.0', billing_mode: 'prepaid', cycles: ['month'], zone_durations: [], storage_policy: newCloudDraft().storage_policy, network_policy_id: 0, resource_ids: { ...draft.resource_ids, network_policies: [] } })); setDirty(true) },
+    convertLegacy: () => { setDraft(withZoneDurations({ ...newCloudDraft(), ...draft, schema_version: '2.0.0', billing_mode: 'prepaid', cycles: ['month'], zone_durations: [], storage_policy: newCloudDraft().storage_policy, resource_ids: { ...draft.resource_ids } })); setDirty(true) },
   }
 }

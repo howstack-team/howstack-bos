@@ -52,6 +52,17 @@ final readonly class ScopedPluginHttpClient implements ScopedHttpClientInterface
         if ($context->pluginId !== $this->pluginId || !in_array($endpoint, $this->network['endpoints'], true)) {
             throw new PluginException('插件请求超出审核的端点范围', 'capability_denied');
         }
+        preg_match_all('/\\{([a-z][a-z0-9_]*)\\}/', $request->path, $placeholders);
+        if (array_diff(array_keys($request->pathParameters), $placeholders[1]) || array_diff($placeholders[1], array_keys($request->pathParameters))) {
+            throw new PluginException('路径参数与审核的端点模板不一致', 'capability_denied');
+        }
+        $path = $request->path;
+        foreach ($request->pathParameters as $name => $value) {
+            if (!is_int($value) || $value < 1 || $value > 2147483647) {
+                throw new PluginException('资源路径标识无效', 'capability_denied');
+            }
+            $path = str_replace('{' . $name . '}', (string) $value, $path);
+        }
         $base = $context->configuration->values[$this->network['base_url_field']] ?? '';
         $url = is_string($base) ? parse_url($base) : false;
         if (!is_array($url) || !in_array($url['scheme'] ?? '', ['http', 'https'], true) || empty($url['host'])
@@ -72,7 +83,7 @@ final readonly class ScopedPluginHttpClient implements ScopedHttpClientInterface
             if ($request->json !== null) {
                 $options['json'] = $request->json;
             }
-            $response = $this->client->request($request->method, rtrim($base, '/') . $request->path, $options);
+            $response = $this->client->request($request->method, rtrim($base, '/') . $path, $options);
             $body = '';
             $stream = $response->getBody();
             while (!$stream->eof() && strlen($body) <= 2097152) {

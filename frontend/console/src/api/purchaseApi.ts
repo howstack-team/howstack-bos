@@ -30,6 +30,8 @@ export interface PurchaseQuote {
   unit_breakdown: { key: string; label: string; amount_minor: number }[];
 }
 export interface MemberOrder {
+  order_type?: string; renewal?: { service_id: number; months: number; expected_expires_at: string; target_expires_at: string; status: string } | null;
+  units?: { id: number; unit_index: number; service_id: number | null; instance_no: string | null; status: string | null; provisioning_status: string | null }[];
   id: number; order_no: string; status: string; payment_status: string; currency: 'CNY'; payable_minor: number; paid_minor: number; created_at: string;
   items?: { product_name: string; quantity: number; total_minor: number }[];
 }
@@ -68,9 +70,9 @@ export async function getPurchaseQuote(product: PurchaseProduct, selection: Purc
   return value as unknown as PurchaseQuote
 }
 /** 请求键在同一选配意图重试时保持一致，会员归属只由 Cookie 决定。 */
-export async function createPurchaseOrder(product: PurchaseProduct, quote: PurchaseQuote, requestKey: string): Promise<number> {
+export async function createPurchaseOrder(product: PurchaseProduct, quote: PurchaseQuote, requestKey: string, loginPassword?: string): Promise<number> {
   const value = await request('post', '/orders', { offer_id: product.id, version_id: product.version_id,
-    selection: quote.configuration, expected_amount_minor: quote.amount_minor, request_key: requestKey })
+    selection: quote.configuration, expected_amount_minor: quote.amount_minor, request_key: requestKey, ...(loginPassword ? { login_password: loginPassword } : {}) })
   if (!isObject(value) || !integer(value.id) || value.id < 1) throw new Error('订单响应格式无效')
   return value.id
 }
@@ -78,6 +80,7 @@ export function parseMemberOrder(value: unknown): MemberOrder {
   if (!isObject(value) || !integer(value.id) || typeof value.order_no !== 'string' || typeof value.status !== 'string'
     || typeof value.payment_status !== 'string' || value.currency !== 'CNY' || !integer(value.payable_minor) || !integer(value.paid_minor) || typeof value.created_at !== 'string'
     || (value.items !== undefined && (!Array.isArray(value.items) || !value.items.every(item => isObject(item) && typeof item.product_name === 'string' && integer(item.quantity) && integer(item.total_minor))))) throw new Error('订单数据格式无效')
+  if (value.units !== undefined && (!Array.isArray(value.units) || !value.units.every(unit => isObject(unit) && integer(unit.id) && integer(unit.unit_index) && (unit.service_id === null || integer(unit.service_id)) && ['instance_no', 'status', 'provisioning_status'].every(key => unit[key] === null || typeof unit[key] === 'string')))) throw new Error('订单实例状态格式无效')
   return value as unknown as MemberOrder
 }
 export async function getMemberOrder(id: number, signal?: AbortSignal): Promise<MemberOrder> { return parseMemberOrder(await request('get', `/orders/${id}`, undefined, signal)) }
@@ -87,3 +90,5 @@ export async function getMemberOrders(page: number, signal?: AbortSignal): Promi
   return { data: value.data.map(parseMemberOrder), total: value.total }
 }
 export async function payMemberOrder(id: number): Promise<void> { await request('post', `/orders/${id}/pay-wallet`) }
+
+export async function cancelMemberOrder(id: number): Promise<void> { await request('post', `/orders/${id}/cancel`) }
