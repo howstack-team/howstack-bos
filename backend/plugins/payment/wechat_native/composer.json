@@ -2,7 +2,7 @@
   "name": "howstack-team/payment-wechat-native",
   "description": "云业务运营系统通道插件独立依赖",
   "type": "project",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "require": {
     "php": ">=8.3",
     "wechatpay/wechatpay": "^1.5"

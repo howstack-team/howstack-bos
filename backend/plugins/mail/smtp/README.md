@@ -8,7 +8,7 @@
 
 发送方法接收当前通道配置、收件人、主题和正文，返回 `MailResult`。SMTP 连接、认证、TLS 和 MIME 处理均在插件内完成；宿主负责表单、密码加密、权限、启停、发送记录及幂等。插件不访问核心数据库或路由，构造和配置校验不访问网络，不跨请求保存凭据。SMTP 超时可能已经接收邮件，`unknown` 结果不自动重发。
 
-安装、配置、安全边界与调用示例见仓库 `docs/development/channel-management.md`。插件自身为AGPL-3.0-or-later；PHPMailer 为 LGPL-2.1，随插件本地 Composer 依赖保留原许可证。
+安装、配置、安全边界与调用示例见仓库 `docs/development/channel-management.md`。插件自身为Apache-2.0；PHPMailer 为 LGPL-2.1，随插件本地 Composer 依赖保留原许可证。
 
 ## 插件依赖构建
 

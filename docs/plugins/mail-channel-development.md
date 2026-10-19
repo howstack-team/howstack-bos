@@ -43,7 +43,7 @@ plugins/mail/example_mail/
   "name": "example-team/mail-example",
   "description": "示例邮件通道依赖",
   "type": "project",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "require": {
     "php": ">=8.3",
     "guzzlehttp/guzzle": "^8.2"
@@ -106,7 +106,7 @@ composer validate --strict
   "name": "示例邮件平台",
   "version": "1.0.0",
   "publisher": "example-team",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "requires": {
     "core_min": "0.1.0",
     "core_max_exclusive": "1.0.0",

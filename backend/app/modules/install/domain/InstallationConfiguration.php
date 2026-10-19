@@ -14,7 +14,7 @@ final readonly class InstallationConfiguration
     /**
      * 当前安装器内置的软件使用协议版本。
      */
-    public const AGREEMENT_VERSION = '1.0';
+    public const AGREEMENT_VERSION = '1.1';
 
     private const RESERVED_PATHS = [
         'api',
