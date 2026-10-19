@@ -35,7 +35,7 @@ backend/plugins/mail/example_mail/
   "name": "示例邮件平台",
   "version": "1.0.0",
   "publisher": "example-team",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "requires": {
     "core_min": "0.1.0",
     "core_max_exclusive": "1.0.0",

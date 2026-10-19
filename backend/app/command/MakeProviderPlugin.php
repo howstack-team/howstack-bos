@@ -42,6 +42,7 @@ final class MakeProviderPlugin extends Command
         mkdir($target, 0755, true);
         file_put_contents($target . '/plugin.json', json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n");
         copy($template . '/configuration.schema.json', $target . '/configuration.schema.json');
+        copy($template . '/LICENSE', $target . '/LICENSE');
         file_put_contents($target . '/ProviderAdapter.php', str_replace('__PLUGIN_ID__', $values['id'], file_get_contents($template . '/ProviderAdapter.php')));
         file_put_contents($target . '/README.md', "# 供应插件开发\n\n请修改配置、目录、端点及固定入口，补齐契约测试与目标平台联调。骨架方法未实现时会明确失败，不能作为可用渠道启用。\n");
         $output->writeln('<info>已创建骨架，请先完成固定方法及测试，然后运行 business-plugin:validate</info>');

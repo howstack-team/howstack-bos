@@ -1,0 +1,9 @@
+皓量云擎云业务运营系统（howstack-bos）
+Copyright 2026 宁波皓量云擎网络科技有限公司及项目贡献者
+
+本项目原创代码与文档采用 Apache License, Version 2.0，完整文本见 LICENSE。
+第三方代码、依赖、素材及其修改适用各自许可证；本项目的许可不替代其原有声明。
+
+后端 Webman 基础代码的原始 MIT 许可及版权声明保留在 backend/MIT-LICENSE.txt；
+单独交付 backend 目录时对应文件为 MIT-LICENSE.txt。
+其他第三方声明保留在依赖包、前端许可证文件及构建生成的 notices 中。

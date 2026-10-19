@@ -2,7 +2,7 @@
   "name": "howstack-team/sms-aliyun-sms",
   "description": "云业务运营系统通道插件独立依赖",
   "type": "project",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "require": {
     "php": ">=8.3",
     "alibabacloud/dysmsapi-20170525": "^4.6"

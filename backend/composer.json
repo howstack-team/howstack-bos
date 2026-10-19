@@ -6,7 +6,7 @@
     "http service"
   ],
   "homepage": "https://github.com/howstack-team/howstack-bos",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "description": "皓量云擎云业务运营系统后端",
   "support": {
     "issues": "https://github.com/howstack-team/howstack-bos/issues",

@@ -2,7 +2,7 @@
   "name": "howstack-team/mail-smtp",
   "description": "云业务运营系统 SMTP 邮件通道依赖",
   "type": "project",
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "require": {
     "php": ">=8.3",
     "phpmailer/phpmailer": "^7.0"

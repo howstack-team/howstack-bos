@@ -19,7 +19,7 @@
 - 会员控制台：React 19、TypeScript、Vite、Arco Design React。
 - 在线安装器：React 19、TypeScript、Vite、Arco Design React。
 - 官网：由 Webman 渲染并支持主题切换。
-- 开源协议：AGPL-3.0；第三方依赖继续遵循各自许可证。
+- 开源协议：Apache-2.0；第三方依赖继续遵循各自许可证。
 
 ## 顶层目录职责
 
