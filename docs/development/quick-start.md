@@ -67,10 +67,10 @@ API 的唯一文档源在 `contracts/openapi/`。运行后的 `/api-docs` 要求
 
 首次运行界面不要求配置支付、短信、OAuth 或云资源商户。测试这些业务时，再安装并启用对应插件、配置通道与供应映射；没有真实凭据时不要把模拟场景当作联调通过。
 
-带 SDK 的官方插件有各自的 `composer.json` 和锁文件，按需安装本地依赖。例如 SMTP：
+带 SDK 的官方插件有各自的 `composer.json` 和锁文件；后端根目录的 Composer 不会安装这些依赖。首次安装前按 README 安装所有随包官方通道的生产依赖，即使尚未启用对应业务也不能省略。单独补齐 SMTP 依赖时，从仓库根目录执行：
 
 ```bash
-composer install --working-dir=backend/plugins/mail/smtp --no-dev --prefer-dist
+composer install --working-dir=backend/plugins/mail/smtp --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins
 ```
 
 在 `backend/` 查看包诊断，再按需登记和启用指定插件：

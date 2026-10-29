@@ -15,7 +15,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, dom, xml, redis, pdo_mysql
+          extensions: mbstring, dom, xml, redis, pdo_mysql, pdo_sqlite
           tools: composer:v2
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-scripts
@@ -34,7 +34,9 @@ jobs:
         working-directory: tools/api-docs
       - run: pnpm test && pnpm check
         working-directory: tools/api-docs
-      - run: vendor/bin/phpunit tests/unit/modules/api_documentation/ApiDocumentationTest.php tests/unit/exception/HandlerTest.php tests/unit/modules/install/domain/InstallationConfigurationTest.php
+      - run: vendor/bin/phpunit tests/unit/modules/api_documentation/ApiDocumentationTest.php tests/unit/exception/HandlerTest.php tests/unit/modules/install/domain/InstallationConfigurationTest.php tests/unit/modules/install/infrastructure tests/integration/BuiltinChannelDependencyRecoveryTest.php
         working-directory: backend
+        env:
+          WEBMAN_COUNT: 1
       - run: node --test tests/permission-tree.test.ts
         working-directory: frontend/admin

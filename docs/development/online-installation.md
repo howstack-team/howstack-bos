@@ -15,7 +15,7 @@
 ## 安装流程
 
 1. 阅读宁波皓量云擎网络科技有限公司《皓量云擎云业务运营系统软件使用协议》并明确勾选同意；社区版代码的许可权利仍以仓库 Apache-2.0 为准。
-2. 检测 PHP 8.3、必需扩展、`.env` 与 `runtime/` 写权限及安装器静态资源。同时检测 OPcache 扩展，推荐安装并启用以提升运行性能，但未安装不阻止继续安装。
+2. 检测 PHP 8.3、必需扩展、`.env` 与 `runtime/` 写权限、安装器静态资源及随包官方通道的锁定生产依赖。插件依赖缺失或不是生产安装时，在建表前阻止继续安装并列出需要修复的插件。同时检测 OPcache 扩展，推荐安装并启用以提升运行性能，但未安装不阻止继续安装。
 3. 配置并实际测试 MySQL 8.0 与 Redis 连接；只有连接测试成功后才允许进入下一步。数据表前缀固定为 `hlyq_`，Redis 安装配置只使用密码认证，不展示 ACL 用户名。
 4. 配置网站标题与地址、自定义或随机后台路径，以及管理员昵称、账号和密码；网站描述留空，管理员账号与密码可分别随机生成。
 5. 分阶段执行核心数据库迁移、写入系统初始数据、原子生成 `.env`、写入安装标记，并返回实时阶段进度。
@@ -35,6 +35,20 @@
 - 安装页启用仅允许同源资源的 CSP；HTTPS 站点会自动写入安全 Session Cookie 配置。
 - 安装完成会尝试安排 Webman 平滑重载；若运行环境不支持信号，需由运维手动执行 `php start.php reload`。
 - Web 服务器的站点根目录必须指向 `backend/public/`，不得直接暴露 `backend/`。
+
+### 官方插件依赖缺失后的恢复
+
+仅安装 `backend/` 根目录的 Composer 依赖不会安装插件各自的 `vendor/`。例如日志确认微信支付 `wechat_native` 缺少依赖时，在与服务器 PHP 版本及扩展匹配的构建或运维环境中，从仓库根目录按该插件现有 `composer.lock` 安装：
+
+```bash
+composer install --working-dir=backend/plugins/payment/wechat_native --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins
+```
+
+将 `backend/plugins/payment/wechat_native/` 完整上传到对应位置，包含原有插件文件、`composer.json`、`composer.lock` 和生成的生产 `vendor/`；不要只补一个 SDK 文件，也不要使用 `composer update` 改变锁定版本。其他随包官方通道同样需要完成下文的依赖构建。
+
+保留安装过程中已创建的表和 `migration_versions`，先备份并依据安装日志、实际迁移记录核对失败位置，再在原安装会话重试失败阶段。不要清库、反复导入 SQL、伪造迁移版本或跳过尚未完成的迁移。未完成的安装继续由安装器推进；已经安装的系统按[数据库迁移指南](database-migrations.md)处理。
+
+数据库初始化异常会提示核对安装日志，不再将所有失败归为数据库权限问题。默认日志位于 `backend/runtime/logs/webman-YYYY-MM-DD.log`，可按失败时间及接口返回的 `request_id` 定位异常链；分享日志前移除密码、令牌、连接串和 SQL 中的敏感数据。
 
 ## 发行包许可证
 
@@ -59,20 +73,17 @@ React、Arco 组件及 CSS 均由 Vite 本地打包到 `backend/public/install-a
 从仓库根目录依次执行：
 
 ```bash
-cd frontend/install
-pnpm install --frozen-lockfile
-pnpm lint
-pnpm build
+pnpm --dir frontend/install install --frozen-lockfile
+pnpm --dir frontend/install lint
+pnpm --dir frontend/install build
 
-cd ../admin
-pnpm install --frozen-lockfile
-pnpm lint
-pnpm build
+pnpm --dir frontend/admin install --frozen-lockfile
+pnpm --dir frontend/admin lint
+pnpm --dir frontend/admin build
 
-cd ../console
-pnpm install --frozen-lockfile
-pnpm lint
-pnpm build
+pnpm --dir frontend/console install --frozen-lockfile
+pnpm --dir frontend/console lint
+pnpm --dir frontend/console build
 ```
 
 构建结果需要纳入发行包。安装器依赖文件升级时，必须同时更新版本锁定、许可证文件并重新完成浏览器验收。
@@ -80,24 +91,38 @@ pnpm build
 ## 后端验证
 
 ```bash
+# 从仓库根目录安装宿主开发依赖与插件生产依赖
+composer install --working-dir=backend
+for manifest in backend/plugins/*/*/composer.json; do
+  composer install --working-dir="$(dirname "$manifest")" --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins || exit 1
+done
+
 cd backend
-composer install
 composer validate --no-check-publish
 find app config support tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 vendor/bin/phpunit
 php webman route:list
 ```
 
-完成验证后，发行目录使用 `composer install --no-dev --classmap-authoritative` 安装生产依赖。用于上传的发行包应包含生产 Composer 依赖，但不应包含开发机的 `.env`、`runtime/` 内容、日志、测试数据库凭据或其他敏感数据。首次启动前确保 PHP 进程用户能创建/写入 `.env` 与 `runtime/`，安装结束后可收紧 `.env` 权限。
-
-包含第三方 SDK 的插件必须单独构建本地依赖。例如在发行目录的 `backend/plugins/mail/smtp/` 执行：
+完成验证后，在独立发行目录从仓库根目录安装宿主及所有插件的生产依赖：
 
 ```bash
-composer install --no-dev --no-scripts --no-plugins --prefer-dist --optimize-autoloader
-composer validate --strict
+composer install --working-dir=backend --no-dev --classmap-authoritative --prefer-dist --no-interaction
+for manifest in backend/plugins/*/*/composer.json; do
+  composer install --working-dir="$(dirname "$manifest")" --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins || exit 1
+done
 ```
 
-将该插件的 `composer.json`、`composer.lock` 及完整生产 `vendor/` 一起交付。Git 忽略 vendor 不代表发行包可以省略；缺失或锁定版本不一致会使插件不可用。该步骤在开发机或构建流水线完成，客户安装器不执行插件 Composer。
+宿主与插件是独立的 Composer 项目；根目录安装成功不代表插件依赖齐全。循环覆盖发行包中所有存在 `composer.json` 的官方通道，不能只构建当前计划启用的插件。插件 Composer 失败必须停止打包，不使用 `--ignore-platform-reqs` 绕过平台检查，也不执行 `composer update` 改动锁文件。需要单独修复 SMTP 时，同样在仓库根目录执行：
+
+```bash
+composer install --working-dir=backend/plugins/mail/smtp --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins
+composer validate --working-dir=backend/plugins/mail/smtp --strict
+```
+
+发行包必须携带宿主生产依赖，以及所有随包官方通道各自的 `composer.json`、`composer.lock` 和完整生产 `vendor/`。Git 忽略 `vendor/` 不代表发行包可以省略；缺失、锁定版本不一致或混入开发依赖会被安装前检查拒绝。该步骤在开发机、构建流水线或运维环境完成，客户安装器不执行插件 Composer。
+
+用于上传的发行包不应包含开发机的 `.env`、`runtime/` 内容、日志、测试数据库凭据或其他敏感数据。首次启动前确保 PHP 进程用户能创建/写入 `.env` 与 `runtime/`，安装结束后可收紧 `.env` 权限。
 
 ## 安装后修改后台入口
 
