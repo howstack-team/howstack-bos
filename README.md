@@ -23,11 +23,14 @@
 git clone https://github.com/howstack-team/howstack-bos.git
 cd howstack-bos
 composer install --working-dir=backend
+for manifest in backend/plugins/*/*/composer.json; do
+  composer install --working-dir="$(dirname "$manifest")" --no-dev --prefer-dist --no-interaction --no-scripts --no-plugins || exit 1
+done
 pnpm --dir frontend/console install --frozen-lockfile
 pnpm --dir frontend/console build:template
 ```
 
-会员中心模板构建必须在首次安装前完成。后台和安装器已包含构建资源，首次体验无需先启动它们的开发服务器。
+后端根目录的 Composer 不会安装插件各自的依赖，上述循环必须在首次安装前执行。会员中心模板也需提前构建；后台和安装器已包含构建资源，首次体验无需先启动它们的开发服务器。
 
 ### 3. 启动并完成安装
 

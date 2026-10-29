@@ -21,14 +21,16 @@ final readonly class PdoInstallationDatabase implements InstallationDatabaseInte
 {
     /**
      * 初始化安装数据库服务。
-     * @param PdoConnectionFactory         $connections   数据库连接工厂
-     * @param CoreMigrationRunnerInterface $migrations    核心数据库迁移执行器
-     * @param SystemMigrationLockInterface $migrationLock 系统数据库迁移锁
+     * @param PdoConnectionFactory              $connections        数据库连接工厂
+     * @param CoreMigrationRunnerInterface      $migrations         核心数据库迁移执行器
+     * @param SystemMigrationLockInterface      $migrationLock      系统数据库迁移锁
+     * @param BuiltinChannelDependencyInspector $channelDependencies 内置渠道生产依赖检查器
      */
     public function __construct(
         private PdoConnectionFactory $connections,
         private CoreMigrationRunnerInterface $migrations,
         private SystemMigrationLockInterface $migrationLock,
+        private BuiltinChannelDependencyInspector $channelDependencies = new BuiltinChannelDependencyInspector(),
     ) {
     }
 
@@ -40,6 +42,16 @@ final readonly class PdoInstallationDatabase implements InstallationDatabaseInte
      */
     public function createSchema(InstallationConfiguration $configuration): void
     {
+        $dependencies = $this->channelDependencies->inspect();
+        if (!$dependencies['passed']) {
+            $failed = array_filter($dependencies['items'], static fn (array $item): bool => !$item['passed']);
+            throw new InstallationException(
+                '内置渠道发行依赖不完整：' . implode('、', array_column($failed, 'name'))
+                . '。请返回环境检测，按提示补齐插件生产依赖后重试，已创建的数据表无需重复导入。',
+                409,
+            );
+        }
+
         try {
             $migrationConfiguration = new MigrationDatabaseConfiguration(
                 'mysql',
@@ -54,7 +66,11 @@ final readonly class PdoInstallationDatabase implements InstallationDatabaseInte
                 fn () => $this->migrations->migrate($migrationConfiguration),
             );
         } catch (Throwable $exception) {
-            throw new InstallationException('初始化数据表结构失败，请检查数据库权限后重试', 500, $exception);
+            throw new InstallationException(
+                '初始化数据表结构失败，请查看服务器安装日志，核对迁移文件、发行资源和数据库配置后重试',
+                500,
+                $exception,
+            );
         }
     }
 

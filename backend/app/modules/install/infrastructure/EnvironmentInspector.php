@@ -13,6 +13,15 @@ use PDO;
 final class EnvironmentInspector implements EnvironmentInspectorInterface
 {
     /**
+     * 注入不依赖业务数据库的发行包检查器。
+     * @param BuiltinChannelDependencyInspector $channelDependencies 内置渠道生产依赖检查器
+     */
+    public function __construct(
+        private readonly BuiltinChannelDependencyInspector $channelDependencies = new BuiltinChannelDependencyInspector(),
+    ) {
+    }
+
+    /**
      * 执行完整安装环境检测。
      * @return array{passed: bool, items: list<array<string, bool|string>>} 环境检测结果
      */
@@ -103,6 +112,8 @@ final class EnvironmentInspector implements EnvironmentInspectorInterface
             true,
             $assetsReadable ? '' : '安装页面资源不完整，请重新上传完整的系统安装包',
         );
+
+        $items = array_merge($items, $this->channelDependencies->inspect()['items']);
 
         $opcacheLoaded = extension_loaded('Zend OPcache');
         $items[] = $this->item(
